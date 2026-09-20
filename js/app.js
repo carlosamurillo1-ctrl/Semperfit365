@@ -342,7 +342,10 @@ function renderDay() {
     ${items || `<div class="empty"><p>No exercises in this day.</p></div>`}
     <button class="btn" data-action="go-add-exercise" data-day="${esc(day.id)}">+ Add exercise</button>
     <div style="height:8px"></div>
-    <button class="btn danger" data-action="delete-day" data-day="${esc(day.id)}">Delete this day</button>
+    <div class="btn-row">
+      <button class="btn" data-action="rename-day" data-day="${esc(day.id)}">Rename day</button>
+      <button class="btn danger" data-action="delete-day" data-day="${esc(day.id)}">Delete day</button>
+    </div>
   `;
 }
 
@@ -496,6 +499,7 @@ function renderSettings() {
         <p>${d.exercises.length} exercises${d.source?.type === "sheet" ? " &middot; from Google Sheet" : ""}</p>
       </div>
       <div class="btn-row" style="width:auto;gap:6px;">
+        <button class="btn small" data-action="rename-day" data-day="${esc(d.id)}">Rename</button>
         ${d.source?.type === "sheet" ? `<button class="btn small" data-action="refresh-day" data-day="${esc(d.id)}">Refresh</button>` : ""}
         <button class="btn small danger" data-action="delete-day" data-day="${esc(d.id)}">Delete</button>
       </div>
@@ -608,6 +612,15 @@ function onClick(e) {
         Store.removeDay(el.dataset.day);
         toast("Day deleted");
         navigate("program");
+      }
+      break;
+    }
+    case "rename-day": {
+      const day = Store.getDay(el.dataset.day);
+      const name = prompt("Rename day", day?.name || "");
+      if (name && name.trim()) {
+        Store.renameDay(el.dataset.day, name.trim());
+        render();
       }
       break;
     }

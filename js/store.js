@@ -85,6 +85,14 @@ export const Store = {
     this.setProgram(program);
   },
 
+  renameDay(dayId, name) {
+    const program = this.getProgram();
+    const day = program?.days.find((d) => d.id === dayId);
+    if (!day) return;
+    day.name = name;
+    this.setProgram(program);
+  },
+
   /** Add a manually-created exercise { name, repGoal, restTime, setLabels, weekCount } to a day. Returns the new exercise's id. */
   addExercise(dayId, exercise) {
     const program = this.getProgram();
