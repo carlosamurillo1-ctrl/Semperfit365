@@ -84,6 +84,32 @@ export const Store = {
     this.setProgram(program);
   },
 
+  /** Add a manually-created exercise { name, repGoal, restTime, setLabels, weekCount } to a day. Returns the new exercise's id. */
+  addExercise(dayId, exercise) {
+    const program = this.getProgram();
+    const day = program?.days.find((d) => d.id === dayId);
+    if (!day) return null;
+    const setLabels = exercise.setLabels?.length ? exercise.setLabels : ["Set 1"];
+    const weekCount = exercise.weekCount > 0 ? exercise.weekCount : 8;
+    const newEx = {
+      id: uid(),
+      name: exercise.name,
+      repGoal: exercise.repGoal || "",
+      restTime: exercise.restTime || "",
+      setupNote: "",
+      setLabels,
+      weeks: Array.from({ length: weekCount }, (_, i) => ({
+        week: i + 1,
+        values: setLabels.map(() => ""),
+        notes: "",
+        updatedAt: null,
+      })),
+    };
+    day.exercises.push(newEx);
+    this.setProgram(program);
+    return newEx.id;
+  },
+
   removeExercise(dayId, exerciseId) {
     const program = this.getProgram();
     if (!program) return;

@@ -60,6 +60,7 @@ function render() {
     case "import": html = renderImport(); break;
     case "review": html = renderReview(); break;
     case "day": html = renderDay(); break;
+    case "add-exercise": html = renderAddExercise(); break;
     case "exercise": html = renderExercise(); break;
     case "history": html = renderHistory(); break;
     case "settings": html = renderSettings(); break;
@@ -301,9 +302,56 @@ function renderDay() {
   return `
     ${topbar(day.name, { back: true })}
     ${items || `<div class="empty"><p>No exercises in this day.</p></div>`}
+    <button class="btn" data-action="go-add-exercise" data-day="${esc(day.id)}">+ Add exercise</button>
     <div style="height:8px"></div>
     <button class="btn danger" data-action="delete-day" data-day="${esc(day.id)}">Delete this day</button>
   `;
+}
+
+// ---------- ADD EXERCISE screen (manually create a new exercise) ----------
+
+function renderAddExercise() {
+  const day = Store.getDay(state.params.dayId);
+  if (!day) {
+    navigate("program");
+    return "";
+  }
+  return `
+    ${topbar("Add exercise", { back: true })}
+    <div class="card">
+      <label for="new-ex-name">Exercise name *</label>
+      <input type="text" id="new-ex-name" placeholder="e.g. Barbell Squat" />
+
+      <label for="new-ex-repgoal">Rep goal</label>
+      <input type="text" id="new-ex-repgoal" placeholder="e.g. 8-10" />
+
+      <label for="new-ex-resttime">Rest time</label>
+      <input type="text" id="new-ex-resttime" placeholder="e.g. 90 sec" />
+
+      <label for="new-ex-sets">Set columns</label>
+      <input type="text" id="new-ex-sets" value="Set 1, Set 2, Set 3" placeholder="comma-separated" />
+      <p class="hint">These become the editable fields for each week, e.g. "Set 1, Set 2, Set 3" or "WU set, Set 1, Set 2".</p>
+
+      <label for="new-ex-weeks">Number of weeks</label>
+      <input type="number" id="new-ex-weeks" value="8" min="1" max="52" />
+    </div>
+    <button class="btn primary" data-action="confirm-add-exercise" data-day="${esc(day.id)}">Add exercise</button>
+  `;
+}
+
+function confirmAddExercise(dayId) {
+  const name = document.getElementById("new-ex-name").value.trim();
+  if (!name) {
+    toast("Give the exercise a name");
+    return;
+  }
+  const repGoal = document.getElementById("new-ex-repgoal").value.trim();
+  const restTime = document.getElementById("new-ex-resttime").value.trim();
+  const setLabels = document.getElementById("new-ex-sets").value.split(",").map((s) => s.trim()).filter(Boolean);
+  const weekCount = parseInt(document.getElementById("new-ex-weeks").value, 10) || 8;
+  const exerciseId = Store.addExercise(dayId, { name, repGoal, restTime, setLabels, weekCount });
+  toast("Exercise added");
+  navigate("exercise", { dayId, exerciseId });
 }
 
 // ---------- EXERCISE screen (week-by-week log) ----------
@@ -479,6 +527,7 @@ function onClick(e) {
       if (state.screen === "review") navigate("import");
       else if (state.screen === "import") navigate("program");
       else if (state.screen === "exercise") navigate("day", { dayId: state.params.dayId });
+      else if (state.screen === "add-exercise") navigate("day", { dayId: state.params.dayId });
       else if (state.screen === "day") navigate("program");
       else navigate("program");
       break;
@@ -488,6 +537,8 @@ function onClick(e) {
     case "confirm-review": confirmReview(); break;
     case "open-day": navigate("day", { dayId: el.dataset.day }); break;
     case "open-exercise": navigate("exercise", { dayId: el.dataset.day, exerciseId: el.dataset.exercise }); break;
+    case "go-add-exercise": navigate("add-exercise", { dayId: el.dataset.day }); break;
+    case "confirm-add-exercise": confirmAddExercise(el.dataset.day); break;
     case "add-week": {
       Store.addWeekToExercise(el.dataset.day, el.dataset.exercise);
       render();
