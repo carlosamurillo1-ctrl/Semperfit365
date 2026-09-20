@@ -343,6 +343,8 @@ function renderExercise() {
     ${ex.setupNote ? `<div class="card"><p>${esc(ex.setupNote)}</p></div>` : ""}
     ${weekCards}
     <button class="btn" data-action="add-week" data-day="${esc(day.id)}" data-exercise="${esc(ex.id)}">+ Add week</button>
+    <div style="height:8px"></div>
+    <button class="btn danger" data-action="delete-exercise" data-day="${esc(day.id)}" data-exercise="${esc(ex.id)}">Delete this exercise</button>
   `;
 }
 
@@ -487,6 +489,15 @@ function onClick(e) {
         Store.removeDay(el.dataset.day);
         toast("Day deleted");
         navigate("program");
+      }
+      break;
+    }
+    case "delete-exercise": {
+      if (confirm("Delete this exercise and everything logged for it?")) {
+        const dayId = el.dataset.day;
+        Store.removeExercise(dayId, el.dataset.exercise);
+        toast("Exercise deleted");
+        navigate("day", { dayId });
       }
       break;
     }

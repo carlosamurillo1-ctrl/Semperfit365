@@ -84,6 +84,15 @@ export const Store = {
     this.setProgram(program);
   },
 
+  removeExercise(dayId, exerciseId) {
+    const program = this.getProgram();
+    if (!program) return;
+    const day = program.days.find((d) => d.id === dayId);
+    if (!day) return;
+    day.exercises = day.exercises.filter((e) => e.id !== exerciseId);
+    this.setProgram(program);
+  },
+
   getDay(dayId) {
     return this.getProgram()?.days.find((d) => d.id === dayId) || null;
   },
