@@ -636,6 +636,7 @@ function renderExercise() {
     <div class="row" style="margin-bottom:10px;flex-wrap:wrap;gap:8px;">
       ${ex.repGoal ? `<span class="source-chip">Reps: ${esc(ex.repGoal)}</span>` : ""}
       ${ex.restTime ? `<span class="source-chip">Rest: ${esc(ex.restTime)}</span>` : ""}
+      ${ex.videoUrl ? `<a class="source-chip" href="${esc(ex.videoUrl)}" target="_blank" rel="noopener noreferrer">&#9654; Video</a>` : ""}
     </div>
     ${renderVideoEmbed(ex.videoUrl)}
     ${ex.setupNote ? `<div class="card"><p>${esc(ex.setupNote)}</p></div>` : ""}
@@ -1010,6 +1011,7 @@ function renderCoachClientExercise() {
     <div class="row" style="margin-bottom:10px;flex-wrap:wrap;gap:8px;">
       ${ex.repGoal ? `<span class="source-chip">Reps: ${esc(ex.repGoal)}</span>` : ""}
       ${ex.restTime ? `<span class="source-chip">Rest: ${esc(ex.restTime)}</span>` : ""}
+      ${ex.videoUrl ? `<a class="source-chip" href="${esc(ex.videoUrl)}" target="_blank" rel="noopener noreferrer">&#9654; Video</a>` : ""}
     </div>
     ${renderVideoEmbed(ex.videoUrl)}
     ${ex.setupNote ? `<div class="card"><p>${esc(ex.setupNote)}</p></div>` : ""}
