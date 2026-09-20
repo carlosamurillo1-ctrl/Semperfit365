@@ -20,6 +20,19 @@ export const SEED_SHEET_TEXT = `	Workout A
 7	WEEK 7
 8	WEEK 8
 
+	Decline Bench Chest Press			Rep goal: 6-10 reps
+
+	Week	Set 1	Set 2	Set 3			Notes
+
+1	WEEK 1
+2	WEEK 2
+3	WEEK 3
+4	WEEK 4
+5	WEEK 5
+6	WEEK 6
+7	WEEK 7
+8	WEEK 8
+
 	seated military press				Rep goal: 4-6, 6-8, 8-10		Rest time: 2-3 min.
 
 
@@ -50,38 +63,11 @@ export const SEED_SHEET_TEXT = `	Workout A
 7	WEEK 7
 8	WEEK 8
 
-	Hammer Curls			Rep goal: 12, 10, 8, 6			Rest time: 40 secs
-
-
-	Week	Set 1	Set 2	Set 3	Set 4		Notes
-
-1	WEEK 1
-2	WEEK 2
-3	WEEK 3 8.10
-4	WEEK 4
-5	WEEK 5
-6	WEEK 6
-7	WEEK 7
-8	WEEK 8
-
 	Lateral Raises			Rep goal: 10–15 reps			Rest time: Rest Pause 15 sec.
 
 
 
 	Week	Set 1	Set 2	Set 3	Set 4		Notes
-
-1	WEEK 1
-2	WEEK 2
-3	WEEK 3
-4	WEEK 4
-5	WEEK 5
-6	WEEK 6
-7	WEEK 7
-8	WEEK 8
-
-	Decline Bench Chest Press			Rep goal: 6-10 reps
-
-	Week	Set 1	Set 2	Set 3			Notes
 
 1	WEEK 1
 2	WEEK 2
@@ -110,7 +96,7 @@ export const SEED_SHEET_TEXT = `	Workout A
 7	WEEK 7
 8	WEEK 8
 
-	Squats
+	Hack Squat
 	Perform 1 warm-up set of 6-10 reps using lighter weight
 
 	Week	Set 1	Set 2	Set 3	Set 4		Notes
@@ -155,14 +141,6 @@ export const SEED_SHEET_TEXT = `	Workout A
 	leg raises w ball
 
 
-
-
-
-
-
-
-
-
 	Workout C
 
 	Incline BB Bench Press			Rep goal: 5-10			Rest time: 2-3 min.
@@ -180,47 +158,6 @@ export const SEED_SHEET_TEXT = `	Workout A
 7	WEEK 7
 8	WEEK 8
 
-	Slight Incline Alt DB chest Press			Rep goal: 5-10			Rest time: 2-3 min.
-
-	Perform 1 warm-up set of 6-10 reps using lighter weight
-
-	Week	Set 1	Set 2	Set 3			Notes
-
-1	WEEK 1
-2	WEEK 2
-3	WEEK 3
-4	WEEK 4
-5	WEEK 5
-6	WEEK 6
-7	WEEK 7
-8	WEEK 8	0	0	0
-
-	Dips			Rep goal : 4-6, 6-8, 8-10			Rest time: 2-3 min
-
-	Week	Set 1	Set 2	Set 3			Notes
-
-1	WEEK 1
-2	WEEK 2
-3	WEEK 3
-4	WEEK 4
-5	WEEK 5 9.8
-6	WEEK 6
-7	WEEK 7
-8	WEEK 8
-
-	DB Skul Crushers			Rep goal: 6-8, 8-10, 10-12			Rest time: 2-3 min
-
-	Week	Set 1	Set 2	Set 3			Notes
-
-1	WEEK 1
-2	WEEK 2
-3	WEEK 3
-4	WEEK 4
-5	WEEK 5
-6	WEEK 6
-7	WEEK 7
-8	WEEK 8	0	0	0
-
 	Cable Rows			Rep goal: 12, 10, 8, 6			Rest time: 40 sec.
 
 	Week	Set 1	Set 2	Set 3	Set 4		Notes
@@ -233,6 +170,18 @@ export const SEED_SHEET_TEXT = `	Workout A
 6	WEEK 6 9.8
 7	WEEK 7	0	0	0	0
 8	WEEK 8	0	0	0	0
+
+	Dips/ Weighted Dips
+	Week	Set 1	set 2	Set 3
+
+	WEEK 1
+	WEEK 2
+	WEEK 3
+	WEEK 4 10
+	WEEK 5
+	WEEK 6 10
+	WEEK 7
+	WEEK 8
 
 	Face Pulls			Rep goal: 10–15 reps			Rest time: Rest Pause 15 sec.
 
@@ -247,6 +196,22 @@ export const SEED_SHEET_TEXT = `	Workout A
 7	WEEK 7	0	0	0
 8	WEEK 8	0	0	0
 
+
+	Workout D
+
+	DB Skull Crushers			Rep goal: 6-8, 8-10, 10-12			Rest time: 2-3 min
+
+	Week	Set 1	Set 2	Set 3			Notes
+
+1	WEEK 1
+2	WEEK 2
+3	WEEK 3
+4	WEEK 4
+5	WEEK 5
+6	WEEK 6
+7	WEEK 7
+8	WEEK 8	0	0	0
+
 	Tricep Push Down
 	Week	Set 1	Set 2	Set 3	Set 4
 	WEEK 1
@@ -257,15 +222,33 @@ export const SEED_SHEET_TEXT = `	Workout A
 	WEEK 6
 	WEEK 7
 	WEEK 8
-	Dips/ Weighted Dips
-	Week	Set 1	set 2	Set 3
 
-	WEEK 1
-	WEEK 2
-	WEEK 3
-	WEEK 4 10
-	WEEK 5
-	WEEK 6 10
-	WEEK 7
-	WEEK 8
+	Hammer Curls			Rep goal: 12, 10, 8, 6			Rest time: 40 secs
+
+
+	Week	Set 1	Set 2	Set 3	Set 4		Notes
+
+1	WEEK 1
+2	WEEK 2
+3	WEEK 3 8.10
+4	WEEK 4
+5	WEEK 5
+6	WEEK 6
+7	WEEK 7
+8	WEEK 8
+
+	Incline DB Bicep Curl			Rep goal: 6-10 reps			Rest time: 90 sec
+
+	Perform 1 warm-up set of 6-10 reps using lighter weight
+
+	Week	Set 1	Set 2	Set 3			Notes
+
+1	WEEK 1
+2	WEEK 2
+3	WEEK 3
+4	WEEK 4
+5	WEEK 5
+6	WEEK 6
+7	WEEK 7
+8	WEEK 8
 `;
