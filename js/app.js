@@ -47,6 +47,22 @@ function relativeTime(iso) {
   return new Date(iso).toLocaleDateString();
 }
 
+/** Extract a YouTube video ID from watch/share/shorts/embed URL formats, or null if not recognized. */
+function youtubeVideoId(url) {
+  if (!url) return null;
+  const patterns = [
+    /youtu\.be\/([a-zA-Z0-9_-]{11})/,
+    /[?&]v=([a-zA-Z0-9_-]{11})/,
+    /youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/,
+    /youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/,
+  ];
+  for (const p of patterns) {
+    const m = url.match(p);
+    if (m) return m[1];
+  }
+  return null;
+}
+
 // ---------- render root ----------
 
 function render() {
@@ -356,6 +372,10 @@ function renderAddExercise() {
 
       <label for="new-ex-weeks">Number of weeks</label>
       <input type="number" id="new-ex-weeks" value="8" min="1" max="52" />
+
+      <label for="new-ex-video">YouTube video (optional)</label>
+      <input type="url" id="new-ex-video" placeholder="https://youtube.com/watch?v=..." />
+      <p class="hint">Shown as a how-to video on the exercise screen.</p>
     </div>
     <button class="btn primary" data-action="confirm-add-exercise" data-day="${esc(day.id)}">Add exercise</button>
   `;
@@ -371,7 +391,8 @@ function confirmAddExercise(dayId) {
   const restTime = document.getElementById("new-ex-resttime").value.trim();
   const setLabels = document.getElementById("new-ex-sets").value.split(",").map((s) => s.trim()).filter(Boolean);
   const weekCount = parseInt(document.getElementById("new-ex-weeks").value, 10) || 8;
-  const exerciseId = Store.addExercise(dayId, { name, repGoal, restTime, setLabels, weekCount });
+  const videoUrl = document.getElementById("new-ex-video").value.trim();
+  const exerciseId = Store.addExercise(dayId, { name, repGoal, restTime, setLabels, weekCount, videoUrl });
   toast("Exercise added");
   navigate("exercise", { dayId, exerciseId });
 }
@@ -416,15 +437,30 @@ function renderExercise() {
       ${ex.repGoal ? `<span class="source-chip">Reps: ${esc(ex.repGoal)}</span>` : ""}
       ${ex.restTime ? `<span class="source-chip">Rest: ${esc(ex.restTime)}</span>` : ""}
     </div>
+    ${renderVideoEmbed(ex.videoUrl)}
     ${ex.setupNote ? `<div class="card"><p>${esc(ex.setupNote)}</p></div>` : ""}
     ${weekCards}
     <button class="btn" data-action="add-week" data-day="${esc(day.id)}" data-exercise="${esc(ex.id)}">+ Add week</button>
     <div style="height:8px"></div>
     <div class="btn-row">
       <button class="btn" data-action="rename-exercise" data-day="${esc(day.id)}" data-exercise="${esc(ex.id)}">Rename</button>
+      <button class="btn" data-action="set-exercise-video" data-day="${esc(day.id)}" data-exercise="${esc(ex.id)}">${ex.videoUrl ? "Edit video" : "Add video"}</button>
       <button class="btn danger" data-action="delete-exercise" data-day="${esc(day.id)}" data-exercise="${esc(ex.id)}">Delete</button>
     </div>
   `;
+}
+
+function renderVideoEmbed(videoUrl) {
+  if (!videoUrl) return "";
+  const videoId = youtubeVideoId(videoUrl);
+  if (videoId) {
+    return `
+      <div class="video-embed">
+        <iframe src="https://www.youtube.com/embed/${videoId}" title="Exercise how-to video" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe>
+      </div>
+    `;
+  }
+  return `<div class="card"><a href="${esc(videoUrl)}" target="_blank" rel="noopener noreferrer">&#9654; Watch how-to video</a></div>`;
 }
 
 // ---------- HISTORY screen ----------
@@ -589,6 +625,15 @@ function onClick(e) {
       const name = prompt("Rename exercise", ex?.name || "");
       if (name && name.trim()) {
         Store.renameExercise(el.dataset.day, el.dataset.exercise, name.trim());
+        render();
+      }
+      break;
+    }
+    case "set-exercise-video": {
+      const ex = Store.getExercise(el.dataset.day, el.dataset.exercise);
+      const url = prompt("YouTube video link (leave blank to remove)", ex?.videoUrl || "");
+      if (url !== null) {
+        Store.setExerciseVideo(el.dataset.day, el.dataset.exercise, url.trim());
         render();
       }
       break;

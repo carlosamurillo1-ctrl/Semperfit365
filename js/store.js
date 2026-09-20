@@ -5,7 +5,7 @@
 //   days: [{
 //     id, name, source: {type, url?} | null,
 //     exercises: [{
-//       id, name, repGoal, restTime, setupNote, setLabels: string[],
+//       id, name, repGoal, restTime, setupNote, videoUrl, setLabels: string[],
 //       weeks: [{ week, values: string[], notes, updatedAt: string|null }]
 //     }]
 //   }],
@@ -62,6 +62,7 @@ export const Store = {
         repGoal: ex.repGoal || "",
         restTime: ex.restTime || "",
         setupNote: ex.setupNote || "",
+        videoUrl: ex.videoUrl || "",
         setLabels: ex.setLabels,
         weeks: ex.weeks.map((w) => ({
           week: w.week,
@@ -97,6 +98,7 @@ export const Store = {
       repGoal: exercise.repGoal || "",
       restTime: exercise.restTime || "",
       setupNote: "",
+      videoUrl: exercise.videoUrl || "",
       setLabels,
       weeks: Array.from({ length: weekCount }, (_, i) => ({
         week: i + 1,
@@ -126,6 +128,16 @@ export const Store = {
     const ex = day?.exercises.find((e) => e.id === exerciseId);
     if (!ex) return;
     ex.name = name;
+    this.setProgram(program);
+  },
+
+  setExerciseVideo(dayId, exerciseId, videoUrl) {
+    const program = this.getProgram();
+    if (!program) return;
+    const day = program.days.find((d) => d.id === dayId);
+    const ex = day?.exercises.find((e) => e.id === exerciseId);
+    if (!ex) return;
+    ex.videoUrl = videoUrl;
     this.setProgram(program);
   },
 

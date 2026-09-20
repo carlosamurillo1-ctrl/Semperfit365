@@ -220,6 +220,22 @@ select { appearance: none; }
   border-radius: 999px; padding: 4px 10px;
 }
 
+.video-embed {
+  position: relative;
+  width: 100%;
+  padding-top: 56.25%; /* 16:9 */
+  margin-bottom: 12px;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--bg-elev);
+}
+.video-embed iframe {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  border: 0;
+}
+
 .toast {
   position: fixed;
   bottom: calc(76px + var(--safe-bottom));
