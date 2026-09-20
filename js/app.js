@@ -3,6 +3,7 @@ import { parseWorkoutSheet, parseWorkoutSheets } from "./workoutParser.js";
 import { Store } from "./store.js";
 import { SEED_SHEET_TEXT } from "./seedProgram.js";
 import { PROGRAM_TEMPLATES } from "./programTemplates.js";
+import { EXERCISE_CATALOG, MUSCLE_GROUPS } from "./exerciseCatalog.js";
 import {
   isSyncConfigured,
   newId,
@@ -46,6 +47,7 @@ const state = {
   params: {},
   pendingImport: null, // { days: [{ dayTitle, exercises }], source }
   toast: null,
+  libraryFilter: { query: "", group: "All" },
 };
 
 function toast(msg) {
@@ -178,6 +180,7 @@ function render() {
     case "history": html = renderHistory(); break;
     case "settings": html = renderSettings(); break;
     case "templates": html = renderTemplates(); break;
+    case "exercise-library": html = renderExerciseLibrary(); break;
     case "cardio": html = renderCardio(); break;
     case "cardio-day": html = renderCardioDay(); break;
     case "coach": html = renderCoach(); break;
@@ -768,6 +771,12 @@ function renderSettings() {
       <div style="height:10px"></div>
       <button class="btn" data-action="go-templates">Browse templates</button>
     </div>
+    <div class="card">
+      <h3>Exercise library</h3>
+      <p>Search or browse by body part (chest, back, legs, calves, biceps, triceps, shoulders) -- ${Store.getExerciseLibrary().length} exercises so far. Used to autofill the Add/Swap exercise form.</p>
+      <div style="height:10px"></div>
+      <button class="btn" data-action="go-exercise-library">Browse library</button>
+    </div>
     ${renderSyncSettingsCard()}
     <div class="card">
       <h3>Reset</h3>
@@ -870,6 +879,53 @@ function copyTemplateLink(id) {
   navigator.clipboard.writeText(link)
     .then(() => toast("Link copied"))
     .catch(() => toast(`Couldn't copy — copy manually: ${link}`));
+}
+
+// ---------- EXERCISE LIBRARY screen (search + browse by body part) ----------
+
+function filterLibraryEntries(all, query, group) {
+  const q = query.trim().toLowerCase();
+  return all.filter((e) => {
+    if (q && !e.name.toLowerCase().includes(q)) return false;
+    if (group === "All") return true;
+    if (group === "Other") return !e.muscleGroup;
+    return e.muscleGroup === group;
+  });
+}
+
+function renderLibraryRows(filtered) {
+  return filtered.map((e) => `
+    <div class="card">
+      <div class="row" style="align-items:flex-start;">
+        <div>
+          <h3 style="font-size:15px;">${esc(e.name)}</h3>
+          <p>${[e.muscleGroup, e.equipment].filter(Boolean).join(" &middot; ") || "From your program"}${e.repGoal ? ` &middot; ${esc(e.repGoal)} reps` : ""}${e.restTime ? ` &middot; rest ${esc(e.restTime)}` : ""}</p>
+        </div>
+        <a class="btn ghost small" href="${youtubeSearchUrl(e.name)}" target="_blank" rel="noopener noreferrer" style="width:auto;text-decoration:none;white-space:nowrap;">Video</a>
+      </div>
+    </div>
+  `).join("") || `<div class="empty"><p>No matches.</p></div>`;
+}
+
+function renderExerciseLibrary() {
+  const { query, group } = state.libraryFilter;
+  const all = Store.getExerciseLibrary();
+  const filtered = filterLibraryEntries(all, query, group);
+
+  const groupChips = ["All", ...MUSCLE_GROUPS, "Other"].map((g) => `
+    <button class="btn ${group === g ? "primary" : "ghost"} small" data-action="filter-library-group" data-group="${esc(g)}" style="width:auto;">${esc(g)}</button>
+  `).join("");
+
+  return `
+    ${topbar("Exercise Library", { back: true })}
+    <div class="card">
+      <label for="library-search">Search</label>
+      <input type="text" id="library-search" value="${esc(query)}" placeholder="e.g. squat, curl, press..." />
+    </div>
+    <div class="row" style="flex-wrap:wrap;gap:6px;margin-bottom:14px;">${groupChips}</div>
+    <p class="hint" id="library-count" style="margin-bottom:10px;">${filtered.length} exercise${filtered.length === 1 ? "" : "s"}${group !== "All" ? ` in ${esc(group)}` : ""}</p>
+    <div id="library-results">${renderLibraryRows(filtered)}</div>
+  `;
 }
 
 // ---------- COACH screens (view clients' synced data, read-only) ----------
@@ -1102,6 +1158,7 @@ function onClick(e) {
       else if (state.screen === "day") navigate("program");
       else if (state.screen === "coach") navigate("settings");
       else if (state.screen === "templates") navigate("settings");
+      else if (state.screen === "exercise-library") navigate("settings");
       else if (state.screen === "cardio-day") navigate("cardio");
       else if (state.screen === "cardio") navigate("program");
       else if (state.screen === "coach-add-client") navigate("coach");
@@ -1200,6 +1257,12 @@ function onClick(e) {
       break;
     }
     case "go-templates": navigate("templates"); break;
+    case "go-exercise-library": navigate("exercise-library"); break;
+    case "filter-library-group": {
+      state.libraryFilter.group = el.dataset.group;
+      render();
+      break;
+    }
     case "go-cardio": navigate("cardio"); break;
     case "open-cardio-day": navigate("cardio-day", { date: el.dataset.date }); break;
     case "save-cardio-day": {
@@ -1267,6 +1330,13 @@ function onClick(e) {
 
 function onInput(e) {
   const el = e.target;
+  if (el.id === "library-search" && state.screen === "exercise-library") {
+    state.libraryFilter.query = el.value;
+    const filtered = filterLibraryEntries(Store.getExerciseLibrary(), state.libraryFilter.query, state.libraryFilter.group);
+    document.getElementById("library-results").innerHTML = renderLibraryRows(filtered);
+    document.getElementById("library-count").textContent = `${filtered.length} exercise${filtered.length === 1 ? "" : "s"}${state.libraryFilter.group !== "All" ? ` in ${state.libraryFilter.group}` : ""}`;
+    return;
+  }
   if (el.id === "new-ex-name" && state.screen === "add-exercise") {
     const match = Store.getExerciseLibrary().find((entry) => entry.name.toLowerCase() === el.value.trim().toLowerCase());
     if (match) {
@@ -1356,6 +1426,7 @@ function bootstrapClientSync() {
 }
 
 seedIfEmpty();
+Store.seedLibraryCatalog(EXERCISE_CATALOG);
 bootstrapClientSync();
 navigate("program");
 

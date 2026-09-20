@@ -330,6 +330,21 @@ export const Store = {
   clearExerciseLibrary() {
     localStorage.removeItem(KEYS.exerciseLibrary);
   },
+  /** Merge a starter catalog [{name, muscleGroup, equipment}] into the library, skipping any name already present. Never overwrites existing entries. Returns how many were added. */
+  seedLibraryCatalog(entries) {
+    const lib = read(KEYS.exerciseLibrary, []);
+    const existingNames = new Set(lib.map((e) => e.name.toLowerCase()));
+    let added = 0;
+    for (const entry of entries) {
+      const key = entry.name.toLowerCase();
+      if (existingNames.has(key)) continue;
+      lib.push({ id: uid(), name: entry.name, repGoal: "", restTime: "", videoUrl: "", muscleGroup: entry.muscleGroup || "", equipment: entry.equipment || "" });
+      existingNames.add(key);
+      added++;
+    }
+    if (added) write(KEYS.exerciseLibrary, lib);
+    return added;
+  },
 
   /** Move an exercise up (-1) or down (+1) within its day's list. */
   moveExercise(dayId, exerciseId, direction) {
