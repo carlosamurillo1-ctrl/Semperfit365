@@ -195,29 +195,26 @@ function topbar(title, opts = {}) {
   const backBtn = opts.back
     ? `<button class="btn ghost small" data-action="back" style="width:auto;padding:6px 10px;">&larr; Back</button>`
     : `<div class="brand"><span class="logo-crop"><img src="icons/logo.jpg" alt="SemperFit365"/></span></div>`;
-  return `<div class="topbar">${backBtn}<h1 style="margin:0;font-size:17px;">${esc(title)}</h1><div style="width:${opts.back ? "70px" : "0"}"></div></div>`;
+  const right = opts.right || `<div style="width:${opts.back ? "70px" : "0"}"></div>`;
+  return `<div class="topbar">${backBtn}<h1 style="margin:0;font-size:17px;">${esc(title)}</h1>${right}</div>`;
 }
 
 // ---------- PROGRAM screen (list of days) ----------
 
-function renderProgramSwitcher() {
+function programSwitcherTopbarOpts() {
   const programs = Store.listPrograms();
-  if (programs.length <= 1) return "";
-  const options = programs.map((p) => `<option value="${esc(p.id)}" ${p.active ? "selected" : ""}>${esc(p.name)} (${p.dayCount} day${p.dayCount === 1 ? "" : "s"})</option>`).join("");
-  return `
-    <div class="card">
-      <label for="program-switcher">Active program</label>
-      <select id="program-switcher" data-change-action="switch-program">${options}</select>
-    </div>
-  `;
+  if (programs.length <= 1) return {};
+  const options = programs.map((p) => `<option value="${esc(p.id)}" ${p.active ? "selected" : ""}>${esc(p.name)}</option>`).join("");
+  return {
+    right: `<select id="program-switcher" data-change-action="switch-program" aria-label="Switch program" style="width:auto;max-width:130px;padding:6px 8px;font-size:12px;background:var(--bg-elev-2);border:1px solid var(--border);border-radius:10px;color:var(--text);">${options}</select>`,
+  };
 }
 
 function renderProgram() {
   const program = Store.getProgram();
   if (!program || program.days.length === 0) {
     return `
-      ${topbar("")}
-      ${renderProgramSwitcher()}
+      ${topbar("", programSwitcherTopbarOpts())}
       <div class="empty">
         <svg viewBox="0 0 24 24"><path fill="currentColor" d="M20.5 3.5 21 4a1 1 0 0 1 0 1.4L6.9 19.5l-4.4 1 1-4.4L17.6 2.1a1 1 0 0 1 1.4 0l1.5 1.4Z"/></svg>
         <h2>No workout days yet</h2>
@@ -246,8 +243,7 @@ function renderProgram() {
   }).join("");
 
   return `
-    ${topbar("")}
-    ${renderProgramSwitcher()}
+    ${topbar("", programSwitcherTopbarOpts())}
     <div class="row" style="margin-bottom:14px;">
       <span class="source-chip">${program.days.length} workout day${program.days.length === 1 ? "" : "s"}</span>
       <button class="btn ghost small" data-action="go-import">+ Add day</button>
