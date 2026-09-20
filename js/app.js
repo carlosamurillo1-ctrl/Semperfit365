@@ -151,6 +151,17 @@ function renderImport() {
       <h3>Upload a CSV file</h3>
       <input type="file" id="csv-file" accept=".csv,.tsv,text/csv,text/tab-separated-values" />
     </div>
+
+    <div class="divider">or</div>
+
+    <div class="card">
+      <h3>Start with a blank day</h3>
+      <p>Skip importing and build the day by hand, adding exercises one at a time.</p>
+      <label for="blank-day-name">Day name</label>
+      <input type="text" id="blank-day-name" placeholder="e.g. Tuesday (Legs)" />
+      <div style="height:10px"></div>
+      <button class="btn" data-action="create-blank-day">Create blank day</button>
+    </div>
   `;
 }
 
@@ -190,6 +201,17 @@ function handleImportFile(file) {
   reader.onload = () => beginImport(String(reader.result), { type: "file", name: file.name });
   reader.onerror = () => toast("Couldn't read that file");
   reader.readAsText(file);
+}
+
+function handleCreateBlankDay() {
+  const name = document.getElementById("blank-day-name").value.trim();
+  if (!name) {
+    toast("Give the day a name");
+    return;
+  }
+  const dayId = Store.addDay({ name, source: null, exercises: [] });
+  toast("Day added");
+  navigate("day", { dayId });
 }
 
 function beginImport(text, source) {
@@ -534,6 +556,7 @@ function onClick(e) {
     }
     case "import-sheet": handleImportSheet(); break;
     case "import-paste": handleImportPaste(); break;
+    case "create-blank-day": handleCreateBlankDay(); break;
     case "confirm-review": confirmReview(); break;
     case "open-day": navigate("day", { dayId: el.dataset.day }); break;
     case "open-exercise": navigate("exercise", { dayId: el.dataset.day, exerciseId: el.dataset.exercise }); break;
