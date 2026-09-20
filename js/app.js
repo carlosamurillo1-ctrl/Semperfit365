@@ -2,6 +2,39 @@ import { fetchGoogleSheetCsv, parseGoogleSheetUrl } from "./csv.js";
 import { parseWorkoutSheet, parseWorkoutSheets } from "./workoutParser.js";
 import { Store } from "./store.js";
 import { SEED_SHEET_TEXT } from "./seedProgram.js";
+import {
+  isSyncConfigured,
+  newId,
+  pushClientProgram,
+  addClientToRoster,
+  removeClientFromRoster,
+  listenRoster,
+  listenClient,
+} from "./sync.js";
+
+const LOCAL_KEYS = {
+  clientId: "sf365.clientId",
+  clientName: "sf365.clientName",
+  coachId: "sf365.coachId",
+};
+
+function getLocalClientId() {
+  return localStorage.getItem(LOCAL_KEYS.clientId) || "";
+}
+function getClientName() {
+  return localStorage.getItem(LOCAL_KEYS.clientName) || "";
+}
+function setClientName(name) {
+  localStorage.setItem(LOCAL_KEYS.clientName, name);
+}
+function getOrCreateCoachId() {
+  let id = localStorage.getItem(LOCAL_KEYS.coachId);
+  if (!id) {
+    id = newId();
+    localStorage.setItem(LOCAL_KEYS.coachId, id);
+  }
+  return id;
+}
 
 const app = document.getElementById("app");
 const tabbar = document.getElementById("tabbar");
@@ -23,10 +56,66 @@ function toast(msg) {
   }, 2200);
 }
 
+// Live Firestore listeners for the coach views, scoped to whichever coach
+// screen is currently active (see navigate() below).
+let coachRosterUnsub = null;
+let coachRosterData = [];
+let coachClientUnsub = null;
+let coachClientListenedId = null;
+let coachClientData = null;
+
+function ensureCoachRosterListener() {
+  if (coachRosterUnsub) return;
+  try {
+    coachRosterUnsub = listenRoster(getOrCreateCoachId(), (rows) => {
+      coachRosterData = rows;
+      if (state.screen === "coach") render();
+    });
+  } catch {
+    toast("Coach sync isn't set up correctly — check the Firebase config");
+  }
+}
+function teardownCoachRosterListener() {
+  if (coachRosterUnsub) coachRosterUnsub();
+  coachRosterUnsub = null;
+  coachRosterData = [];
+}
+function ensureCoachClientListener(clientId) {
+  if (coachClientListenedId === clientId && coachClientUnsub) return;
+  teardownCoachClientListener();
+  coachClientListenedId = clientId;
+  try {
+    coachClientUnsub = listenClient(clientId, (data) => {
+      coachClientData = data;
+      if (state.screen.startsWith("coach-client")) render();
+    });
+  } catch {
+    toast("Coach sync isn't set up correctly — check the Firebase config");
+  }
+}
+function teardownCoachClientListener() {
+  if (coachClientUnsub) coachClientUnsub();
+  coachClientUnsub = null;
+  coachClientListenedId = null;
+  coachClientData = null;
+}
+
 function navigate(screen, params = {}) {
   state.screen = screen;
   state.params = params;
   if (["program", "history", "settings"].includes(screen)) state.tab = screen;
+
+  if (screen === "coach") {
+    teardownCoachClientListener();
+    ensureCoachRosterListener();
+  } else if (screen.startsWith("coach-client")) {
+    teardownCoachRosterListener();
+    ensureCoachClientListener(params.clientId);
+  } else {
+    teardownCoachRosterListener();
+    teardownCoachClientListener();
+  }
+
   window.scrollTo(0, 0);
   render();
 }
@@ -45,6 +134,13 @@ function relativeTime(iso) {
   const days = Math.round(hrs / 24);
   if (days < 7) return `${days}d ago`;
   return new Date(iso).toLocaleDateString();
+}
+
+/** Firestore Timestamp objects (from serverTimestamp()) need .toDate(); plain ISO strings pass through. */
+function firestoreTimeToIso(ts) {
+  if (!ts) return null;
+  if (typeof ts.toDate === "function") return ts.toDate().toISOString();
+  return ts;
 }
 
 /** Extract a YouTube video ID from watch/share/shorts/embed URL formats, or null if not recognized. */
@@ -80,6 +176,12 @@ function render() {
     case "exercise": html = renderExercise(); break;
     case "history": html = renderHistory(); break;
     case "settings": html = renderSettings(); break;
+    case "coach": html = renderCoach(); break;
+    case "coach-add-client": html = renderCoachAddClient(); break;
+    case "coach-client-link": html = renderCoachClientLink(); break;
+    case "coach-client": html = renderCoachClient(); break;
+    case "coach-client-day": html = renderCoachClientDay(); break;
+    case "coach-client-exercise": html = renderCoachClientExercise(); break;
     default: html = renderProgram();
   }
   if (state.toast) html += `<div class="toast">${esc(state.toast)}</div>`;
@@ -524,12 +626,202 @@ function renderSettings() {
       <div style="height:10px"></div>
       <button class="btn" data-action="go-import">Import another day</button>
     </div>
+    ${renderSyncSettingsCard()}
     <div class="card">
       <h3>Reset</h3>
       <p>Clears every imported day and every logged value from this device.</p>
       <div style="height:10px"></div>
       <button class="btn danger" data-action="reset-all">Erase all data</button>
     </div>
+  `;
+}
+
+function renderSyncSettingsCard() {
+  if (!isSyncConfigured()) {
+    return `
+      <div class="card">
+        <h3>Coach sync</h3>
+        <p>Not set up yet.</p>
+      </div>
+    `;
+  }
+  const clientId = getLocalClientId();
+  if (clientId) {
+    return `
+      <div class="card">
+        <h3>Coach sync</h3>
+        <p>This device is sharing its logged workouts with a coach.</p>
+        <label for="client-name">Your name (shown to your coach)</label>
+        <input type="text" id="client-name" value="${esc(getClientName())}" placeholder="e.g. Alex" />
+        <div style="height:10px"></div>
+        <button class="btn small" data-action="save-client-name">Save name</button>
+      </div>
+    `;
+  }
+  return `
+    <div class="card">
+      <h3>Coach dashboard</h3>
+      <p>Generate links for clients and watch their logged workouts live.</p>
+      <div style="height:10px"></div>
+      <button class="btn" data-action="go-coach">Open coach dashboard</button>
+    </div>
+  `;
+}
+
+// ---------- COACH screens (view clients' synced data, read-only) ----------
+
+function renderCoach() {
+  const rows = coachRosterData.map((c) => `
+    <div class="card tappable" data-action="open-coach-client" data-client="${esc(c.id)}" data-label="${esc(c.label)}">
+      <div class="row">
+        <div>
+          <h3>${esc(c.label)}</h3>
+          <p>${c.addedAt ? `Added ${relativeTime(firestoreTimeToIso(c.addedAt))}` : "Just added"}</p>
+        </div>
+        <button class="btn ghost small" data-action="remove-coach-client" data-client="${esc(c.id)}" data-label="${esc(c.label)}" style="width:auto;">Remove</button>
+      </div>
+    </div>
+  `).join("");
+
+  return `
+    ${topbar("Coach dashboard", { back: true })}
+    <button class="btn primary" data-action="go-coach-add-client">+ Add client</button>
+    <div style="height:12px"></div>
+    ${rows || `<div class="empty"><p>No clients yet. Add one to get a link you can send them.</p></div>`}
+  `;
+}
+
+function renderCoachAddClient() {
+  return `
+    ${topbar("Add client", { back: true })}
+    <div class="card">
+      <label for="coach-client-label">Client name</label>
+      <input type="text" id="coach-client-label" placeholder="e.g. Jordan" />
+    </div>
+    <button class="btn primary" data-action="confirm-add-coach-client">Generate client link</button>
+  `;
+}
+
+async function confirmAddCoachClient() {
+  const label = document.getElementById("coach-client-label").value.trim();
+  if (!label) {
+    toast("Give the client a name");
+    return;
+  }
+  const clientId = newId();
+  try {
+    await addClientToRoster(getOrCreateCoachId(), clientId, label);
+    navigate("coach-client-link", { clientId, label });
+  } catch {
+    toast("Couldn't create the client link — check your connection");
+  }
+}
+
+function renderCoachClientLink() {
+  const { clientId, label } = state.params;
+  const link = `${window.location.origin}${window.location.pathname}?client=${clientId}`;
+  return `
+    ${topbar("Client link ready", { back: true })}
+    <div class="card">
+      <h3>${esc(label)}</h3>
+      <p>Send this link to your client. The moment they open it, their logged workouts start syncing to you — no account needed on their end.</p>
+      <div style="height:10px"></div>
+      <input type="text" id="coach-link-output" value="${esc(link)}" readonly onclick="this.select()" />
+      <div style="height:10px"></div>
+      <button class="btn primary" data-action="copy-coach-link" data-link="${esc(link)}">Copy link</button>
+    </div>
+    <button class="btn" data-action="go-coach">Done</button>
+  `;
+}
+
+function renderCoachClient() {
+  const { clientId, clientLabel } = state.params;
+  if (!coachClientData) {
+    return `${topbar(clientLabel || "Client", { back: true })}<div class="empty"><p>Waiting for this client to open their link and sync for the first time...</p></div>`;
+  }
+  const days = coachClientData.program?.days || [];
+  const items = days.map((day) => {
+    const exCount = day.exercises.length;
+    const filled = day.exercises.reduce((n, ex) => n + ex.weeks.filter((w) => w.updatedAt).length, 0);
+    return `
+      <div class="card tappable" data-action="open-coach-client-day" data-client="${esc(clientId)}" data-label="${esc(clientLabel || "")}" data-day="${esc(day.id)}">
+        <div class="row">
+          <div>
+            <h3>${esc(day.name)}</h3>
+            <p>${exCount} exercise${exCount === 1 ? "" : "s"}${filled ? ` &middot; ${filled} week${filled === 1 ? "" : "s"} logged` : ""}</p>
+          </div>
+          <span class="pill">Live</span>
+        </div>
+      </div>`;
+  }).join("");
+
+  return `
+    ${topbar(coachClientData.displayName || clientLabel || "Client", { back: true })}
+    <p style="margin-bottom:12px;">Last synced ${coachClientData.updatedAt ? relativeTime(firestoreTimeToIso(coachClientData.updatedAt)) : "never"}</p>
+    ${items || `<div class="empty"><p>No workout days yet.</p></div>`}
+  `;
+}
+
+function renderCoachClientDay() {
+  const { clientId, clientLabel, dayId } = state.params;
+  const day = coachClientData?.program?.days.find((d) => d.id === dayId);
+  if (!day) {
+    return `${topbar("Day", { back: true })}<div class="empty"><p>Not available.</p></div>`;
+  }
+  const items = day.exercises.map((ex) => {
+    const filled = ex.weeks.filter((w) => w.updatedAt).length;
+    const repText = ex.repGoal && (/rep/i.test(ex.repGoal) ? ex.repGoal : `${ex.repGoal} reps`);
+    const target = [repText, ex.restTime && `rest ${ex.restTime}`].filter(Boolean).join(" &middot; ");
+    return `
+      <div class="card tappable" data-action="open-coach-client-exercise" data-client="${esc(clientId)}" data-label="${esc(clientLabel || "")}" data-day="${esc(dayId)}" data-exercise="${esc(ex.id)}">
+        <div class="row">
+          <div>
+            <h3>${esc(ex.name)}</h3>
+            <p>${target || `${ex.weeks.length} weeks`}${filled ? ` &middot; ${filled} logged` : ""}</p>
+          </div>
+          <span class="pill">${ex.setLabels.length || 0} sets</span>
+        </div>
+      </div>`;
+  }).join("");
+  return `${topbar(day.name, { back: true })}${items || `<div class="empty"><p>No exercises in this day.</p></div>`}`;
+}
+
+function renderCoachClientExercise() {
+  const { dayId, exerciseId } = state.params;
+  const day = coachClientData?.program?.days.find((d) => d.id === dayId);
+  const ex = day?.exercises.find((e) => e.id === exerciseId);
+  if (!ex) {
+    return `${topbar("Exercise", { back: true })}<div class="empty"><p>Not available.</p></div>`;
+  }
+  const weeksSorted = [...ex.weeks].sort((a, b) => a.week - b.week);
+  const weekCards = weeksSorted.map((w) => {
+    const fields = ex.setLabels.map((label, i) => `
+      <div class="field">
+        <label>${esc(label)}</label>
+        <div class="readonly-value">${esc(w.values[i]) || "&mdash;"}</div>
+      </div>
+    `).join("");
+    return `
+      <div class="card">
+        <div class="row">
+          <h3>Week ${w.week}</h3>
+          ${w.updatedAt ? `<span class="hint">updated ${relativeTime(w.updatedAt)}</span>` : ""}
+        </div>
+        <div class="week-fields">${fields}</div>
+        ${w.notes ? `<p>${esc(w.notes)}</p>` : ""}
+      </div>
+    `;
+  }).join("");
+
+  return `
+    ${topbar(ex.name, { back: true })}
+    <div class="row" style="margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+      ${ex.repGoal ? `<span class="source-chip">Reps: ${esc(ex.repGoal)}</span>` : ""}
+      ${ex.restTime ? `<span class="source-chip">Rest: ${esc(ex.restTime)}</span>` : ""}
+    </div>
+    ${renderVideoEmbed(ex.videoUrl)}
+    ${ex.setupNote ? `<div class="card"><p>${esc(ex.setupNote)}</p></div>` : ""}
+    ${weekCards}
   `;
 }
 
@@ -594,6 +886,12 @@ function onClick(e) {
       else if (state.screen === "exercise") navigate("day", { dayId: state.params.dayId });
       else if (state.screen === "add-exercise") navigate("day", { dayId: state.params.dayId });
       else if (state.screen === "day") navigate("program");
+      else if (state.screen === "coach") navigate("settings");
+      else if (state.screen === "coach-add-client") navigate("coach");
+      else if (state.screen === "coach-client-link") navigate("coach");
+      else if (state.screen === "coach-client") navigate("coach");
+      else if (state.screen === "coach-client-day") navigate("coach-client", { clientId: state.params.clientId, clientLabel: state.params.clientLabel });
+      else if (state.screen === "coach-client-exercise") navigate("coach-client-day", { clientId: state.params.clientId, clientLabel: state.params.clientLabel, dayId: state.params.dayId });
       else navigate("program");
       break;
     }
@@ -675,6 +973,32 @@ function onClick(e) {
       }
       break;
     }
+    case "save-client-name": {
+      const name = document.getElementById("client-name").value.trim();
+      setClientName(name);
+      const program = Store.getProgram();
+      if (program) pushClientProgram(getLocalClientId(), name, program);
+      toast("Saved");
+      break;
+    }
+    case "go-coach": navigate("coach"); break;
+    case "go-coach-add-client": navigate("coach-add-client"); break;
+    case "confirm-add-coach-client": confirmAddCoachClient(); break;
+    case "copy-coach-link": {
+      navigator.clipboard.writeText(el.dataset.link)
+        .then(() => toast("Link copied"))
+        .catch(() => toast("Couldn't copy — select the link and copy manually"));
+      break;
+    }
+    case "open-coach-client": navigate("coach-client", { clientId: el.dataset.client, clientLabel: el.dataset.label }); break;
+    case "remove-coach-client": {
+      if (confirm(`Remove ${el.dataset.label} from your client list? This won't delete their own data.`)) {
+        removeClientFromRoster(getOrCreateCoachId(), el.dataset.client).catch(() => toast("Couldn't remove — check your connection"));
+      }
+      break;
+    }
+    case "open-coach-client-day": navigate("coach-client-day", { clientId: el.dataset.client, clientLabel: el.dataset.label, dayId: el.dataset.day }); break;
+    case "open-coach-client-exercise": navigate("coach-client-exercise", { clientId: el.dataset.client, clientLabel: el.dataset.label, dayId: el.dataset.day, exerciseId: el.dataset.exercise }); break;
   }
 }
 
@@ -719,7 +1043,26 @@ function seedIfEmpty() {
   }
 }
 
+function bootstrapClientSync() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const linkedId = urlParams.get("client");
+  if (linkedId) {
+    localStorage.setItem(LOCAL_KEYS.clientId, linkedId);
+    urlParams.delete("client");
+    const rest = urlParams.toString();
+    history.replaceState(null, "", window.location.pathname + (rest ? `?${rest}` : ""));
+  }
+  const clientId = getLocalClientId();
+  if (!clientId || !isSyncConfigured()) return;
+  Store.onChange((program) => {
+    if (program) pushClientProgram(clientId, getClientName(), program);
+  });
+  const current = Store.getProgram();
+  if (current) pushClientProgram(clientId, getClientName(), current);
+}
+
 seedIfEmpty();
+bootstrapClientSync();
 navigate("program");
 
 if ("serviceWorker" in navigator) {

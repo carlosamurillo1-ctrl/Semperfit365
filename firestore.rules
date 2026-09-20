@@ -1,0 +1,26 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // A client's synced program. Readable/writable if you know the exact
+    // clientId (a random, unguessable string) — but the collection can't be
+    // listed, so a client's data can't be found without that id.
+    match /clients/{clientId} {
+      allow get, write: if true;
+      allow list: if false;
+    }
+
+    // A coach's private roster of clients they've added. Same model: the
+    // coachId itself is the secret. Listing a roster is fine (that's how the
+    // dashboard renders it) since you can only reach it if you already know
+    // the parent coachId.
+    match /coaches/{coachId} {
+      allow get, write: if true;
+      allow list: if false;
+
+      match /roster/{clientId} {
+        allow get, write: if true;
+        allow list: if true;
+      }
+    }
+  }
+}

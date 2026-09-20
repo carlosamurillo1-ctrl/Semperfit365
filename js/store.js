@@ -38,15 +38,28 @@ function uid() {
   return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 }
 
+const changeListeners = [];
+
 export const Store = {
+  /** Called after every program write (including clear), with the new program (or null). Used to drive cloud sync. */
+  onChange(fn) {
+    changeListeners.push(fn);
+    return () => {
+      const i = changeListeners.indexOf(fn);
+      if (i >= 0) changeListeners.splice(i, 1);
+    };
+  },
+
   getProgram() {
     return read(KEYS.program, null);
   },
   setProgram(program) {
     write(KEYS.program, program);
+    changeListeners.forEach((fn) => fn(program));
   },
   clearProgram() {
     localStorage.removeItem(KEYS.program);
+    changeListeners.forEach((fn) => fn(null));
   },
 
   /** Append a freshly-parsed day { name, source, exercises } to the program (creating one if needed). Returns the new day's id. */

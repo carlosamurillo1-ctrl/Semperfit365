@@ -2,7 +2,23 @@
 
 Turns a Google Sheet workout program into a simple, mobile-friendly workout app: pull in your program, log what you actually lift each week, and see your history — all on your phone.
 
-No build step, no backend, no account required. It's a static site that reads your program from Google Sheets (or a pasted/uploaded CSV) and keeps everything you log in your browser.
+No build step, no backend required to run it, no account required for a client to use it. It's a static site that reads your program from Google Sheets (or a pasted/uploaded CSV) and keeps everything you log in your browser — with an optional coach sync layer (see below) if you want to see what a client logs.
+
+## Coach sync — seeing what a client logs, live
+
+By default nothing leaves a device: all data lives in that browser's local storage only. If you want to actually see a client's logged sets as they train, wire up the free (no-cost-tier) cloud sync:
+
+1. Create a Firebase project at [console.firebase.google.com](https://console.firebase.google.com) → **Build → Firestore Database → Create database** (production mode, any location).
+2. In **Firestore Database → Rules**, paste the contents of `firestore.rules` from this repo and publish. This is what keeps client data private — access requires knowing the exact random client/coach id, and neither collection can be listed/enumerated without one.
+3. **Project settings → Your apps → add a Web app**, and copy the `firebaseConfig` object it gives you into `js/firebaseConfig.js`, replacing the `"REPLACE_ME"` placeholders.
+4. Deploy. Coach sync is otherwise a no-op — nothing changes for anyone until this file has real values.
+
+Once configured:
+- **As the coach**: open the app → Settings → **"Open coach dashboard"** → **"+ Add client"** → name them and you get a shareable link.
+- **Send that link to your client.** The moment they open it, their program and every set they log syncs to you automatically — no account, no password on their end. It's an "anyone with the link" model, same as sharing a Google Doc.
+- **Watching live**: from your coach dashboard, tap into a client to see their days, then an exercise to see their week-by-week log update in real time as they train (via Firestore's live listeners — no refresh needed).
+- A client can optionally set "Your name" in their own Settings so you see something friendlier than the label you gave them.
+- This is intentionally simple, not enterprise security: a client/coach id is a long random string (`crypto.randomUUID()`) that functions like a capability link. That's an appropriate bar for workout logs shared with people you already know, not for sensitive data.
 
 ## Sending this to someone (e.g. a client)
 
@@ -73,7 +89,7 @@ Any other static host (Netlify, Vercel, Cloudflare Pages, S3, etc.) works too �
 ## Notes & limitations
 
 - Google Sheets' CSV export only works for sheets shared publicly (or published to the web). Fully private sheets need the paste/upload path instead.
-- Data lives in your browser's local storage. Clearing site data / using a different browser or device starts fresh. There's no sync between devices.
+- Data lives in your browser's local storage. Clearing site data / using a different browser or device starts fresh, unless you've set up coach sync (see above).
 - One Google Sheet tab (gid) = one workout day. Import each day of your program separately from Settings, or paste several days at once — the importer splits on lines that mention a weekday (Monday–Sunday) or "Phase N" and reviews each as its own day.
 - Merged cells or ragged rows in the source sheet can occasionally shift a value into the wrong column on import (the app reads columns by position, faithfully, without guessing) — everything is editable after import, so just retype anything that landed wrong.
 - Settings → a day's "Refresh" button re-pulls that day from its Google Sheet and updates exercises/rep goals/rest times, while keeping anything you've already logged for a given week.
