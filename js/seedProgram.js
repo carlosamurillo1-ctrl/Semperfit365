@@ -252,4 +252,30 @@ export const SEED_SHEET_TEXT = `	Workout A
 6	WEEK 6
 7	WEEK 7
 8	WEEK 8
+
+	Preacher Curls			Rep goal: 6-10 reps			Rest time: 90 sec
+
+	Week	Set 1	Set 2	Set 3			Notes
+
+1	WEEK 1
+2	WEEK 2
+3	WEEK 3
+4	WEEK 4
+5	WEEK 5
+6	WEEK 6
+7	WEEK 7
+8	WEEK 8
+
+	Overhead Cable Tricep Extension with Rope			Rep goal: 6-10 reps			Rest time: 90 sec
+
+	Week	Set 1	Set 2	Set 3			Notes
+
+1	WEEK 1
+2	WEEK 2
+3	WEEK 3
+4	WEEK 4
+5	WEEK 5
+6	WEEK 6
+7	WEEK 7
+8	WEEK 8
 `;
