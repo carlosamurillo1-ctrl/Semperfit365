@@ -208,16 +208,16 @@ select { appearance: none; }
 .week-group { margin: 20px 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--text-dim); }
 
 .card.current-week { border-color: var(--accent-dim); background: linear-gradient(180deg, rgba(94,230,168,.06), transparent 40%), var(--bg-elev); }
-.week-fields { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
-.week-fields .field { flex: 0 1 70px; min-width: 64px; }
-.week-fields .field label { margin: 0 0 4px; font-size: 11px; }
-.week-fields .field input { padding: 8px; text-align: center; }
+.week-fields { display: flex; flex-wrap: nowrap; gap: 6px; margin: 10px 0; overflow-x: auto; }
+.week-fields .field { flex: 1 1 0; min-width: 52px; }
+.week-fields .field label { margin: 0 0 4px; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.week-fields .field input { width: 100%; padding: 8px 2px; text-align: center; }
 .week-fields .field input + input { margin-top: 4px; }
 .readonly-value {
   background: var(--bg-elev-2);
   border: 1px solid var(--border);
   border-radius: 10px;
-  padding: 8px;
+  padding: 8px 2px;
   text-align: center;
   font-size: 15px;
   color: var(--text);
