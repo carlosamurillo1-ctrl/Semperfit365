@@ -2,6 +2,7 @@ import { fetchGoogleSheetCsv, parseGoogleSheetUrl } from "./csv.js";
 import { parseWorkoutSheet, parseWorkoutSheets } from "./workoutParser.js";
 import { Store } from "./store.js";
 import { SEED_SHEET_TEXT } from "./seedProgram.js";
+import { PROGRAM_TEMPLATES } from "./programTemplates.js";
 import {
   isSyncConfigured,
   newId,
@@ -176,6 +177,7 @@ function render() {
     case "exercise": html = renderExercise(); break;
     case "history": html = renderHistory(); break;
     case "settings": html = renderSettings(); break;
+    case "templates": html = renderTemplates(); break;
     case "coach": html = renderCoach(); break;
     case "coach-add-client": html = renderCoachAddClient(); break;
     case "coach-client-link": html = renderCoachClientLink(); break;
@@ -632,6 +634,12 @@ function renderSettings() {
       <div style="height:10px"></div>
       <button class="btn" data-action="go-import">Import another day</button>
     </div>
+    <div class="card">
+      <h3>Program templates</h3>
+      <p>Swap this device's whole program for a different prebuilt one (e.g. give a client a leg-focused plan instead of the default).</p>
+      <div style="height:10px"></div>
+      <button class="btn" data-action="go-templates">Browse templates</button>
+    </div>
     ${renderSyncSettingsCard()}
     <div class="card">
       <h3>Reset</h3>
@@ -672,6 +680,40 @@ function renderSyncSettingsCard() {
       <button class="btn" data-action="go-coach">Open coach dashboard</button>
     </div>
   `;
+}
+
+// ---------- TEMPLATES screen (load a whole prebuilt program) ----------
+
+function renderTemplates() {
+  const rows = PROGRAM_TEMPLATES.map((t) => `
+    <div class="card">
+      <h3>${esc(t.name)}</h3>
+      <p>${esc(t.description)}</p>
+      <div style="height:10px"></div>
+      <button class="btn primary" data-action="load-template" data-template="${esc(t.id)}">Load this program</button>
+    </div>
+  `).join("");
+
+  return `
+    ${topbar("Program templates", { back: true })}
+    <div class="card">
+      <p>Loading a template replaces every workout day currently on this device, including any logged weeks. Use this on a client's phone (or before sharing a link) to hand them a different program instead of editing day by day.</p>
+    </div>
+    ${rows}
+  `;
+}
+
+function loadTemplate(id) {
+  const template = PROGRAM_TEMPLATES.find((t) => t.id === id);
+  if (!template) return;
+  if (!confirm(`Replace this device's current program with "${template.name}"? This erases the current program and any logged weeks here — it can't be undone.`)) {
+    return;
+  }
+  const days = parseWorkoutSheets(template.sheetText);
+  Store.clearProgram();
+  days.forEach((day) => Store.addDay({ name: day.dayTitle || "Workout", source: null, exercises: day.exercises }));
+  toast(`Loaded "${template.name}"`);
+  navigate("program");
 }
 
 // ---------- COACH screens (view clients' synced data, read-only) ----------
@@ -894,6 +936,7 @@ function onClick(e) {
       else if (state.screen === "add-exercise") navigate("day", { dayId: state.params.dayId });
       else if (state.screen === "day") navigate("program");
       else if (state.screen === "coach") navigate("settings");
+      else if (state.screen === "templates") navigate("settings");
       else if (state.screen === "coach-add-client") navigate("coach");
       else if (state.screen === "coach-client-link") navigate("coach");
       else if (state.screen === "coach-client") navigate("coach");
@@ -988,6 +1031,8 @@ function onClick(e) {
       toast("Saved");
       break;
     }
+    case "go-templates": navigate("templates"); break;
+    case "load-template": loadTemplate(el.dataset.template); break;
     case "go-coach": navigate("coach"); break;
     case "go-coach-add-client": navigate("coach-add-client"); break;
     case "confirm-add-coach-client": confirmAddCoachClient(); break;

@@ -1,4 +1,4 @@
-const CACHE = "semperfit365-v12";
+const CACHE = "semperfit365-v13";
 const ASSETS = [
   "./",
   "./index.html",
@@ -8,6 +8,7 @@ const ASSETS = [
   "./js/workoutParser.js",
   "./js/store.js",
   "./js/seedProgram.js",
+  "./js/programTemplates.js",
   "./js/sync.js",
   "./js/firebaseConfig.js",
   "./vendor/firebase/firebase-app-compat.js",
