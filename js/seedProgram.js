@@ -3,7 +3,167 @@
 // instead of an empty "Import" screen. Only used when no program has been
 // saved to this browser yet (see boot logic in app.js) -- it never
 // overwrites anything a visitor has already imported or logged.
-export const SEED_SHEET_TEXT = `	Workout C
+export const SEED_SHEET_TEXT = `	Workout A
+
+	Weighted Pull-ups				Rep goal: 5,6,8		Rest time: 2-3 min.
+
+	Perform 1 warm-up set of 6-10 reps using lighter weight
+
+	Week	Set 1	Set 2	Set 3			Notes
+			45/7
+1	WEEK 1
+2	WEEK 2
+3	WEEK 3
+4	WEEK 4
+5	WEEK 5
+6	WEEK 6
+7	WEEK 7
+8	WEEK 8
+
+	seated military press				Rep goal: 4-6, 6-8, 8-10		Rest time: 2-3 min.
+
+
+	Perform 1 warm-up set of 6-10 reps using lighter weight
+
+	Week	Set 1	Set 2	Set 3			Notes
+
+1	WEEK 1 95/5.
+2	WEEK 2 DB
+3	WEEK 3
+4	WEEK 4
+5	WEEK 5
+6	WEEK 6
+7	WEEK 7
+8	WEEK 8
+
+	Incline Dumbbell Flyes			Rep goal: 10–15 reps			Rest time: Rest Pause (15s)
+
+
+	Week	Set 1	Set 2	Set 3			Notes
+
+1	WEEK 1
+2	WEEK 2
+3	WEEK 3
+4	WEEK 4
+5	WEEK 5
+6	WEEK 6
+7	WEEK 7
+8	WEEK 8
+
+	Hammer Curls			Rep goal: 12, 10, 8, 6			Rest time: 40 secs
+
+
+	Week	Set 1	Set 2	Set 3	Set 4		Notes
+
+1	WEEK 1
+2	WEEK 2
+3	WEEK 3 8.10
+4	WEEK 4
+5	WEEK 5
+6	WEEK 6
+7	WEEK 7
+8	WEEK 8
+
+	Lateral Raises			Rep goal: 10–15 reps			Rest time: Rest Pause 15 sec.
+
+
+
+	Week	Set 1	Set 2	Set 3	Set 4		Notes
+
+1	WEEK 1
+2	WEEK 2
+3	WEEK 3
+4	WEEK 4
+5	WEEK 5
+6	WEEK 6
+7	WEEK 7
+8	WEEK 8
+
+	Decline Bench Chest Press			Rep goal: 6-10 reps
+
+	Week	Set 1	Set 2	Set 3			Notes
+
+1	WEEK 1
+2	WEEK 2
+3	WEEK 3
+4	WEEK 4
+5	WEEK 5
+6	WEEK 6
+7	WEEK 7
+8	WEEK 8
+
+
+	Workout B
+
+	RDLs			Rep goal: 8-10 reps			Rest time:  2-4 min
+
+	Perform 1 warm-up set of 6-10 reps using lighter weight
+
+	Week	Set 1	Set 2	Set 3	Set 4		Notes
+
+1	WEEK 1
+2	WEEK 2
+3	WEEK 3 135/5
+4	WEEK 4 185/5
+5	WEEK 5
+6	WEEK 6
+7	WEEK 7
+8	WEEK 8
+
+	Squats
+	Perform 1 warm-up set of 6-10 reps using lighter weight
+
+	Week	Set 1	Set 2	Set 3	Set 4		Notes
+
+1	WEEK 1
+2	WEEK 2
+3	WEEK 3 6/6 135
+4	WEEK 4 135/8
+5	WEEK 5 135/7
+6	WEEK 6
+7	WEEK 7	0	0	0	0
+8	WEEK 8	0	0	0	0
+
+	Leg Extensions			Rep goal : 12, 10, 8, 6			Rest time:  90 sec
+
+	Week	Set 1	Set 2	Set 3	Set 4		Notes
+
+1	WEEK 1
+2	WEEK 2
+3	WEEK 3.  SL
+4	WEEK 4
+5	WEEK 5
+6	WEEK 6	0	0	0	0
+7	WEEK 7	0	0	0	0
+8	WEEK 8	0	0	0	0
+
+	Leg Curls			Rep goal : 12, 10, 8, 6			Rest time:  90 sec
+
+	Week	Set 1	Set 2	Set 3	Set 4		Notes
+
+1	WEEK 1
+2	WEEK 2
+3	WEEK 3
+4	WEEK 4
+5	WEEK 5
+6	WEEK 6
+7	WEEK 7	0	0	0	0
+8	WEEK 8	0	0	0	0
+
+		set 1	set 2	set 3
+	ab roll out /wk 1
+	leg raises w ball
+
+
+
+
+
+
+
+
+
+
+	Workout C
 
 	Incline BB Bench Press			Rep goal: 5-10			Rest time: 2-3 min.
 
@@ -108,164 +268,4 @@ export const SEED_SHEET_TEXT = `	Workout C
 	WEEK 6 10
 	WEEK 7
 	WEEK 8
-
-	Workout B
-
-	RDLs			Rep goal: 8-10 reps			Rest time:  2-4 min
-
-	Perform 1 warm-up set of 6-10 reps using lighter weight
-
-	Week	Set 1	Set 2	Set 3	Set 4		Notes
-
-1	WEEK 1
-2	WEEK 2
-3	WEEK 3 135/5
-4	WEEK 4 185/5
-5	WEEK 5
-6	WEEK 6
-7	WEEK 7
-8	WEEK 8
-
-	Squats
-	Perform 1 warm-up set of 6-10 reps using lighter weight
-
-	Week	Set 1	Set 2	Set 3	Set 4		Notes
-
-1	WEEK 1
-2	WEEK 2
-3	WEEK 3 6/6 135
-4	WEEK 4 135/8
-5	WEEK 5 135/7
-6	WEEK 6
-7	WEEK 7	0	0	0	0
-8	WEEK 8	0	0	0	0
-
-	Leg Extensions			Rep goal : 12, 10, 8, 6			Rest time:  90 sec
-
-	Week	Set 1	Set 2	Set 3	Set 4		Notes
-
-1	WEEK 1
-2	WEEK 2
-3	WEEK 3.  SL
-4	WEEK 4
-5	WEEK 5
-6	WEEK 6	0	0	0	0
-7	WEEK 7	0	0	0	0
-8	WEEK 8	0	0	0	0
-
-	Leg Curls			Rep goal : 12, 10, 8, 6			Rest time:  90 sec
-
-	Week	Set 1	Set 2	Set 3	Set 4		Notes
-
-1	WEEK 1
-2	WEEK 2
-3	WEEK 3
-4	WEEK 4
-5	WEEK 5
-6	WEEK 6
-7	WEEK 7	0	0	0	0
-8	WEEK 8	0	0	0	0
-
-		set 1	set 2	set 3
-	ab roll out /wk 1
-	leg raises w ball
-
-
-
-
-
-
-
-
-
-
-	Workout A
-
-	Weighted Pull-ups				Rep goal: 5,6,8		Rest time: 2-3 min.
-
-	Perform 1 warm-up set of 6-10 reps using lighter weight
-
-	Week	Set 1	Set 2	Set 3			Notes
-			45/7
-1	WEEK 1
-2	WEEK 2
-3	WEEK 3
-4	WEEK 4
-5	WEEK 5
-6	WEEK 6
-7	WEEK 7
-8	WEEK 8
-
-	seated military press				Rep goal: 4-6, 6-8, 8-10		Rest time: 2-3 min.
-
-
-	Perform 1 warm-up set of 6-10 reps using lighter weight
-
-	Week	Set 1	Set 2	Set 3			Notes
-
-1	WEEK 1 95/5.
-2	WEEK 2 DB
-3	WEEK 3
-4	WEEK 4
-5	WEEK 5
-6	WEEK 6
-7	WEEK 7
-8	WEEK 8
-
-	Incline Dumbbell Flyes			Rep goal: 10–15 reps			Rest time: Rest Pause (15s)
-
-
-	Week	Set 1	Set 2	Set 3			Notes
-
-1	WEEK 1
-2	WEEK 2
-3	WEEK 3
-4	WEEK 4
-5	WEEK 5
-6	WEEK 6
-7	WEEK 7
-8	WEEK 8
-
-	Hammer Curls			Rep goal: 12, 10, 8, 6			Rest time: 40 secs
-
-
-	Week	Set 1	Set 2	Set 3	Set 4		Notes
-
-1	WEEK 1
-2	WEEK 2
-3	WEEK 3 8.10
-4	WEEK 4
-5	WEEK 5
-6	WEEK 6
-7	WEEK 7
-8	WEEK 8
-
-	Lateral Raises			Rep goal: 10–15 reps			Rest time: Rest Pause 15 sec.
-
-
-
-	Week	Set 1	Set 2	Set 3	Set 4		Notes
-
-1	WEEK 1
-2	WEEK 2
-3	WEEK 3
-4	WEEK 4
-5	WEEK 5
-6	WEEK 6
-7	WEEK 7
-8	WEEK 8
-
-	Decline Bench Chest Press			Rep goal: 6-10 reps
-
-	Week	Set 1	Set 2	Set 3			Notes
-
-1	WEEK 1
-2	WEEK 2
-3	WEEK 3
-4	WEEK 4
-5	WEEK 5
-6	WEEK 6
-7	WEEK 7
-8	WEEK 8
-
 `;
