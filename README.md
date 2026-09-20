@@ -4,6 +4,12 @@ Turns a Google Sheet workout program into a simple, mobile-friendly workout app:
 
 No build step, no backend, no account required. It's a static site that reads your program from Google Sheets (or a pasted/uploaded CSV) and keeps everything you log in your browser.
 
+## Sending this to someone (e.g. a client)
+
+The app ships with a default program baked in (`js/seedProgram.js`) — anyone who opens the link for the first time sees it immediately, no import step required. It only applies on a device's very first visit: once a program exists in that browser (seeded or imported), it's never overwritten automatically, even if every day is later deleted.
+
+To change the bundled program, replace the text inside the template literal in `js/seedProgram.js` with your own sheet data (same paste/export format as the in-app importer — see below), or edit `SEED_SHEET_TEXT` to an empty string (`""`) to ship the app with no default program, so every visitor lands on the normal Import screen instead.
+
 ## How it works
 
 1. **Import a workout day** — either:

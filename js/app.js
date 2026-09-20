@@ -1,6 +1,7 @@
 import { fetchGoogleSheetCsv, parseGoogleSheetUrl } from "./csv.js";
 import { parseWorkoutSheet, parseWorkoutSheets } from "./workoutParser.js";
 import { Store } from "./store.js";
+import { SEED_SHEET_TEXT } from "./seedProgram.js";
 
 const app = document.getElementById("app");
 const tabbar = document.getElementById("tabbar");
@@ -539,6 +540,17 @@ tabbar.addEventListener("click", (e) => {
 
 // ---------- boot ----------
 
+function seedIfEmpty() {
+  if (Store.getProgram()) return; // never overwrite a visitor's own data
+  try {
+    const days = parseWorkoutSheets(SEED_SHEET_TEXT);
+    days.forEach((day) => Store.addDay({ name: day.dayTitle || "Workout", source: null, exercises: day.exercises }));
+  } catch {
+    // if the bundled seed ever fails to parse, just fall back to the normal empty state
+  }
+}
+
+seedIfEmpty();
 navigate("program");
 
 if ("serviceWorker" in navigator) {
