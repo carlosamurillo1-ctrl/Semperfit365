@@ -1,8 +1,19 @@
 // Thin localStorage wrapper. All app persistence lives here.
+//
+// Program shape:
+// {
+//   days: [{
+//     id, name, source: {type, url?} | null,
+//     exercises: [{
+//       id, name, repGoal, restTime, setupNote, setLabels: string[],
+//       weeks: [{ week, values: string[], notes, updatedAt: string|null }]
+//     }]
+//   }],
+//   importedAt
+// }
 
 const KEYS = {
-  program: "sf365.program.v1",
-  logs: "sf365.logs.v1",
+  program: "sf365.program.v2",
   settings: "sf365.settings.v1",
 };
 
@@ -23,6 +34,10 @@ function write(key, value) {
   }
 }
 
+function uid() {
+  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+}
+
 export const Store = {
   getProgram() {
     return read(KEYS.program, null);
@@ -34,23 +49,95 @@ export const Store = {
     localStorage.removeItem(KEYS.program);
   },
 
-  getLogs() {
-    return read(KEYS.logs, []);
+  /** Append a freshly-parsed day { name, source, exercises } to the program (creating one if needed). Returns the new day's id. */
+  addDay(day) {
+    const program = this.getProgram() || { days: [], importedAt: new Date().toISOString() };
+    const dayWithIds = {
+      id: uid(),
+      name: day.name,
+      source: day.source || null,
+      exercises: day.exercises.map((ex) => ({
+        id: uid(),
+        name: ex.name,
+        repGoal: ex.repGoal || "",
+        restTime: ex.restTime || "",
+        setupNote: ex.setupNote || "",
+        setLabels: ex.setLabels,
+        weeks: ex.weeks.map((w) => ({
+          week: w.week,
+          values: w.values,
+          notes: w.notes || "",
+          updatedAt: null,
+        })),
+      })),
+    };
+    program.days.push(dayWithIds);
+    program.importedAt = new Date().toISOString();
+    this.setProgram(program);
+    return dayWithIds.id;
   },
-  addLog(entry) {
-    const logs = this.getLogs();
-    logs.unshift(entry);
-    write(KEYS.logs, logs);
+
+  removeDay(dayId) {
+    const program = this.getProgram();
+    if (!program) return;
+    program.days = program.days.filter((d) => d.id !== dayId);
+    this.setProgram(program);
   },
-  deleteLog(id) {
-    const logs = this.getLogs().filter((l) => l.id !== id);
-    write(KEYS.logs, logs);
+
+  getDay(dayId) {
+    return this.getProgram()?.days.find((d) => d.id === dayId) || null;
   },
-  lastLogFor(week, day) {
-    return this.getLogs().find((l) => l.week === week && l.day === day) || null;
+
+  getExercise(dayId, exerciseId) {
+    const day = this.getDay(dayId);
+    return day?.exercises.find((e) => e.id === exerciseId) || null;
   },
-  clearLogs() {
-    localStorage.removeItem(KEYS.logs);
+
+  updateExerciseWeek(dayId, exerciseId, weekNumber, patch) {
+    const program = this.getProgram();
+    if (!program) return;
+    const day = program.days.find((d) => d.id === dayId);
+    const ex = day?.exercises.find((e) => e.id === exerciseId);
+    if (!ex) return;
+    const week = ex.weeks.find((w) => w.week === weekNumber);
+    if (!week) return;
+    Object.assign(week, patch, { updatedAt: new Date().toISOString() });
+    this.setProgram(program);
+  },
+
+  addWeekToExercise(dayId, exerciseId) {
+    const program = this.getProgram();
+    if (!program) return null;
+    const day = program.days.find((d) => d.id === dayId);
+    const ex = day?.exercises.find((e) => e.id === exerciseId);
+    if (!ex) return null;
+    const nextWeek = ex.weeks.length ? Math.max(...ex.weeks.map((w) => w.week)) + 1 : 1;
+    ex.weeks.push({
+      week: nextWeek,
+      values: ex.setLabels.map(() => ""),
+      notes: "",
+      updatedAt: null,
+    });
+    this.setProgram(program);
+    return nextWeek;
+  },
+
+  /** Every week row across the whole program that's been touched, newest first. */
+  getRecentEntries() {
+    const program = this.getProgram();
+    if (!program) return [];
+    const entries = [];
+    for (const day of program.days) {
+      for (const ex of day.exercises) {
+        for (const week of ex.weeks) {
+          if (week.updatedAt) {
+            entries.push({ dayId: day.id, dayName: day.name, exerciseId: ex.id, exerciseName: ex.name, setLabels: ex.setLabels, ...week });
+          }
+        }
+      }
+    }
+    entries.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+    return entries;
   },
 
   getSettings() {
@@ -62,7 +149,6 @@ export const Store = {
 
   clearAll() {
     this.clearProgram();
-    this.clearLogs();
     localStorage.removeItem(KEYS.settings);
   },
 };

@@ -157,38 +157,6 @@ select { appearance: none; }
 .tab svg { width: 20px; height: 20px; fill: currentColor; }
 .tab.active { color: var(--accent); }
 
-.exercise {
-  border-bottom: 1px solid var(--border);
-  padding: 14px 0;
-}
-.exercise:last-child { border-bottom: none; }
-.exercise .ex-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
-.exercise .ex-name { font-weight: 600; font-size: 15px; }
-.exercise .ex-target { font-size: 12px; color: var(--text-dim); }
-.exercise .ex-notes { font-size: 12px; color: var(--warn); margin-top: 4px; }
-.exercise .last-time { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
-
-.set-row {
-  display: grid;
-  grid-template-columns: 28px 1fr 1fr 32px;
-  gap: 8px;
-  align-items: center;
-  margin-top: 8px;
-}
-.set-row .set-idx { font-size: 12px; color: var(--text-dim); text-align: center; }
-.set-row input { text-align: center; padding: 8px 4px; }
-.check {
-  width: 30px; height: 30px;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background: var(--bg-elev-2);
-  display: flex; align-items: center; justify-content: center;
-  cursor: pointer;
-}
-.check.done { background: var(--accent); border-color: var(--accent); }
-.check.done svg { fill: #06120c; }
-.check svg { width: 16px; height: 16px; fill: transparent; }
-
 .empty {
   text-align: center;
   padding: 48px 16px;
@@ -198,8 +166,11 @@ select { appearance: none; }
 
 .week-group { margin: 20px 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--text-dim); }
 
-.map-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; }
-.map-grid .full { grid-column: 1 / -1; }
+.card.current-week { border-color: var(--accent-dim); background: linear-gradient(180deg, rgba(94,230,168,.06), transparent 40%), var(--bg-elev); }
+.week-fields { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+.week-fields .field { flex: 1 1 70px; min-width: 64px; }
+.week-fields .field label { margin: 0 0 4px; font-size: 11px; }
+.week-fields .field input { padding: 8px; text-align: center; }
 
 .source-chip {
   display: inline-flex; align-items: center; gap: 6px;
@@ -223,11 +194,8 @@ select { appearance: none; }
   box-shadow: 0 8px 24px rgba(0,0,0,.4);
 }
 
-.log-entry { border-bottom: 1px solid var(--border); padding: 12px 0; }
-.log-entry:last-child { border-bottom: none; }
-.log-entry .log-head { display: flex; justify-content: space-between; font-size: 13px; color: var(--text-dim); }
-.log-entry .log-ex { font-size: 13px; margin-top: 6px; }
-.log-entry .log-ex b { color: var(--text); }
+.log-head { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-dim); }
+.log-ex { font-size: 13px; margin: 4px 0; }
 
 @media (min-width: 520px) {
   .tabbar { max-width: 640px; left: 50%; transform: translateX(-50%); border-left: 1px solid var(--border); border-right: 1px solid var(--border); border-radius: 16px 16px 0 0; }

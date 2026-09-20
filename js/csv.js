@@ -1,7 +1,16 @@
-// CSV parsing + Google Sheet fetching. No dependencies.
+// Delimited-text parsing + Google Sheet fetching. No dependencies.
 
-/** Parse RFC4180-ish CSV text into an array of row arrays. */
-export function parseCSV(text) {
+/**
+ * Guess whether pasted text is tab-delimited (copy/paste straight out of
+ * Google Sheets — the common case) or comma-delimited (a downloaded .csv).
+ */
+export function detectDelimiter(text) {
+  const firstLine = text.split(/\r\n|\n/, 1)[0] || "";
+  return firstLine.includes("\t") ? "\t" : ",";
+}
+
+/** Parse RFC4180-ish delimited text into an array of row arrays. Handles quoted fields. */
+export function parseCSV(text, delimiter = detectDelimiter(text)) {
   const rows = [];
   let row = [];
   let field = "";
@@ -25,9 +34,9 @@ export function parseCSV(text) {
       continue;
     }
 
-    if (c === '"') {
+    if (c === '"' && field === "") {
       inQuotes = true;
-    } else if (c === ",") {
+    } else if (c === delimiter) {
       row.push(field);
       field = "";
     } else if (c === "\n") {

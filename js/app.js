@@ -1,31 +1,15 @@
-import { parseCSV, rowsToObjects, fetchGoogleSheetCsv, parseGoogleSheetUrl } from "./csv.js";
+import { parseCSV, fetchGoogleSheetCsv, parseGoogleSheetUrl } from "./csv.js";
+import { parseWorkoutSheet } from "./workoutParser.js";
 import { Store } from "./store.js";
 
 const app = document.getElementById("app");
 const tabbar = document.getElementById("tabbar");
 
-const FIELD_ORDER = ["exercise", "sets", "reps", "weight", "week", "day", "rest", "category", "notes"];
-const FIELD_LABELS = {
-  exercise: "Exercise name", sets: "Sets", reps: "Reps", weight: "Weight",
-  week: "Week / Phase", day: "Day", rest: "Rest", category: "Category / Muscle group", notes: "Notes",
-};
-const FIELD_PATTERNS = {
-  exercise: /\b(exercise|movement|lift|activity)\b/i,
-  sets: /^\s*sets?\s*$/i,
-  reps: /^\s*reps?\s*$/i,
-  weight: /\b(weight|load|lbs?|kgs?)\b/i,
-  week: /\b(week|wk|phase|cycle|block)\b/i,
-  day: /\b(day|session|workout)\b/i,
-  rest: /\brest\b/i,
-  category: /\b(category|group|muscle|body ?part|type)\b/i,
-  notes: /\b(notes?|comments?|cues?|tempo)\b/i,
-};
-
 const state = {
   tab: "program",
-  screen: "program", // program | import | mapping | workout | log-detail | history | settings
+  screen: "program", // program | import | review | day | exercise | history | settings
   params: {},
-  pendingImport: null, // { headers, records, source }
+  pendingImport: null, // { dayTitle, exercises, source }
   toast: null,
 };
 
@@ -46,63 +30,20 @@ function navigate(screen, params = {}) {
   render();
 }
 
-// ---------- data helpers ----------
-
-function autoMap(headers) {
-  const mapping = {};
-  const used = new Set();
-  for (const field of FIELD_ORDER) {
-    const pattern = FIELD_PATTERNS[field];
-    const match = headers.find((h) => !used.has(h) && pattern.test(h));
-    if (match) {
-      mapping[field] = match;
-      used.add(match);
-    } else {
-      mapping[field] = null;
-    }
-  }
-  return mapping;
-}
-
-function formatWeekLabel(raw) {
-  const trimmed = String(raw).trim();
-  return /^\d+$/.test(trimmed) ? `Week ${trimmed}` : trimmed;
-}
-
-function buildWorkouts(program) {
-  const { records, mapping } = program;
-  const groups = new Map();
-  records.forEach((rec, idx) => {
-    const week = (mapping.week && rec[mapping.week] && formatWeekLabel(rec[mapping.week])) || "Week 1";
-    const day = (mapping.day && rec[mapping.day]) || "Day 1";
-    const key = `${week}||${day}`;
-    if (!groups.has(key)) groups.set(key, { week, day, key, exercises: [] });
-    const name = mapping.exercise ? rec[mapping.exercise] : "";
-    if (!name) return;
-    groups.get(key).exercises.push({
-      name,
-      sets: mapping.sets ? rec[mapping.sets] : "",
-      reps: mapping.reps ? rec[mapping.reps] : "",
-      weight: mapping.weight ? rec[mapping.weight] : "",
-      rest: mapping.rest ? rec[mapping.rest] : "",
-      notes: mapping.notes ? rec[mapping.notes] : "",
-      category: mapping.category ? rec[mapping.category] : "",
-      order: idx,
-    });
-  });
-  return Array.from(groups.values()).sort((a, b) => {
-    const first = (g) => Math.min(...g.exercises.map((e) => e.order), Infinity);
-    return first(a) - first(b);
-  });
-}
-
-function setsCount(raw) {
-  const n = parseInt(String(raw).match(/\d+/)?.[0] ?? "", 10);
-  return Number.isFinite(n) && n > 0 ? n : 1;
-}
-
 function esc(s) {
   return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+function relativeTime(iso) {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const mins = Math.round(diffMs / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.round(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.round(hrs / 24);
+  if (days < 7) return `${days}d ago`;
+  return new Date(iso).toLocaleDateString();
 }
 
 // ---------- render root ----------
@@ -116,9 +57,9 @@ function render() {
   switch (state.screen) {
     case "program": html = renderProgram(); break;
     case "import": html = renderImport(); break;
-    case "mapping": html = renderMapping(); break;
-    case "workout": html = renderWorkout(); break;
-    case "log-detail": html = renderLogDetail(); break;
+    case "review": html = renderReview(); break;
+    case "day": html = renderDay(); break;
+    case "exercise": html = renderExercise(); break;
     case "history": html = renderHistory(); break;
     case "settings": html = renderSettings(); break;
     default: html = renderProgram();
@@ -135,50 +76,44 @@ function topbar(title, opts = {}) {
   return `<div class="topbar">${backBtn}<h1 style="margin:0;font-size:17px;">${esc(title)}</h1><div style="width:${opts.back ? "70px" : "0"}"></div></div>`;
 }
 
-// ---------- PROGRAM screen ----------
+// ---------- PROGRAM screen (list of days) ----------
 
 function renderProgram() {
   const program = Store.getProgram();
-  if (!program) {
+  if (!program || program.days.length === 0) {
     return `
       ${topbar("")}
       <div class="empty">
         <svg viewBox="0 0 24 24"><path fill="currentColor" d="M20.5 3.5 21 4a1 1 0 0 1 0 1.4L6.9 19.5l-4.4 1 1-4.4L17.6 2.1a1 1 0 0 1 1.4 0l1.5 1.4Z"/></svg>
-        <h2>No workout program yet</h2>
+        <h2>No workout days yet</h2>
         <p>Connect your Google Sheet, paste your workout data, or upload a CSV to get started.</p>
         <div style="height:16px"></div>
-        <button class="btn primary" data-action="go-import">Import my program</button>
+        <button class="btn primary" data-action="go-import">Import a workout day</button>
       </div>`;
   }
 
-  const workouts = buildWorkouts(program);
-  let lastWeek = null;
-  const items = workouts.map((w) => {
-    const weekHeader = w.week !== lastWeek ? `<div class="week-group">${esc(w.week)}</div>` : "";
-    lastWeek = w.week;
-    const exCount = w.exercises.length;
-    const last = Store.lastLogFor(w.week, w.day);
-    return `${weekHeader}
-      <div class="card tappable" data-action="open-workout" data-week="${esc(w.week)}" data-day="${esc(w.day)}">
+  const items = program.days.map((day) => {
+    const exCount = day.exercises.length;
+    const filled = day.exercises.reduce((n, ex) => n + ex.weeks.filter((w) => w.updatedAt).length, 0);
+    return `
+      <div class="card tappable" data-action="open-day" data-day="${esc(day.id)}">
         <div class="row">
           <div>
-            <h3>${esc(w.day)}</h3>
-            <p>${exCount} exercise${exCount === 1 ? "" : "s"}${last ? ` &middot; last done ${new Date(last.date).toLocaleDateString()}` : ""}</p>
+            <h3>${esc(day.name)}</h3>
+            <p>${exCount} exercise${exCount === 1 ? "" : "s"}${filled ? ` &middot; ${filled} week${filled === 1 ? "" : "s"} logged` : ""}</p>
           </div>
-          <span class="pill">${last ? "Repeat" : "Start"}</span>
+          <span class="pill">Open</span>
         </div>
       </div>`;
   }).join("");
 
-  const sourceLabel = program.source?.type === "sheet" ? "Google Sheet" : program.source?.type === "file" ? "CSV file" : "Pasted data";
-
   return `
     ${topbar("")}
     <div class="row" style="margin-bottom:14px;">
-      <span class="source-chip">Source: ${esc(sourceLabel)}</span>
-      <button class="btn ghost small" data-action="go-import">Change</button>
+      <span class="source-chip">${program.days.length} workout day${program.days.length === 1 ? "" : "s"}</span>
+      <button class="btn ghost small" data-action="go-import">+ Add day</button>
     </div>
-    ${items || `<div class="empty"><p>No workouts found in this sheet. Check your column mapping in Settings.</p></div>`}
+    ${items}
   `;
 }
 
@@ -187,10 +122,10 @@ function renderProgram() {
 function renderImport() {
   const program = Store.getProgram();
   return `
-    ${topbar("Import your program", { back: !!program })}
+    ${topbar("Import a workout day", { back: !!program && program.days.length > 0 })}
     <div class="card">
       <h3>From a Google Sheet</h3>
-      <p>Share your sheet as "Anyone with the link can view", then paste the link here.</p>
+      <p>Share your sheet as "Anyone with the link can view", then paste the link to the tab (day) you want to import.</p>
       <label for="sheet-url">Google Sheet link</label>
       <input type="url" id="sheet-url" placeholder="https://docs.google.com/spreadsheets/d/..." />
       <div style="height:10px"></div>
@@ -201,9 +136,9 @@ function renderImport() {
     <div class="divider">or</div>
 
     <div class="card">
-      <h3>Paste CSV data</h3>
-      <p>In Google Sheets: File &rarr; Download &rarr; Comma Separated Values, open it, then paste the contents below. Or just copy a range of cells and paste.</p>
-      <textarea id="csv-paste" placeholder="Week,Day,Exercise,Sets,Reps,Weight,Rest,Notes&#10;1,Day 1 - Push,Bench Press,4,8,135,90s,"></textarea>
+      <h3>Paste from Google Sheets</h3>
+      <p>Select the cells for one workout day in Google Sheets, copy (Ctrl/Cmd+C), and paste below.</p>
+      <textarea id="csv-paste" placeholder="Paste your workout day here..."></textarea>
       <div style="height:10px"></div>
       <button class="btn" data-action="import-paste">Use pasted data</button>
     </div>
@@ -212,7 +147,7 @@ function renderImport() {
 
     <div class="card">
       <h3>Upload a CSV file</h3>
-      <input type="file" id="csv-file" accept=".csv,text/csv" />
+      <input type="file" id="csv-file" accept=".csv,.tsv,text/csv,text/tab-separated-values" />
     </div>
   `;
 }
@@ -255,217 +190,151 @@ function handleImportFile(file) {
   reader.readAsText(file);
 }
 
-function beginImport(csvText, source) {
-  const rows = parseCSV(csvText);
-  const { headers, records } = rowsToObjects(rows);
-  if (!headers.length || !records.length) {
-    toast("No data found — check the format and try again");
+function beginImport(text, source) {
+  const parsed = parseWorkoutSheet(text);
+  if (!parsed.exercises.length) {
+    toast("Couldn't find any exercises in that data — check the format and try again");
     return;
   }
-  state.pendingImport = { headers, records, source, mapping: autoMap(headers) };
-  navigate("mapping");
+  state.pendingImport = { ...parsed, source };
+  navigate("review");
 }
 
-// ---------- MAPPING screen ----------
+// ---------- REVIEW screen (confirm parsed day before saving) ----------
 
-function renderMapping() {
+function renderReview() {
   const pending = state.pendingImport;
   if (!pending) {
     navigate("import");
     return "";
   }
-  const options = (selected) => {
-    const opts = [`<option value="" ${!selected ? "selected" : ""}>(none)</option>`];
-    for (const h of pending.headers) {
-      opts.push(`<option value="${esc(h)}" ${selected === h ? "selected" : ""}>${esc(h)}</option>`);
-    }
-    return opts.join("");
-  };
-
-  const fields = FIELD_ORDER.map((f) => `
-    <div>
-      <label for="map-${f}">${esc(FIELD_LABELS[f])}${f === "exercise" ? " *" : ""}</label>
-      <select id="map-${f}" data-field="${f}">${options(pending.mapping[f])}</select>
+  const items = pending.exercises.map((ex) => `
+    <div class="row" style="align-items:flex-start;">
+      <div>
+        <h3 style="font-size:14px;">${esc(ex.name)}</h3>
+        <p>${[ex.repGoal && `Reps: ${esc(ex.repGoal)}`, ex.restTime && `Rest: ${esc(ex.restTime)}`, `${ex.setLabels.length} set col${ex.setLabels.length === 1 ? "" : "s"}`, `${ex.weeks.length} weeks`].filter(Boolean).join(" &middot; ")}</p>
+      </div>
     </div>
   `).join("");
 
   return `
-    ${topbar("Match your columns", { back: true })}
+    ${topbar("Review import", { back: true })}
     <div class="card">
-      <p>Found ${pending.records.length} rows with ${pending.headers.length} columns. Match them to the fields below — we guessed based on your headers, adjust anything that's wrong.</p>
+      <label for="review-day-name">Day name</label>
+      <input type="text" id="review-day-name" value="${esc(pending.dayTitle || "")}" placeholder="e.g. Friday (Workout C)" />
+      <p class="hint">Found ${pending.exercises.length} exercise${pending.exercises.length === 1 ? "" : "s"}.</p>
     </div>
-    <div class="card">
-      <div class="map-grid">${fields}</div>
-    </div>
-    <button class="btn primary" data-action="confirm-mapping">Save &amp; view program</button>
+    <div class="card">${items}</div>
+    <button class="btn primary" data-action="confirm-review">Add this day to my program</button>
   `;
 }
 
-function confirmMapping() {
+function confirmReview() {
   const pending = state.pendingImport;
-  const mapping = {};
-  FIELD_ORDER.forEach((f) => {
-    const sel = document.getElementById(`map-${f}`);
-    mapping[f] = sel.value || null;
-  });
-  if (!mapping.exercise) {
-    toast("Pick a column for Exercise name");
-    return;
-  }
-  const program = {
-    headers: pending.headers,
-    records: pending.records,
-    mapping,
-    source: pending.source,
-    importedAt: new Date().toISOString(),
-  };
-  Store.setProgram(program);
+  const nameInput = document.getElementById("review-day-name");
+  const name = (nameInput.value || "").trim() || "Workout";
+  const dayId = Store.addDay({ name, source: pending.source, exercises: pending.exercises });
   state.pendingImport = null;
-  toast("Program imported");
-  navigate("program");
+  toast("Day added");
+  navigate("day", { dayId });
 }
 
-// ---------- WORKOUT screen ----------
+// ---------- DAY screen (list of exercises) ----------
 
-let activeDraft = null;
-
-function loadDraft(week, day) {
-  const program = Store.getProgram();
-  const workouts = buildWorkouts(program);
-  const w = workouts.find((x) => x.week === week && x.day === day);
-  if (!w) return null;
-  return {
-    week, day,
-    exercises: w.exercises.map((ex) => ({
-      ...ex,
-      setRows: Array.from({ length: setsCount(ex.sets) }, () => ({ reps: "", weight: "", done: false })),
-    })),
-  };
-}
-
-function renderWorkout() {
-  const { week, day } = state.params;
-  if (!activeDraft || activeDraft.week !== week || activeDraft.day !== day) {
-    activeDraft = loadDraft(week, day);
-  }
-  if (!activeDraft) {
+function renderDay() {
+  const day = Store.getDay(state.params.dayId);
+  if (!day) {
     navigate("program");
     return "";
   }
-  const last = Store.lastLogFor(week, day);
-  const lastByName = {};
-  if (last) {
-    last.exercises.forEach((e) => { lastByName[e.name] = e; });
-  }
-
-  const exHtml = activeDraft.exercises.map((ex, exIdx) => {
-    const target = [ex.sets && `${ex.sets} sets`, ex.reps && `${ex.reps} reps`, ex.weight && `@ ${ex.weight}`].filter(Boolean).join(" · ");
-    const lastEx = lastByName[ex.name];
-    const lastSummary = lastEx?.setRows?.length
-      ? lastEx.setRows.filter((s) => s.weight || s.reps).map((s) => `${s.weight || "-"}${s.reps ? `x${s.reps}` : ""}`).join(", ")
-      : null;
-
-    const rows = ex.setRows.map((s, setIdx) => `
-      <div class="set-row">
-        <div class="set-idx">${setIdx + 1}</div>
-        <input type="number" inputmode="decimal" placeholder="${esc(ex.weight) || "weight"}" value="${esc(s.weight)}" data-ex="${exIdx}" data-set="${setIdx}" data-kind="weight" />
-        <input type="number" inputmode="numeric" placeholder="${esc(ex.reps) || "reps"}" value="${esc(s.reps)}" data-ex="${exIdx}" data-set="${setIdx}" data-kind="reps" />
-        <div class="check ${s.done ? "done" : ""}" data-action="toggle-set" data-ex="${exIdx}" data-set="${setIdx}">
-          <svg viewBox="0 0 24 24"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg>
+  const items = day.exercises.map((ex) => {
+    const filled = ex.weeks.filter((w) => w.updatedAt).length;
+    const repText = ex.repGoal && (/rep/i.test(ex.repGoal) ? ex.repGoal : `${ex.repGoal} reps`);
+    const target = [repText, ex.restTime && `rest ${ex.restTime}`].filter(Boolean).join(" &middot; ");
+    return `
+      <div class="card tappable" data-action="open-exercise" data-day="${esc(day.id)}" data-exercise="${esc(ex.id)}">
+        <div class="row">
+          <div>
+            <h3>${esc(ex.name)}</h3>
+            <p>${target || `${ex.weeks.length} weeks`}${filled ? ` &middot; ${filled} logged` : ""}</p>
+          </div>
+          <span class="pill">${ex.setLabels.length || 0} sets</span>
         </div>
+      </div>`;
+  }).join("");
+
+  return `
+    ${topbar(day.name, { back: true })}
+    ${items || `<div class="empty"><p>No exercises in this day.</p></div>`}
+    <div style="height:8px"></div>
+    <button class="btn danger" data-action="delete-day" data-day="${esc(day.id)}">Delete this day</button>
+  `;
+}
+
+// ---------- EXERCISE screen (week-by-week log) ----------
+
+function renderExercise() {
+  const { dayId, exerciseId } = state.params;
+  const day = Store.getDay(dayId);
+  const ex = day?.exercises.find((e) => e.id === exerciseId);
+  if (!day || !ex) {
+    navigate("program");
+    return "";
+  }
+  const weeksSorted = [...ex.weeks].sort((a, b) => a.week - b.week);
+  const currentWeek = weeksSorted.find((w) => !w.updatedAt && w.values.every((v) => !v) && !w.notes);
+
+  const weekCards = weeksSorted.map((w) => {
+    const isCurrent = currentWeek && w.week === currentWeek.week;
+    const fields = ex.setLabels.map((label, i) => `
+      <div class="field">
+        <label>${esc(label)}</label>
+        <input type="text" inputmode="decimal" value="${esc(w.values[i] || "")}" data-week="${w.week}" data-idx="${i}" data-kind="value" />
       </div>
     `).join("");
-
     return `
-      <div class="exercise">
-        <div class="ex-head">
-          <span class="ex-name">${esc(ex.name)}</span>
-          <span class="ex-target">${esc(target)}${ex.rest ? ` &middot; rest ${esc(ex.rest)}` : ""}</span>
+      <div class="card${isCurrent ? " current-week" : ""}">
+        <div class="row">
+          <h3>Week ${w.week}${isCurrent ? ' <span class="pill">Next</span>' : ""}</h3>
+          ${w.updatedAt ? `<span class="hint">updated ${relativeTime(w.updatedAt)}</span>` : ""}
         </div>
-        ${ex.category ? `<div class="ex-target">${esc(ex.category)}</div>` : ""}
-        ${ex.notes ? `<div class="ex-notes">${esc(ex.notes)}</div>` : ""}
-        ${lastSummary ? `<div class="last-time">Last time: ${esc(lastSummary)}</div>` : ""}
-        ${rows}
+        <div class="week-fields">${fields}</div>
+        <label>Notes</label>
+        <input type="text" value="${esc(w.notes || "")}" data-week="${w.week}" data-kind="notes" />
       </div>
     `;
   }).join("");
 
   return `
-    ${topbar(day, { back: true })}
-    <p style="margin-bottom:12px;">${esc(week)}</p>
-    <div class="card">${exHtml || "<p>No exercises in this workout.</p>"}</div>
-    <div class="btn-row">
-      <button class="btn" data-action="cancel-workout">Cancel</button>
-      <button class="btn primary" data-action="finish-workout">Finish workout</button>
+    ${topbar(ex.name, { back: true })}
+    <div class="row" style="margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+      ${ex.repGoal ? `<span class="source-chip">Reps: ${esc(ex.repGoal)}</span>` : ""}
+      ${ex.restTime ? `<span class="source-chip">Rest: ${esc(ex.restTime)}</span>` : ""}
     </div>
+    ${ex.setupNote ? `<div class="card"><p>${esc(ex.setupNote)}</p></div>` : ""}
+    ${weekCards}
+    <button class="btn" data-action="add-week" data-day="${esc(day.id)}" data-exercise="${esc(ex.id)}">+ Add week</button>
   `;
-}
-
-function finishWorkout() {
-  if (!activeDraft) return;
-  const loggedExercises = activeDraft.exercises
-    .map((ex) => ({
-      name: ex.name,
-      setRows: ex.setRows.filter((s) => s.done || s.weight || s.reps),
-    }))
-    .filter((ex) => ex.setRows.length > 0);
-
-  if (loggedExercises.length === 0) {
-    toast("Log at least one set before finishing");
-    return;
-  }
-
-  Store.addLog({
-    id: `${Date.now()}`,
-    date: new Date().toISOString(),
-    week: activeDraft.week,
-    day: activeDraft.day,
-    exercises: loggedExercises,
-  });
-  activeDraft = null;
-  toast("Workout saved");
-  navigate("program");
 }
 
 // ---------- HISTORY screen ----------
 
 function renderHistory() {
-  const logs = Store.getLogs();
-  if (!logs.length) {
-    return `${topbar("History")}<div class="empty"><h2>No workouts logged yet</h2><p>Finish a workout and it'll show up here.</p></div>`;
+  const entries = Store.getRecentEntries();
+  if (!entries.length) {
+    return `${topbar("History")}<div class="empty"><h2>Nothing logged yet</h2><p>Fill in a set weight on any exercise and it'll show up here.</p></div>`;
   }
-  const items = logs.map((l) => `
-    <div class="card tappable" data-action="open-log" data-id="${esc(l.id)}">
-      <div class="row">
-        <div>
-          <h3>${esc(l.day)}</h3>
-          <p>${esc(l.week)} &middot; ${new Date(l.date).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}</p>
-        </div>
-        <span class="pill">${l.exercises.length} ex</span>
+  const items = entries.map((e) => {
+    const summary = e.values.map((v, i) => v ? `${esc(e.setLabels[i])}: ${esc(v)}` : null).filter(Boolean).join(", ");
+    return `
+      <div class="card tappable" data-action="open-exercise" data-day="${esc(e.dayId)}" data-exercise="${esc(e.exerciseId)}">
+        <div class="log-head"><span>${esc(e.exerciseName)} &middot; Week ${e.week}</span><span>${relativeTime(e.updatedAt)}</span></div>
+        <div class="log-ex">${summary || (e.notes ? esc(e.notes) : "No values")}</div>
+        <p>${esc(e.dayName)}</p>
       </div>
-    </div>
-  `).join("");
+    `;
+  }).join("");
   return `${topbar("History")}${items}`;
-}
-
-function renderLogDetail() {
-  const log = Store.getLogs().find((l) => l.id === state.params.id);
-  if (!log) {
-    navigate("history");
-    return "";
-  }
-  const items = log.exercises.map((ex) => `
-    <div class="log-entry">
-      <div class="log-ex"><b>${esc(ex.name)}</b></div>
-      ${ex.setRows.map((s, i) => `<div class="log-ex">Set ${i + 1}: ${esc(s.weight) || "-"} &times; ${esc(s.reps) || "-"}</div>`).join("")}
-    </div>
-  `).join("");
-  return `
-    ${topbar(log.day, { back: true })}
-    <p style="margin-bottom:12px;">${esc(log.week)} &middot; ${new Date(log.date).toLocaleString()}</p>
-    <div class="card">${items}</div>
-    <button class="btn danger" data-action="delete-log" data-id="${esc(log.id)}">Delete this log</button>
-  `;
 }
 
 // ---------- SETTINGS screen ----------
@@ -473,6 +342,20 @@ function renderLogDetail() {
 function renderSettings() {
   const settings = Store.getSettings();
   const program = Store.getProgram();
+  const days = program?.days || [];
+  const dayRows = days.map((d) => `
+    <div class="row">
+      <div>
+        <h3 style="font-size:14px;">${esc(d.name)}</h3>
+        <p>${d.exercises.length} exercises${d.source?.type === "sheet" ? " &middot; from Google Sheet" : ""}</p>
+      </div>
+      <div class="btn-row" style="width:auto;gap:6px;">
+        ${d.source?.type === "sheet" ? `<button class="btn small" data-action="refresh-day" data-day="${esc(d.id)}">Refresh</button>` : ""}
+        <button class="btn small danger" data-action="delete-day" data-day="${esc(d.id)}">Delete</button>
+      </div>
+    </div>
+  `).join("");
+
   return `
     ${topbar("Settings")}
     <div class="card">
@@ -483,35 +366,54 @@ function renderSettings() {
       </div>
     </div>
     <div class="card">
-      <h3>Data source</h3>
-      <p>${program ? `Imported ${new Date(program.importedAt).toLocaleDateString()}` : "No program imported"}</p>
+      <h3>Workout days</h3>
+      ${dayRows || "<p>None imported yet.</p>"}
       <div style="height:10px"></div>
-      <button class="btn" data-action="go-import">Import / change program</button>
-      ${program?.source?.type === "sheet" ? `<div style="height:10px"></div><button class="btn" data-action="refresh-sheet">Refresh from Google Sheet</button>` : ""}
+      <button class="btn" data-action="go-import">Import another day</button>
     </div>
     <div class="card">
       <h3>Reset</h3>
-      <p>Clears your imported program and all logged workouts from this device.</p>
+      <p>Clears every imported day and every logged value from this device.</p>
       <div style="height:10px"></div>
       <button class="btn danger" data-action="reset-all">Erase all data</button>
     </div>
   `;
 }
 
-async function refreshSheet() {
-  const program = Store.getProgram();
-  if (!program?.source?.url) return;
+async function refreshDay(dayId) {
+  const day = Store.getDay(dayId);
+  if (!day?.source?.url) return;
   toast("Refreshing...");
   try {
-    const csvText = await fetchGoogleSheetCsv(program.source.url);
-    const rows = parseCSV(csvText);
-    const { headers, records } = rowsToObjects(rows);
-    const mapping = {};
-    FIELD_ORDER.forEach((f) => {
-      mapping[f] = program.mapping[f] && headers.includes(program.mapping[f]) ? program.mapping[f] : null;
+    const csvText = await fetchGoogleSheetCsv(day.source.url);
+    const fresh = parseWorkoutSheet(csvText);
+    if (!fresh.exercises.length) {
+      toast("No exercises found in the refreshed sheet");
+      return;
+    }
+    const merged = fresh.exercises.map((newEx) => {
+      const oldEx = day.exercises.find((e) => e.name.trim().toLowerCase() === newEx.name.trim().toLowerCase());
+      return {
+        name: newEx.name,
+        repGoal: newEx.repGoal,
+        restTime: newEx.restTime,
+        setupNote: newEx.setupNote,
+        setLabels: newEx.setLabels,
+        weeks: newEx.weeks.map((w) => {
+          const oldWeek = oldEx?.weeks.find((ow) => ow.week === w.week);
+          if (oldWeek && (oldWeek.updatedAt || oldWeek.values.some((v) => v) || oldWeek.notes)) return oldWeek;
+          return { week: w.week, values: w.values, notes: w.notes, updatedAt: null };
+        }),
+      };
     });
-    Store.setProgram({ ...program, headers, records, mapping, importedAt: new Date().toISOString() });
-    toast("Program refreshed");
+    const program = Store.getProgram();
+    const target = program.days.find((d) => d.id === dayId);
+    target.exercises = merged.map((ex) => ({
+      id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`,
+      ...ex,
+    }));
+    Store.setProgram(program);
+    toast("Day refreshed");
     render();
   } catch (e) {
     toast(e.message);
@@ -534,28 +436,32 @@ function onClick(e) {
   switch (action) {
     case "go-import": navigate("import"); break;
     case "back": {
-      if (state.screen === "mapping") navigate("import");
-      else if (state.screen === "import") navigate(Store.getProgram() ? "program" : "program");
-      else if (state.screen === "workout") navigate("program");
-      else if (state.screen === "log-detail") navigate("history");
+      if (state.screen === "review") navigate("import");
+      else if (state.screen === "import") navigate("program");
+      else if (state.screen === "exercise") navigate("day", { dayId: state.params.dayId });
+      else if (state.screen === "day") navigate("program");
       else navigate("program");
       break;
     }
     case "import-sheet": handleImportSheet(); break;
     case "import-paste": handleImportPaste(); break;
-    case "confirm-mapping": confirmMapping(); break;
-    case "open-workout": navigate("workout", { week: el.dataset.week, day: el.dataset.day }); break;
-    case "cancel-workout": activeDraft = null; navigate("program"); break;
-    case "finish-workout": finishWorkout(); break;
-    case "toggle-set": {
-      const ex = activeDraft.exercises[+el.dataset.ex];
-      const row = ex.setRows[+el.dataset.set];
-      row.done = !row.done;
+    case "confirm-review": confirmReview(); break;
+    case "open-day": navigate("day", { dayId: el.dataset.day }); break;
+    case "open-exercise": navigate("exercise", { dayId: el.dataset.day, exerciseId: el.dataset.exercise }); break;
+    case "add-week": {
+      Store.addWeekToExercise(el.dataset.day, el.dataset.exercise);
       render();
       break;
     }
-    case "open-log": navigate("log-detail", { id: el.dataset.id }); break;
-    case "delete-log": Store.deleteLog(el.dataset.id); toast("Log deleted"); navigate("history"); break;
+    case "delete-day": {
+      if (confirm("Delete this workout day and everything logged in it?")) {
+        Store.removeDay(el.dataset.day);
+        toast("Day deleted");
+        navigate("program");
+      }
+      break;
+    }
+    case "refresh-day": refreshDay(el.dataset.day); break;
     case "set-units": {
       const settings = Store.getSettings();
       settings.units = el.dataset.units;
@@ -563,11 +469,9 @@ function onClick(e) {
       render();
       break;
     }
-    case "refresh-sheet": refreshSheet(); break;
     case "reset-all": {
-      if (confirm("Erase your imported program and all logged workouts? This can't be undone.")) {
+      if (confirm("Erase every imported day and logged value? This can't be undone.")) {
         Store.clearAll();
-        activeDraft = null;
         toast("All data erased");
         navigate("program");
       }
@@ -578,10 +482,17 @@ function onClick(e) {
 
 function onInput(e) {
   const el = e.target;
-  if (el.dataset.kind && activeDraft) {
-    const ex = activeDraft.exercises[+el.dataset.ex];
-    const row = ex.setRows[+el.dataset.set];
-    row[el.dataset.kind] = el.value;
+  if (!el.dataset.kind || state.screen !== "exercise") return;
+  const { dayId, exerciseId } = state.params;
+  const week = parseInt(el.dataset.week, 10);
+  if (el.dataset.kind === "notes") {
+    Store.updateExerciseWeek(dayId, exerciseId, week, { notes: el.value });
+  } else {
+    const ex = Store.getExercise(dayId, exerciseId);
+    const weekRow = ex.weeks.find((w) => w.week === week);
+    const values = [...weekRow.values];
+    values[+el.dataset.idx] = el.value;
+    Store.updateExerciseWeek(dayId, exerciseId, week, { values });
   }
 }
 
@@ -595,13 +506,12 @@ function onChange(e) {
 tabbar.addEventListener("click", (e) => {
   const btn = e.target.closest(".tab");
   if (!btn) return;
-  activeDraft = null;
   navigate(btn.dataset.route);
 });
 
 // ---------- boot ----------
 
-navigate(Store.getProgram() ? "program" : "program");
+navigate("program");
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
