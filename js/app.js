@@ -200,11 +200,24 @@ function topbar(title, opts = {}) {
 
 // ---------- PROGRAM screen (list of days) ----------
 
+function renderProgramSwitcher() {
+  const programs = Store.listPrograms();
+  if (programs.length <= 1) return "";
+  const options = programs.map((p) => `<option value="${esc(p.id)}" ${p.active ? "selected" : ""}>${esc(p.name)} (${p.dayCount} day${p.dayCount === 1 ? "" : "s"})</option>`).join("");
+  return `
+    <div class="card">
+      <label for="program-switcher">Active program</label>
+      <select id="program-switcher" data-change-action="switch-program">${options}</select>
+    </div>
+  `;
+}
+
 function renderProgram() {
   const program = Store.getProgram();
   if (!program || program.days.length === 0) {
     return `
       ${topbar("")}
+      ${renderProgramSwitcher()}
       <div class="empty">
         <svg viewBox="0 0 24 24"><path fill="currentColor" d="M20.5 3.5 21 4a1 1 0 0 1 0 1.4L6.9 19.5l-4.4 1 1-4.4L17.6 2.1a1 1 0 0 1 1.4 0l1.5 1.4Z"/></svg>
         <h2>No workout days yet</h2>
@@ -234,6 +247,7 @@ function renderProgram() {
 
   return `
     ${topbar("")}
+    ${renderProgramSwitcher()}
     <div class="row" style="margin-bottom:14px;">
       <span class="source-chip">${program.days.length} workout day${program.days.length === 1 ? "" : "s"}</span>
       <button class="btn ghost small" data-action="go-import">+ Add day</button>
@@ -605,6 +619,20 @@ function renderSettings() {
   const settings = Store.getSettings();
   const program = Store.getProgram();
   const days = program?.days || [];
+  const programs = Store.listPrograms();
+  const programRows = programs.map((p) => `
+    <div class="row">
+      <div>
+        <h3 style="font-size:14px;">${esc(p.name)}${p.active ? ' <span class="pill">Active</span>' : ""}</h3>
+        <p>${p.dayCount} day${p.dayCount === 1 ? "" : "s"}</p>
+      </div>
+      <div class="btn-row" style="width:auto;gap:6px;">
+        ${p.active ? "" : `<button class="btn small" data-action="switch-program-btn" data-program="${esc(p.id)}">Switch to</button>`}
+        <button class="btn small" data-action="rename-program" data-program="${esc(p.id)}">Rename</button>
+        ${programs.length > 1 ? `<button class="btn small danger" data-action="delete-program" data-program="${esc(p.id)}">Delete</button>` : ""}
+      </div>
+    </div>
+  `).join("");
   const dayRows = days.map((d) => `
     <div class="row">
       <div>
@@ -629,7 +657,12 @@ function renderSettings() {
       </div>
     </div>
     <div class="card">
+      <h3>Saved programs</h3>
+      ${programRows || "<p>None yet.</p>"}
+    </div>
+    <div class="card">
       <h3>Workout days</h3>
+      <p class="hint">Days in the currently active program (${esc(programs.find((p) => p.active)?.name || "My Program")}).</p>
       ${dayRows || "<p>None imported yet.</p>"}
       <div style="height:10px"></div>
       <button class="btn" data-action="go-import">Import another day</button>
@@ -691,8 +724,8 @@ function renderTemplates() {
       <p>${esc(t.description)}</p>
       <div style="height:10px"></div>
       <div class="btn-row">
-        <button class="btn primary" data-action="add-template" data-template="${esc(t.id)}">Add to program</button>
-        <button class="btn ghost" data-action="load-template" data-template="${esc(t.id)}">Replace program</button>
+        <button class="btn primary" data-action="add-template" data-template="${esc(t.id)}">Save as new program</button>
+        <button class="btn ghost" data-action="load-template" data-template="${esc(t.id)}">Replace current</button>
       </div>
       <div style="height:8px"></div>
       <button class="btn small" data-action="copy-template-link" data-template="${esc(t.id)}">Copy link for a new client</button>
@@ -702,8 +735,8 @@ function renderTemplates() {
   return `
     ${topbar("Program templates", { back: true })}
     <div class="card">
-      <p><strong>Add to program</strong> keeps everything already on this device and adds the template's days alongside it — nothing is deleted, so you can give a client a new program without losing their old one or their logged history.</p>
-      <p><strong>Replace program</strong> erases the current program and every logged week on this device first, then loads the template fresh.</p>
+      <p><strong>Save as new program</strong> saves this template as a separate program on this device and switches to it. Nothing on the old program is touched — switch back to it any time from the dropdown at the top of the Program tab (once you have more than one saved).</p>
+      <p><strong>Replace current</strong> erases the currently active program and every logged week in it, then loads the template in its place. Any other saved programs on this device are untouched.</p>
       <p><strong>Copy link for a new client</strong> gives you a link that seeds this template automatically the first time someone opens it — only useful for a device that hasn't opened the app before.</p>
     </div>
     ${rows}
@@ -714,8 +747,8 @@ function addTemplate(id) {
   const template = PROGRAM_TEMPLATES.find((t) => t.id === id);
   if (!template) return;
   const days = parseWorkoutSheets(template.sheetText);
-  days.forEach((day) => Store.addDay({ name: day.dayTitle || "Workout", source: null, exercises: day.exercises }));
-  toast(`Added "${template.name}" — nothing else was deleted`);
+  Store.createProgram(template.name, days);
+  toast(`Saved "${template.name}" as a new program — switch between programs from the Program tab`);
   navigate("program");
 }
 
@@ -1071,6 +1104,29 @@ function onClick(e) {
     case "add-template": addTemplate(el.dataset.template); break;
     case "load-template": loadTemplate(el.dataset.template); break;
     case "copy-template-link": copyTemplateLink(el.dataset.template); break;
+    case "switch-program-btn": {
+      Store.switchProgram(el.dataset.program);
+      render();
+      break;
+    }
+    case "rename-program": {
+      const programs = Store.listPrograms();
+      const p = programs.find((p) => p.id === el.dataset.program);
+      const name = prompt("Rename program", p?.name || "");
+      if (name && name.trim()) {
+        Store.renameProgram(el.dataset.program, name.trim());
+        render();
+      }
+      break;
+    }
+    case "delete-program": {
+      if (confirm("Delete this saved program and everything logged in it? This can't be undone. (Your other saved programs are unaffected.)")) {
+        const ok = Store.deleteProgram(el.dataset.program);
+        if (ok) toast("Program deleted");
+        render();
+      }
+      break;
+    }
     case "go-coach": navigate("coach"); break;
     case "go-coach-add-client": navigate("coach-add-client"); break;
     case "confirm-add-coach-client": confirmAddCoachClient(); break;
@@ -1118,6 +1174,10 @@ function onChange(e) {
   const el = e.target;
   if (el.id === "csv-file" && el.files[0]) {
     handleImportFile(el.files[0]);
+  }
+  if (el.dataset.changeAction === "switch-program") {
+    Store.switchProgram(el.value);
+    render();
   }
 }
 

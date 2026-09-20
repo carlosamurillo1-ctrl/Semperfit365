@@ -1,6 +1,13 @@
 // Thin localStorage wrapper. All app persistence lives here.
 //
-// Program shape:
+// A device can hold several saved *programs* (e.g. a coach hands a client
+// a second, different plan later) but only one is "active" at a time --
+// every method below (getProgram, addDay, getDay, etc.) reads/writes
+// whichever program is currently active, exactly as if there were only
+// ever one. Switching the active program (see switchProgram) never
+// deletes the others.
+//
+// Program shape (what getProgram() returns):
 // {
 //   days: [{
 //     id, name, source: {type, url?} | null,
@@ -11,9 +18,13 @@
 //   }],
 //   importedAt
 // }
+//
+// On-disk shape (sf365.programs.v1):
+// { activeId, programs: [{ id, name, days, importedAt }] }
 
 const KEYS = {
-  program: "sf365.program.v2",
+  programs: "sf365.programs.v1",
+  legacyProgram: "sf365.program.v2", // pre-multi-program single program, migrated in place
   settings: "sf365.settings.v1",
 };
 
@@ -38,10 +49,34 @@ function uid() {
   return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function readState() {
+  const state = read(KEYS.programs, null);
+  if (state) return state;
+  const legacy = read(KEYS.legacyProgram, null);
+  if (legacy) {
+    const migrated = {
+      activeId: "default",
+      programs: [{ id: "default", name: "My Program", days: legacy.days, importedAt: legacy.importedAt }],
+    };
+    write(KEYS.programs, migrated);
+    return migrated;
+  }
+  return null;
+}
+
+function writeState(state) {
+  write(KEYS.programs, state);
+}
+
+function activeProgramOf(state) {
+  if (!state) return null;
+  return state.programs.find((p) => p.id === state.activeId) || state.programs[0] || null;
+}
+
 const changeListeners = [];
 
 export const Store = {
-  /** Called after every program write (including clear), with the new program (or null). Used to drive cloud sync. */
+  /** Called after every active-program write (including clear/switch), with the new program (or null). Used to drive cloud sync. */
   onChange(fn) {
     changeListeners.push(fn);
     return () => {
@@ -51,15 +86,79 @@ export const Store = {
   },
 
   getProgram() {
-    return read(KEYS.program, null);
+    const active = activeProgramOf(readState());
+    return active ? { days: active.days, importedAt: active.importedAt } : null;
   },
   setProgram(program) {
-    write(KEYS.program, program);
-    changeListeners.forEach((fn) => fn(program));
+    let state = readState();
+    if (!state) {
+      const id = uid();
+      state = { activeId: id, programs: [{ id, name: "My Program", days: program.days, importedAt: program.importedAt }] };
+    } else {
+      const active = activeProgramOf(state);
+      if (active) {
+        active.days = program.days;
+        active.importedAt = program.importedAt;
+      } else {
+        const id = uid();
+        state.programs.push({ id, name: "My Program", days: program.days, importedAt: program.importedAt });
+        state.activeId = id;
+      }
+    }
+    writeState(state);
+    changeListeners.forEach((fn) => fn(this.getProgram()));
   },
+  /** Wipes every saved program on this device, not just the active one. */
   clearProgram() {
-    localStorage.removeItem(KEYS.program);
+    localStorage.removeItem(KEYS.programs);
+    localStorage.removeItem(KEYS.legacyProgram);
     changeListeners.forEach((fn) => fn(null));
+  },
+
+  /** All programs saved on this device, active first-marked. */
+  listPrograms() {
+    const state = readState();
+    if (!state) return [];
+    return state.programs.map((p) => ({ id: p.id, name: p.name, dayCount: p.days.length, active: p.id === state.activeId }));
+  },
+  /** Create a brand-new, separate program from parsed days and make it active. Returns its id. Doesn't touch any other saved program. */
+  createProgram(name, days) {
+    let state = readState() || { activeId: null, programs: [] };
+    const id = uid();
+    state.programs.push({ id, name, days: [], importedAt: new Date().toISOString() });
+    state.activeId = id;
+    writeState(state);
+    (days || []).forEach((day) => {
+      this.addDay({ name: day.dayTitle || day.name || "Workout", source: day.source || null, exercises: day.exercises || [] });
+    });
+    changeListeners.forEach((fn) => fn(this.getProgram()));
+    return id;
+  },
+  switchProgram(id) {
+    const state = readState();
+    if (!state || !state.programs.some((p) => p.id === id)) return;
+    state.activeId = id;
+    writeState(state);
+    changeListeners.forEach((fn) => fn(this.getProgram()));
+  },
+  renameProgram(id, name) {
+    const state = readState();
+    const p = state?.programs.find((p) => p.id === id);
+    if (!p) return;
+    p.name = name;
+    writeState(state);
+  },
+  /** Deletes a saved program (never the last one). Returns false if it couldn't. */
+  deleteProgram(id) {
+    const state = readState();
+    if (!state || state.programs.length <= 1) return false;
+    const idx = state.programs.findIndex((p) => p.id === id);
+    if (idx === -1) return false;
+    state.programs.splice(idx, 1);
+    if (state.activeId === id) state.activeId = state.programs[0].id;
+    writeState(state);
+    changeListeners.forEach((fn) => fn(this.getProgram()));
+    return true;
   },
 
   /** Append a freshly-parsed day { name, source, exercises } to the program (creating one if needed). Returns the new day's id. */
