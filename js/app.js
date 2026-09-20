@@ -1318,7 +1318,7 @@ function onClick(e) {
     }
     case "open-coach-client": navigate("coach-client", { clientId: el.dataset.client, clientLabel: el.dataset.label }); break;
     case "remove-coach-client": {
-      if (confirm(`Remove ${el.dataset.label} from your client list? This won't delete their own data.`)) {
+      if (confirm(`Remove ${el.dataset.label} and stop their workouts from syncing to you? Their own logged data stays on their device -- they'll just no longer have a coach connection.`)) {
         removeClientFromRoster(getOrCreateCoachId(), el.dataset.client).catch(() => toast("Couldn't remove — check your connection"));
       }
       break;
@@ -1418,11 +1418,21 @@ function bootstrapClientSync() {
   }
   const clientId = getLocalClientId();
   if (!clientId || !isSyncConfigured()) return;
-  Store.onChange((program) => {
+  const unsubscribePush = Store.onChange((program) => {
     if (program) pushClientProgram(clientId, getClientName(), program);
   });
   const current = Store.getProgram();
   if (current) pushClientProgram(clientId, getClientName(), current);
+
+  const unsubscribeRevokeCheck = listenClient(clientId, (data) => {
+    if (data && data.revoked) {
+      unsubscribePush();
+      unsubscribeRevokeCheck();
+      localStorage.removeItem(LOCAL_KEYS.clientId);
+      localStorage.removeItem(LOCAL_KEYS.clientName);
+      toast("Your coach ended this connection. Your workouts are still saved on this device.");
+    }
+  });
 }
 
 seedIfEmpty();

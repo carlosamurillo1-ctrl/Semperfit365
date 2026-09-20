@@ -70,9 +70,22 @@ export async function addClientToRoster(coachId, clientId, label) {
   });
 }
 
+/** Un-list a client AND revoke their sync privileges: their own device stops
+ * pushing to you the next time it checks in, though its local workout data
+ * is never touched. This is a soft revoke, not a security boundary — their
+ * device still holds the clientId and Firestore's rules still allow it to
+ * write there; enforcement happens client-side (see bootstrapClientSync in
+ * app.js), which is the right bar for a coach ending a training
+ * relationship, not for keeping out someone actively trying to bypass it. */
 export async function removeClientFromRoster(coachId, clientId) {
   const database = ensureDb();
-  await database.collection("coaches").doc(coachId).collection("roster").doc(clientId).delete();
+  await Promise.all([
+    database.collection("coaches").doc(coachId).collection("roster").doc(clientId).delete(),
+    database.collection("clients").doc(clientId).set(
+      { revoked: true, revokedAt: window.firebase.firestore.FieldValue.serverTimestamp() },
+      { merge: true }
+    ),
+  ]);
 }
 
 /** Live-subscribe to a coach's client roster. Returns an unsubscribe function. */
