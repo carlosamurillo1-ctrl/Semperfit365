@@ -522,6 +522,7 @@ function renderDay() {
             <p>${target || `${ex.weeks.length} weeks`}${filled ? ` &middot; ${filled} logged` : ""}</p>
           </div>
           <div style="display:flex;align-items:center;gap:8px;">
+            <button class="btn ghost small" data-action="go-swap-exercise" data-day="${esc(day.id)}" data-exercise="${esc(ex.id)}" style="width:auto;padding:4px 8px;font-size:12px;" aria-label="Swap exercise">Swap</button>
             <div class="reorder-btns">
               <button data-action="move-exercise" data-dir="-1" data-day="${esc(day.id)}" data-exercise="${esc(ex.id)}" ${idx === 0 ? "disabled" : ""} aria-label="Move up">&#9650;</button>
               <button data-action="move-exercise" data-dir="1" data-day="${esc(day.id)}" data-exercise="${esc(ex.id)}" ${idx === day.exercises.length - 1 ? "disabled" : ""} aria-label="Move down">&#9660;</button>
@@ -552,11 +553,18 @@ function renderAddExercise() {
     navigate("program");
     return "";
   }
+  const swapId = state.params.swapExerciseId;
+  const isSwap = !!swapId;
+  const library = Store.getExerciseLibrary();
   return `
-    ${topbar("Add exercise", { back: true })}
+    ${topbar(isSwap ? "Swap exercise" : "Add exercise", { back: true })}
     <div class="card">
       <label for="new-ex-name">Exercise name *</label>
-      <input type="text" id="new-ex-name" placeholder="e.g. Barbell Squat" />
+      <input type="text" id="new-ex-name" list="exercise-library-list" placeholder="e.g. Barbell Squat" autocomplete="off" />
+      <datalist id="exercise-library-list">
+        ${library.map((e) => `<option value="${esc(e.name)}"></option>`).join("")}
+      </datalist>
+      ${library.length ? `<p class="hint">Start typing to pick from ${library.length} exercise${library.length === 1 ? "" : "s"} you've used before -- it'll fill in reps, rest, and video automatically.</p>` : ""}
 
       <label for="new-ex-repgoal">Rep goal</label>
       <input type="text" id="new-ex-repgoal" placeholder="e.g. 8-10" />
@@ -575,11 +583,11 @@ function renderAddExercise() {
       <input type="url" id="new-ex-video" placeholder="https://youtube.com/watch?v=..." />
       <p class="hint">Shown as a how-to video on the exercise screen.</p>
     </div>
-    <button class="btn primary" data-action="confirm-add-exercise" data-day="${esc(day.id)}">Add exercise</button>
+    <button class="btn primary" data-action="confirm-add-exercise" data-day="${esc(day.id)}" ${isSwap ? `data-swap="${esc(swapId)}"` : ""}>${isSwap ? "Swap exercise" : "Add exercise"}</button>
   `;
 }
 
-function confirmAddExercise(dayId) {
+function confirmAddExercise(dayId, swapId) {
   const name = document.getElementById("new-ex-name").value.trim();
   if (!name) {
     toast("Give the exercise a name");
@@ -590,6 +598,12 @@ function confirmAddExercise(dayId) {
   const setLabels = document.getElementById("new-ex-sets").value.split(",").map((s) => s.trim()).filter(Boolean);
   const weekCount = parseInt(document.getElementById("new-ex-weeks").value, 10) || 8;
   const videoUrl = document.getElementById("new-ex-video").value.trim();
+  if (swapId) {
+    const exerciseId = Store.replaceExercise(dayId, swapId, { name, repGoal, restTime, setLabels, weekCount, videoUrl });
+    toast("Exercise swapped");
+    navigate("exercise", { dayId, exerciseId });
+    return;
+  }
   const exerciseId = Store.addExercise(dayId, { name, repGoal, restTime, setLabels, weekCount, videoUrl });
   toast("Exercise added");
   navigate("exercise", { dayId, exerciseId });
@@ -648,7 +662,13 @@ function renderExercise() {
       <button class="btn" data-action="set-exercise-video" data-day="${esc(day.id)}" data-exercise="${esc(ex.id)}">${ex.videoUrl ? "Edit video" : "Add video"}</button>
       <button class="btn danger" data-action="delete-exercise" data-day="${esc(day.id)}" data-exercise="${esc(ex.id)}">Delete</button>
     </div>
+    <div style="height:8px"></div>
+    <a class="btn ghost" href="${youtubeSearchUrl(ex.name)}" target="_blank" rel="noopener noreferrer" style="display:block;text-align:center;text-decoration:none;">Find "${esc(ex.name)}" on YouTube</a>
   `;
+}
+
+function youtubeSearchUrl(query) {
+  return `https://www.youtube.com/results?search_query=${encodeURIComponent(`${query} exercise how to`)}`;
 }
 
 function renderVideoEmbed(videoUrl) {
@@ -1099,7 +1119,8 @@ function onClick(e) {
     case "open-day": navigate("day", { dayId: el.dataset.day }); break;
     case "open-exercise": navigate("exercise", { dayId: el.dataset.day, exerciseId: el.dataset.exercise }); break;
     case "go-add-exercise": navigate("add-exercise", { dayId: el.dataset.day }); break;
-    case "confirm-add-exercise": confirmAddExercise(el.dataset.day); break;
+    case "go-swap-exercise": navigate("add-exercise", { dayId: el.dataset.day, swapExerciseId: el.dataset.exercise }); break;
+    case "confirm-add-exercise": confirmAddExercise(el.dataset.day, el.dataset.swap); break;
     case "add-week": {
       Store.addWeekToExercise(el.dataset.day, el.dataset.exercise);
       render();
@@ -1246,6 +1267,18 @@ function onClick(e) {
 
 function onInput(e) {
   const el = e.target;
+  if (el.id === "new-ex-name" && state.screen === "add-exercise") {
+    const match = Store.getExerciseLibrary().find((entry) => entry.name.toLowerCase() === el.value.trim().toLowerCase());
+    if (match) {
+      const repEl = document.getElementById("new-ex-repgoal");
+      const restEl = document.getElementById("new-ex-resttime");
+      const videoEl = document.getElementById("new-ex-video");
+      if (repEl && !repEl.value) repEl.value = match.repGoal || "";
+      if (restEl && !restEl.value) restEl.value = match.restTime || "";
+      if (videoEl && !videoEl.value) videoEl.value = match.videoUrl || "";
+    }
+    return;
+  }
   if (!el.dataset.kind || state.screen !== "exercise") return;
   const { dayId, exerciseId } = state.params;
   const week = parseInt(el.dataset.week, 10);

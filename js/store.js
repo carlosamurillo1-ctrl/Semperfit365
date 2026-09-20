@@ -27,6 +27,7 @@ const KEYS = {
   legacyProgram: "sf365.program.v2", // pre-multi-program single program, migrated in place
   settings: "sf365.settings.v1",
   cardioLog: "sf365.cardioLog.v1",
+  exerciseLibrary: "sf365.exerciseLibrary.v1",
 };
 
 function read(key, fallback) {
@@ -169,22 +170,25 @@ export const Store = {
       id: uid(),
       name: day.name,
       source: day.source || null,
-      exercises: day.exercises.map((ex) => ({
-        id: uid(),
-        name: ex.name,
-        repGoal: ex.repGoal || "",
-        restTime: ex.restTime || "",
-        setupNote: ex.setupNote || "",
-        videoUrl: ex.videoUrl || "",
-        setLabels: ex.setLabels,
-        weeks: ex.weeks.map((w) => ({
-          week: w.week,
-          values: w.values,
-          reps: w.reps || ex.setLabels.map(() => ""),
-          notes: w.notes || "",
-          updatedAt: null,
-        })),
-      })),
+      exercises: day.exercises.map((ex) => {
+        this.saveToLibrary({ name: ex.name, repGoal: ex.repGoal, restTime: ex.restTime, videoUrl: ex.videoUrl });
+        return {
+          id: uid(),
+          name: ex.name,
+          repGoal: ex.repGoal || "",
+          restTime: ex.restTime || "",
+          setupNote: ex.setupNote || "",
+          videoUrl: ex.videoUrl || "",
+          setLabels: ex.setLabels,
+          weeks: ex.weeks.map((w) => ({
+            week: w.week,
+            values: w.values,
+            reps: w.reps || ex.setLabels.map(() => ""),
+            notes: w.notes || "",
+            updatedAt: null,
+          })),
+        };
+      }),
     };
     program.days.push(dayWithIds);
     program.importedAt = new Date().toISOString();
@@ -232,6 +236,38 @@ export const Store = {
     };
     day.exercises.push(newEx);
     this.setProgram(program);
+    this.saveToLibrary({ name: newEx.name, repGoal: newEx.repGoal, restTime: newEx.restTime, videoUrl: newEx.videoUrl });
+    return newEx.id;
+  },
+
+  /** Remove the exercise at dayId/oldExerciseId and insert a freshly-built one in its place (same position). Returns the new exercise's id. */
+  replaceExercise(dayId, oldExerciseId, exercise) {
+    const program = this.getProgram();
+    const day = program?.days.find((d) => d.id === dayId);
+    if (!day) return null;
+    const idx = day.exercises.findIndex((e) => e.id === oldExerciseId);
+    if (idx === -1) return null;
+    const setLabels = exercise.setLabels?.length ? exercise.setLabels : ["Set 1"];
+    const weekCount = exercise.weekCount > 0 ? exercise.weekCount : 8;
+    const newEx = {
+      id: uid(),
+      name: exercise.name,
+      repGoal: exercise.repGoal || "",
+      restTime: exercise.restTime || "",
+      setupNote: "",
+      videoUrl: exercise.videoUrl || "",
+      setLabels,
+      weeks: Array.from({ length: weekCount }, (_, i) => ({
+        week: i + 1,
+        values: setLabels.map(() => ""),
+        reps: setLabels.map(() => ""),
+        notes: "",
+        updatedAt: null,
+      })),
+    };
+    day.exercises.splice(idx, 1, newEx);
+    this.setProgram(program);
+    this.saveToLibrary({ name: newEx.name, repGoal: newEx.repGoal, restTime: newEx.restTime, videoUrl: newEx.videoUrl });
     return newEx.id;
   },
 
@@ -262,6 +298,37 @@ export const Store = {
     if (!ex) return;
     ex.videoUrl = videoUrl;
     this.setProgram(program);
+    if (videoUrl) this.saveToLibrary({ name: ex.name, videoUrl });
+  },
+
+  // ---- Exercise library: names/reps/rest/video remembered from everything ----
+  // ---- ever added to any program, so they can be reused instead of retyped. ----
+
+  getExerciseLibrary() {
+    return read(KEYS.exerciseLibrary, []).slice().sort((a, b) => a.name.localeCompare(b.name));
+  },
+  /** Upsert by case-insensitive name; blank fields never overwrite an existing value. */
+  saveToLibrary(entry) {
+    const name = (entry.name || "").trim();
+    if (!name) return;
+    const lib = read(KEYS.exerciseLibrary, []);
+    const idx = lib.findIndex((e) => e.name.toLowerCase() === name.toLowerCase());
+    const existing = idx >= 0 ? lib[idx] : { id: uid(), name, repGoal: "", restTime: "", videoUrl: "" };
+    const merged = {
+      id: existing.id,
+      name,
+      repGoal: entry.repGoal ? entry.repGoal : existing.repGoal,
+      restTime: entry.restTime ? entry.restTime : existing.restTime,
+      videoUrl: entry.videoUrl ? entry.videoUrl : existing.videoUrl,
+    };
+    if (idx >= 0) lib[idx] = merged; else lib.push(merged);
+    write(KEYS.exerciseLibrary, lib);
+  },
+  removeFromLibrary(id) {
+    write(KEYS.exerciseLibrary, read(KEYS.exerciseLibrary, []).filter((e) => e.id !== id));
+  },
+  clearExerciseLibrary() {
+    localStorage.removeItem(KEYS.exerciseLibrary);
   },
 
   /** Move an exercise up (-1) or down (+1) within its day's list. */
