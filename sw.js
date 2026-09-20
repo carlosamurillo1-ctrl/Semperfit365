@@ -1,4 +1,4 @@
-const CACHE = "semperfit365-v2";
+const CACHE = "semperfit365-v3";
 const ASSETS = [
   "./",
   "./index.html",
@@ -9,7 +9,7 @@ const ASSETS = [
   "./js/store.js",
   "./js/seedProgram.js",
   "./manifest.webmanifest",
-  "./icons/icon.svg",
+  "./icons/logo.jpg",
 ];
 
 self.addEventListener("install", (event) => {

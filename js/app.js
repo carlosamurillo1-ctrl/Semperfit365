@@ -73,7 +73,7 @@ function render() {
 function topbar(title, opts = {}) {
   const backBtn = opts.back
     ? `<button class="btn ghost small" data-action="back" style="width:auto;padding:6px 10px;">&larr; Back</button>`
-    : `<div class="brand"><img src="icons/icon.svg" alt="" width="26" height="26"/><b>SemperFit365</b></div>`;
+    : `<div class="brand"><span class="logo-crop"><img src="icons/logo.jpg" alt="SemperFit365"/></span></div>`;
   return `<div class="topbar">${backBtn}<h1 style="margin:0;font-size:17px;">${esc(title)}</h1><div style="width:${opts.back ? "70px" : "0"}"></div></div>`;
 }
 

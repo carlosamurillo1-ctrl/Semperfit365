@@ -53,8 +53,23 @@ p { color: var(--text-dim); margin: 4px 0 0; font-size: 14px; }
   align-items: center;
   gap: 10px;
 }
-.topbar .brand img, .topbar .brand svg { width: 28px; height: 28px; }
-.topbar .brand b { font-size: 17px; }
+
+.logo-crop {
+  display: block;
+  width: 100px;
+  height: 41px;
+  overflow: hidden;
+  position: relative;
+  border-radius: 6px;
+}
+.logo-crop img {
+  position: absolute;
+  top: -24px;
+  left: 0;
+  width: 100px;
+  height: 100px;
+  max-width: none;
+}
 
 .card {
   background: var(--bg-elev);
