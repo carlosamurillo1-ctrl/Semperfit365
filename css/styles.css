@@ -209,7 +209,7 @@ select { appearance: none; }
 
 .card.current-week { border-color: var(--accent-dim); background: linear-gradient(180deg, rgba(94,230,168,.06), transparent 40%), var(--bg-elev); }
 .week-fields { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
-.week-fields .field { flex: 1 1 70px; min-width: 64px; }
+.week-fields .field { flex: 0 1 70px; min-width: 64px; }
 .week-fields .field label { margin: 0 0 4px; font-size: 11px; }
 .week-fields .field input { padding: 8px; text-align: center; }
 .week-fields .field input + input { margin-top: 4px; }

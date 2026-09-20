@@ -20,7 +20,7 @@
 
 import { parseCSV } from "./csv.js";
 
-const DAY_TITLE_HINT = /\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b|\bphase\s*[0-9]/i;
+const DAY_TITLE_HINT = /\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b|\bphase\s*[0-9]|\bworkout\s+[a-z]\b/i;
 
 function isBlankRow(row) {
   return row.every((c) => c.trim() === "");
