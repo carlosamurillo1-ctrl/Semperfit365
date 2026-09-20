@@ -20,7 +20,7 @@ export const SEED_SHEET_TEXT = `	Workout A
 7	WEEK 7
 8	WEEK 8
 
-	Decline Bench Chest Press			Rep goal: 6-10 reps
+	Flat DB Bench Press			Rep goal: 6-10 reps
 
 	Week	Set 1	Set 2	Set 3			Notes
 
