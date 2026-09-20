@@ -1,5 +1,5 @@
-import { parseCSV, fetchGoogleSheetCsv, parseGoogleSheetUrl } from "./csv.js";
-import { parseWorkoutSheet } from "./workoutParser.js";
+import { fetchGoogleSheetCsv, parseGoogleSheetUrl } from "./csv.js";
+import { parseWorkoutSheet, parseWorkoutSheets } from "./workoutParser.js";
 import { Store } from "./store.js";
 
 const app = document.getElementById("app");
@@ -9,7 +9,7 @@ const state = {
   tab: "program",
   screen: "program", // program | import | review | day | exercise | history | settings
   params: {},
-  pendingImport: null, // { dayTitle, exercises, source }
+  pendingImport: null, // { days: [{ dayTitle, exercises }], source }
   toast: null,
 };
 
@@ -191,16 +191,16 @@ function handleImportFile(file) {
 }
 
 function beginImport(text, source) {
-  const parsed = parseWorkoutSheet(text);
-  if (!parsed.exercises.length) {
+  const days = parseWorkoutSheets(text);
+  if (!days.length) {
     toast("Couldn't find any exercises in that data — check the format and try again");
     return;
   }
-  state.pendingImport = { ...parsed, source };
+  state.pendingImport = { days, source };
   navigate("review");
 }
 
-// ---------- REVIEW screen (confirm parsed day before saving) ----------
+// ---------- REVIEW screen (confirm parsed day(s) before saving) ----------
 
 function renderReview() {
   const pending = state.pendingImport;
@@ -208,35 +208,63 @@ function renderReview() {
     navigate("import");
     return "";
   }
-  const items = pending.exercises.map((ex) => `
-    <div class="row" style="align-items:flex-start;">
-      <div>
-        <h3 style="font-size:14px;">${esc(ex.name)}</h3>
-        <p>${[ex.repGoal && `Reps: ${esc(ex.repGoal)}`, ex.restTime && `Rest: ${esc(ex.restTime)}`, `${ex.setLabels.length} set col${ex.setLabels.length === 1 ? "" : "s"}`, `${ex.weeks.length} weeks`].filter(Boolean).join(" &middot; ")}</p>
+  const multi = pending.days.length > 1;
+
+  const dayBlocks = pending.days.map((day, di) => {
+    const items = day.exercises.map((ex) => `
+      <div class="row" style="align-items:flex-start;">
+        <div>
+          <h3 style="font-size:14px;">${esc(ex.name)}</h3>
+          <p>${[ex.repGoal && `Reps: ${esc(ex.repGoal)}`, ex.restTime && `Rest: ${esc(ex.restTime)}`, `${ex.setLabels.length} set col${ex.setLabels.length === 1 ? "" : "s"}`, `${ex.weeks.length} weeks`].filter(Boolean).join(" &middot; ")}</p>
+        </div>
       </div>
-    </div>
-  `).join("");
+    `).join("");
+
+    return `
+      <div class="card">
+        ${multi ? `
+          <div class="row" style="margin-bottom:10px;">
+            <label style="margin:0;display:flex;align-items:center;gap:8px;">
+              <input type="checkbox" checked data-day-include="${di}" style="width:auto;" /> Include this day
+            </label>
+          </div>
+        ` : ""}
+        <label for="review-day-name-${di}">Day name</label>
+        <input type="text" id="review-day-name-${di}" value="${esc(day.dayTitle || "")}" placeholder="e.g. Friday (Workout C)" />
+        <p class="hint">Found ${day.exercises.length} exercise${day.exercises.length === 1 ? "" : "s"}.</p>
+      </div>
+      <div class="card">${items}</div>
+    `;
+  }).join("");
 
   return `
     ${topbar("Review import", { back: true })}
-    <div class="card">
-      <label for="review-day-name">Day name</label>
-      <input type="text" id="review-day-name" value="${esc(pending.dayTitle || "")}" placeholder="e.g. Friday (Workout C)" />
-      <p class="hint">Found ${pending.exercises.length} exercise${pending.exercises.length === 1 ? "" : "s"}.</p>
-    </div>
-    <div class="card">${items}</div>
-    <button class="btn primary" data-action="confirm-review">Add this day to my program</button>
+    ${multi ? `<div class="card"><p>Found ${pending.days.length} workout days in that data.</p></div>` : ""}
+    ${dayBlocks}
+    <button class="btn primary" data-action="confirm-review">Add ${multi ? `these ${pending.days.length} days` : "this day"} to my program</button>
   `;
 }
 
 function confirmReview() {
   const pending = state.pendingImport;
-  const nameInput = document.getElementById("review-day-name");
-  const name = (nameInput.value || "").trim() || "Workout";
-  const dayId = Store.addDay({ name, source: pending.source, exercises: pending.exercises });
+  let lastDayId = null;
+  let addedCount = 0;
+  pending.days.forEach((day, di) => {
+    const checkbox = document.querySelector(`[data-day-include="${di}"]`);
+    if (checkbox && !checkbox.checked) return;
+    const nameInput = document.getElementById(`review-day-name-${di}`);
+    const name = (nameInput.value || "").trim() || "Workout";
+    lastDayId = Store.addDay({ name, source: pending.source, exercises: day.exercises });
+    addedCount++;
+  });
   state.pendingImport = null;
-  toast("Day added");
-  navigate("day", { dayId });
+  if (addedCount === 0) {
+    toast("No days selected");
+    navigate("import");
+    return;
+  }
+  toast(addedCount === 1 ? "Day added" : `${addedCount} days added`);
+  navigate(addedCount === 1 ? "day" : "program", addedCount === 1 ? { dayId: lastDayId } : {});
 }
 
 // ---------- DAY screen (list of exercises) ----------

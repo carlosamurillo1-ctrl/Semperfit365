@@ -12,8 +12,15 @@
 // Exercise blocks may or may not be separated by blank rows, may or may not
 // have a Rep goal / Rest time / warm-up note line, and may or may not have a
 // Notes column — all of that is detected structurally, not assumed fixed.
+//
+// A single paste/sheet can also contain more than one day back to back (e.g.
+// a user copies several tabs' worth of cells at once); parseWorkoutSheets()
+// splits on day-title-looking lines (mentions a weekday or "Phase N") so
+// each day's exercises stay attributed to the right day.
 
 import { parseCSV } from "./csv.js";
+
+const DAY_TITLE_HINT = /\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b|\bphase\s*[0-9]/i;
 
 function isBlankRow(row) {
   return row.every((c) => c.trim() === "");
@@ -50,13 +57,34 @@ function extractLabeledValue(row, labelPattern) {
   return cell.replace(labelPattern, "").replace(/^:?\s*/, "").trim();
 }
 
-/**
- * Parse raw sheet text (tab- or comma-delimited) into a day + its exercises.
- * Returns { dayTitle: string|null, exercises: [{ name, repGoal, restTime,
- * setupNote, setLabels: string[], weeks: [{ week, values: string[], notes }] }] }
- */
-export function parseWorkoutSheet(text) {
-  const rows = parseCSV(text);
+function looksLikeDayTitle(row) {
+  if (isBlankRow(row)) return false;
+  const rowText = row.join(" ");
+  if (findCellIndex(row, /^week$/i) !== -1) return false;
+  if (/rep\s*goal/i.test(rowText) || /rest\s*time/i.test(rowText)) return false;
+  return DAY_TITLE_HINT.test(rowText);
+}
+
+/** Split a sheet's rows into one chunk per detected day (see DAY_TITLE_HINT above). */
+function splitIntoDayChunks(rows) {
+  const chunks = [];
+  let chunk = [];
+  let chunkStarted = false;
+  for (const row of rows) {
+    if (looksLikeDayTitle(row) && chunkStarted) {
+      chunks.push(chunk);
+      chunk = [];
+      chunkStarted = false;
+    }
+    chunk.push(row);
+    if (!isBlankRow(row)) chunkStarted = true;
+  }
+  if (chunk.some((r) => !isBlankRow(r))) chunks.push(chunk);
+  return chunks;
+}
+
+/** Parse one day's worth of rows into { dayTitle, exercises }. */
+function parseDayRows(rows) {
   let dayTitle = null;
   const exercises = [];
   let current = null;
@@ -124,8 +152,15 @@ export function parseWorkoutSheet(text) {
     // this row starts a new exercise title, or is a setup/instruction note
     // for an exercise whose title we already saw but that has no header yet
     if (current && !current.header) {
-      current.setupNotes.push(firstNonEmptyCell(row));
-      continue;
+      if (current.setupNotes.length < 2) {
+        current.setupNotes.push(firstNonEmptyCell(row));
+        continue;
+      }
+      // stuck too long without ever finding a "Week" header — this isn't a
+      // setup note, it's unrelated trailing content; drop the dangling
+      // exercise (it never got a header, so nothing real is lost) and treat
+      // this row as a fresh title instead.
+      current = null;
     }
 
     const name = firstNonEmptyCell(row);
@@ -136,4 +171,22 @@ export function parseWorkoutSheet(text) {
   finalizeCurrent();
 
   return { dayTitle, exercises };
+}
+
+/**
+ * Parse raw sheet text (tab- or comma-delimited) into a single day + its
+ * exercises. If the text actually contains multiple days back to back, only
+ * the first is returned — use parseWorkoutSheets() for multi-day pastes.
+ * Returns { dayTitle: string|null, exercises: [{ name, repGoal, restTime,
+ * setupNote, setLabels: string[], weeks: [{ week, values: string[], notes }] }] }
+ */
+export function parseWorkoutSheet(text) {
+  return parseDayRows(parseCSV(text));
+}
+
+/** Parse raw sheet text into one or more days, splitting on day-title lines. */
+export function parseWorkoutSheets(text) {
+  const rows = parseCSV(text);
+  const chunks = splitIntoDayChunks(rows);
+  return chunks.map(parseDayRows).filter((d) => d.exercises.length > 0);
 }

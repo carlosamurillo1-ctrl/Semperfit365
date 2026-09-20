@@ -10,10 +10,10 @@ No build step, no backend, no account required. It's a static site that reads yo
    - Paste the link to a Google Sheet tab that's shared as *"Anyone with the link can view"* (Share → General access → Anyone with the link). The app fetches it as CSV directly in the browser — nothing is uploaded to a server.
    - Or select the cells for one day in Google Sheets, copy, and paste them straight into the app.
    - Or export a tab as CSV (File → Download → Comma Separated Values) and paste/upload it instead. Use this if your sheet is private and you'd rather not change sharing settings.
-2. **Review** — the app detects the exercises, rep goals, rest times, and week-by-week columns automatically. Give the day a name (e.g. "Friday — Workout C") and add it to your program.
+2. **Review** — the app detects the exercises, rep goals, rest times, and week-by-week columns automatically. If you pasted more than one day at once (e.g. you copied several tabs' worth of cells together), it splits them into separate days automatically — give each a name (or accept the detected one) and choose which to add.
 3. **Run your program** — each imported day is a list of exercises. Tap into one to see its rep goal, rest time, and a card per week with an input for each set column (whatever your sheet uses — Set 1/2/3, WU set, etc.) plus notes. Fill in this week's numbers as you train; it saves automatically.
 4. **History** — every set value you've entered shows up in the History tab, most recent first, so you can jump back into any exercise.
-5. Import as many days as your program has (Monday, Wednesday, Friday, etc.) — each is added separately from Settings → "Import another day."
+5. Import as many days as your program has (Monday, Wednesday, Friday, etc.) — either all at once, or one at a time from Settings → "Import another day."
 
 ## Expected sheet format
 
@@ -68,6 +68,6 @@ Any other static host (Netlify, Vercel, Cloudflare Pages, S3, etc.) works too �
 
 - Google Sheets' CSV export only works for sheets shared publicly (or published to the web). Fully private sheets need the paste/upload path instead.
 - Data lives in your browser's local storage. Clearing site data / using a different browser or device starts fresh. There's no sync between devices.
-- One Google Sheet tab (gid) = one workout day. Import each day of your program separately from Settings.
+- One Google Sheet tab (gid) = one workout day. Import each day of your program separately from Settings, or paste several days at once — the importer splits on lines that mention a weekday (Monday–Sunday) or "Phase N" and reviews each as its own day.
 - Merged cells or ragged rows in the source sheet can occasionally shift a value into the wrong column on import (the app reads columns by position, faithfully, without guessing) — everything is editable after import, so just retype anything that landed wrong.
 - Settings → a day's "Refresh" button re-pulls that day from its Google Sheet and updates exercises/rep goals/rest times, while keeping anything you've already logged for a given week.
