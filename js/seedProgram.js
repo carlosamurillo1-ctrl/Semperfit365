@@ -112,6 +112,8 @@ export const SEED_SHEET_TEXT = `	Workout A
 
 	Leg Extensions			Rep goal : 12, 10, 8, 6			Rest time:  90 sec
 
+	Start with heavy weight, end lighter
+
 	Week	Set 1	Set 2	Set 3	Set 4		Notes
 
 1	WEEK 1
@@ -124,6 +126,8 @@ export const SEED_SHEET_TEXT = `	Workout A
 8	WEEK 8	0	0	0	0
 
 	Leg Curls			Rep goal : 12, 10, 8, 6			Rest time:  90 sec
+
+	Start with heavy weight, end lighter
 
 	Week	Set 1	Set 2	Set 3	Set 4		Notes
 
@@ -159,6 +163,8 @@ export const SEED_SHEET_TEXT = `	Workout A
 8	WEEK 8
 
 	Cable Rows			Rep goal: 12, 10, 8, 6			Rest time: 40 sec.
+
+	Start with heavy weight, end lighter
 
 	Week	Set 1	Set 2	Set 3	Set 4		Notes
 
@@ -225,6 +231,7 @@ export const SEED_SHEET_TEXT = `	Workout A
 
 	Hammer Curls			Rep goal: 12, 10, 8, 6			Rest time: 40 secs
 
+	Start with heavy weight, end lighter
 
 	Week	Set 1	Set 2	Set 3	Set 4		Notes
 
