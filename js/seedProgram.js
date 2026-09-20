@@ -7,7 +7,7 @@ export const SEED_SHEET_TEXT = `	Semperfit Training - Phase 1 - Friday (WORKOUT 
 
 	Incline BB Bench Press			Rep goal: 5-10			Rest time: 2-3 min.
 
-	Perform 2-3 warm-up sets of 6 reps using the easier exercise progressions.
+	Perform 1 warm-up set of 6-10 reps using lighter weight
 
 	Week	WU set	Set 1	Set 2	set 3		Notes
 
@@ -22,7 +22,7 @@ export const SEED_SHEET_TEXT = `	Semperfit Training - Phase 1 - Friday (WORKOUT 
 
 	Slight Incline Alt DB chest Press			Rep goal: 5-10			Rest time: 2-3 min.
 
-	Perform 2-3 warm-up sets of 6 reps using the easier exercise progressions.
+	Perform 1 warm-up set of 6-10 reps using lighter weight
 
 	Week	Set 1	Set 2	Set 3			Notes
 
@@ -127,7 +127,7 @@ export const SEED_SHEET_TEXT = `	Semperfit Training - Phase 1 - Friday (WORKOUT 
 
 	RDLs			Rep goal: Follow program of 5x5 or 5x10			Rest time:  2-4 min
 
-	Perform 2-3 warm-up sets of 6 reps using lighter weights
+	Perform 1 warm-up set of 6-10 reps using lighter weight
 
 	Week	Set 1	Set 2	Set 3	Set 4		Notes
 
@@ -143,7 +143,7 @@ export const SEED_SHEET_TEXT = `	Semperfit Training - Phase 1 - Friday (WORKOUT 
 
 	up right Leg curls			Rep goal: Follow program of 5x5 or 5x10
 
-	Perform 2-3 warm-up sets of 6 reps using lighter weights
+	Perform 1 warm-up set of 6-10 reps using lighter weight
 
 	Week	Set 1	Set 2	Set 3	Set 4
 
@@ -157,7 +157,7 @@ export const SEED_SHEET_TEXT = `	Semperfit Training - Phase 1 - Friday (WORKOUT 
 	WEEK 8
 
 	SQUATS
-	Perform 2-3 warm-up sets of 6 reps using lighter weights
+	Perform 1 warm-up set of 6-10 reps using lighter weight
 
 	Week	Set 1	Set 2	Set 3	Set 4		Notes
 
@@ -243,7 +243,7 @@ export const SEED_SHEET_TEXT = `	Semperfit Training - Phase 1 - Friday (WORKOUT 
 	seated military press				Rep goal: 4-6, 6-8, 8-10		Rest time: 2-3 min.
 
 
-	Perform 2-3 warm-up sets of 6 reps using the easier exercise progressions.
+	Perform 1 warm-up set of 6-10 reps using lighter weight
 
 	Week	Set 1	Set 2	Set 3			Notes
 

@@ -6,7 +6,7 @@
 //     id, name, source: {type, url?} | null,
 //     exercises: [{
 //       id, name, repGoal, restTime, setupNote, videoUrl, setLabels: string[],
-//       weeks: [{ week, values: string[], notes, updatedAt: string|null }]
+//       weeks: [{ week, values: string[], reps: string[], notes, updatedAt: string|null }]
 //     }]
 //   }],
 //   importedAt
@@ -80,6 +80,7 @@ export const Store = {
         weeks: ex.weeks.map((w) => ({
           week: w.week,
           values: w.values,
+          reps: w.reps || ex.setLabels.map(() => ""),
           notes: w.notes || "",
           updatedAt: null,
         })),
@@ -124,6 +125,7 @@ export const Store = {
       weeks: Array.from({ length: weekCount }, (_, i) => ({
         week: i + 1,
         values: setLabels.map(() => ""),
+        reps: setLabels.map(() => ""),
         notes: "",
         updatedAt: null,
       })),
@@ -207,6 +209,7 @@ export const Store = {
     ex.weeks.push({
       week: nextWeek,
       values: ex.setLabels.map(() => ""),
+      reps: ex.setLabels.map(() => ""),
       notes: "",
       updatedAt: null,
     });

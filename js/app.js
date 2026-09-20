@@ -516,14 +516,16 @@ function renderExercise() {
     return "";
   }
   const weeksSorted = [...ex.weeks].sort((a, b) => a.week - b.week);
-  const currentWeek = weeksSorted.find((w) => !w.updatedAt && w.values.every((v) => !v) && !w.notes);
+  const isWeekEmpty = (w) => w.values.every((v) => !v) && (w.reps || []).every((v) => !v) && !w.notes;
+  const currentWeek = weeksSorted.find((w) => !w.updatedAt && isWeekEmpty(w));
 
   const weekCards = weeksSorted.map((w) => {
     const isCurrent = currentWeek && w.week === currentWeek.week;
     const fields = ex.setLabels.map((label, i) => `
       <div class="field">
         <label>${esc(label)}</label>
-        <input type="text" inputmode="decimal" value="${esc(w.values[i] || "")}" data-week="${w.week}" data-idx="${i}" data-kind="value" />
+        <input type="text" inputmode="decimal" placeholder="lb" value="${esc(w.values[i] || "")}" data-week="${w.week}" data-idx="${i}" data-kind="value" />
+        <input type="text" inputmode="numeric" placeholder="reps" value="${esc((w.reps || [])[i] || "")}" data-week="${w.week}" data-idx="${i}" data-kind="reps" />
       </div>
     `).join("");
     return `
@@ -579,7 +581,11 @@ function renderHistory() {
     return `${topbar("History")}<div class="empty"><h2>Nothing logged yet</h2><p>Fill in a set weight on any exercise and it'll show up here.</p></div>`;
   }
   const items = entries.map((e) => {
-    const summary = e.values.map((v, i) => v ? `${esc(e.setLabels[i])}: ${esc(v)}` : null).filter(Boolean).join(", ");
+    const summary = e.values.map((v, i) => {
+      const reps = (e.reps || [])[i];
+      if (!v && !reps) return null;
+      return `${esc(e.setLabels[i])}: ${esc(v || "—")}${reps ? ` x ${esc(reps)}` : ""}`;
+    }).filter(Boolean).join(", ");
     return `
       <div class="card tappable" data-action="open-exercise" data-day="${esc(e.dayId)}" data-exercise="${esc(e.exerciseId)}">
         <div class="log-head"><span>${esc(e.exerciseName)} &middot; Week ${e.week}</span><span>${relativeTime(e.updatedAt)}</span></div>
@@ -799,6 +805,7 @@ function renderCoachClientExercise() {
       <div class="field">
         <label>${esc(label)}</label>
         <div class="readonly-value">${esc(w.values[i]) || "&mdash;"}</div>
+        <div class="readonly-value">${esc((w.reps || [])[i]) || "&mdash;"}</div>
       </div>
     `).join("");
     return `
@@ -846,8 +853,8 @@ async function refreshDay(dayId) {
         setLabels: newEx.setLabels,
         weeks: newEx.weeks.map((w) => {
           const oldWeek = oldEx?.weeks.find((ow) => ow.week === w.week);
-          if (oldWeek && (oldWeek.updatedAt || oldWeek.values.some((v) => v) || oldWeek.notes)) return oldWeek;
-          return { week: w.week, values: w.values, notes: w.notes, updatedAt: null };
+          if (oldWeek && (oldWeek.updatedAt || oldWeek.values.some((v) => v) || (oldWeek.reps || []).some((v) => v) || oldWeek.notes)) return oldWeek;
+          return { week: w.week, values: w.values, reps: newEx.setLabels.map(() => ""), notes: w.notes, updatedAt: null };
         }),
       };
     });
@@ -1009,6 +1016,12 @@ function onInput(e) {
   const week = parseInt(el.dataset.week, 10);
   if (el.dataset.kind === "notes") {
     Store.updateExerciseWeek(dayId, exerciseId, week, { notes: el.value });
+  } else if (el.dataset.kind === "reps") {
+    const ex = Store.getExercise(dayId, exerciseId);
+    const weekRow = ex.weeks.find((w) => w.week === week);
+    const reps = [...(weekRow.reps || ex.setLabels.map(() => ""))];
+    reps[+el.dataset.idx] = el.value;
+    Store.updateExerciseWeek(dayId, exerciseId, week, { reps });
   } else {
     const ex = Store.getExercise(dayId, exerciseId);
     const weekRow = ex.weeks.find((w) => w.week === week);

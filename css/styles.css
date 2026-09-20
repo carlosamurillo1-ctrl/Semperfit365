@@ -212,6 +212,7 @@ select { appearance: none; }
 .week-fields .field { flex: 1 1 70px; min-width: 64px; }
 .week-fields .field label { margin: 0 0 4px; font-size: 11px; }
 .week-fields .field input { padding: 8px; text-align: center; }
+.week-fields .field input + input { margin-top: 4px; }
 .readonly-value {
   background: var(--bg-elev-2);
   border: 1px solid var(--border);
@@ -222,6 +223,7 @@ select { appearance: none; }
   color: var(--text);
   min-height: 18px;
 }
+.readonly-value + .readonly-value { margin-top: 4px; }
 
 .source-chip {
   display: inline-flex; align-items: center; gap: 6px;
