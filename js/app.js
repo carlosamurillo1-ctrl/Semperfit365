@@ -690,17 +690,33 @@ function renderTemplates() {
       <h3>${esc(t.name)}</h3>
       <p>${esc(t.description)}</p>
       <div style="height:10px"></div>
-      <button class="btn primary" data-action="load-template" data-template="${esc(t.id)}">Load this program</button>
+      <div class="btn-row">
+        <button class="btn primary" data-action="add-template" data-template="${esc(t.id)}">Add to program</button>
+        <button class="btn ghost" data-action="load-template" data-template="${esc(t.id)}">Replace program</button>
+      </div>
+      <div style="height:8px"></div>
+      <button class="btn small" data-action="copy-template-link" data-template="${esc(t.id)}">Copy link for a new client</button>
     </div>
   `).join("");
 
   return `
     ${topbar("Program templates", { back: true })}
     <div class="card">
-      <p>Loading a template replaces every workout day currently on this device, including any logged weeks. Use this on a client's phone (or before sharing a link) to hand them a different program instead of editing day by day.</p>
+      <p><strong>Add to program</strong> keeps everything already on this device and adds the template's days alongside it — nothing is deleted, so you can give a client a new program without losing their old one or their logged history.</p>
+      <p><strong>Replace program</strong> erases the current program and every logged week on this device first, then loads the template fresh.</p>
+      <p><strong>Copy link for a new client</strong> gives you a link that seeds this template automatically the first time someone opens it — only useful for a device that hasn't opened the app before.</p>
     </div>
     ${rows}
   `;
+}
+
+function addTemplate(id) {
+  const template = PROGRAM_TEMPLATES.find((t) => t.id === id);
+  if (!template) return;
+  const days = parseWorkoutSheets(template.sheetText);
+  days.forEach((day) => Store.addDay({ name: day.dayTitle || "Workout", source: null, exercises: day.exercises }));
+  toast(`Added "${template.name}" — nothing else was deleted`);
+  navigate("program");
 }
 
 function loadTemplate(id) {
@@ -714,6 +730,18 @@ function loadTemplate(id) {
   days.forEach((day) => Store.addDay({ name: day.dayTitle || "Workout", source: null, exercises: day.exercises }));
   toast(`Loaded "${template.name}"`);
   navigate("program");
+}
+
+function copyTemplateLink(id) {
+  const template = PROGRAM_TEMPLATES.find((t) => t.id === id);
+  if (!template) return;
+  const params = new URLSearchParams();
+  if (id !== "default") params.set("template", id);
+  const qs = params.toString();
+  const link = `${window.location.origin}${window.location.pathname}${qs ? `?${qs}` : ""}`;
+  navigator.clipboard.writeText(link)
+    .then(() => toast("Link copied"))
+    .catch(() => toast(`Couldn't copy — copy manually: ${link}`));
 }
 
 // ---------- COACH screens (view clients' synced data, read-only) ----------
@@ -740,11 +768,15 @@ function renderCoach() {
 }
 
 function renderCoachAddClient() {
+  const options = PROGRAM_TEMPLATES.map((t) => `<option value="${esc(t.id)}">${esc(t.name)}</option>`).join("");
   return `
     ${topbar("Add client", { back: true })}
     <div class="card">
       <label for="coach-client-label">Client name</label>
       <input type="text" id="coach-client-label" placeholder="e.g. Jordan" />
+      <label for="coach-client-template">Starting program</label>
+      <select id="coach-client-template">${options}</select>
+      <p class="hint">This is only the program they'll see the first time they open the link — it won't touch anything if they've already opened it before.</p>
     </div>
     <button class="btn primary" data-action="confirm-add-coach-client">Generate client link</button>
   `;
@@ -752,6 +784,7 @@ function renderCoachAddClient() {
 
 async function confirmAddCoachClient() {
   const label = document.getElementById("coach-client-label").value.trim();
+  const templateId = document.getElementById("coach-client-template").value;
   if (!label) {
     toast("Give the client a name");
     return;
@@ -759,20 +792,23 @@ async function confirmAddCoachClient() {
   const clientId = newId();
   try {
     await addClientToRoster(getOrCreateCoachId(), clientId, label);
-    navigate("coach-client-link", { clientId, label });
+    navigate("coach-client-link", { clientId, label, templateId });
   } catch {
     toast("Couldn't create the client link — check your connection");
   }
 }
 
 function renderCoachClientLink() {
-  const { clientId, label } = state.params;
-  const link = `${window.location.origin}${window.location.pathname}?client=${clientId}`;
+  const { clientId, label, templateId } = state.params;
+  const linkParams = new URLSearchParams({ client: clientId });
+  if (templateId && templateId !== "default") linkParams.set("template", templateId);
+  const link = `${window.location.origin}${window.location.pathname}?${linkParams.toString()}`;
+  const template = PROGRAM_TEMPLATES.find((t) => t.id === templateId);
   return `
     ${topbar("Client link ready", { back: true })}
     <div class="card">
       <h3>${esc(label)}</h3>
-      <p>Send this link to your client. The moment they open it, their logged workouts start syncing to you — no account needed on their end.</p>
+      <p>Send this link to your client. The moment they open it, their logged workouts start syncing to you — no account needed on their end.${template && templateId !== "default" ? ` They'll start with the "${esc(template.name)}" program.` : ""}</p>
       <div style="height:10px"></div>
       <input type="text" id="coach-link-output" value="${esc(link)}" readonly onclick="this.select()" />
       <div style="height:10px"></div>
@@ -1032,7 +1068,9 @@ function onClick(e) {
       break;
     }
     case "go-templates": navigate("templates"); break;
+    case "add-template": addTemplate(el.dataset.template); break;
     case "load-template": loadTemplate(el.dataset.template); break;
+    case "copy-template-link": copyTemplateLink(el.dataset.template); break;
     case "go-coach": navigate("coach"); break;
     case "go-coach-add-client": navigate("coach-add-client"); break;
     case "confirm-add-coach-client": confirmAddCoachClient(); break;
@@ -1092,9 +1130,18 @@ tabbar.addEventListener("click", (e) => {
 // ---------- boot ----------
 
 function seedIfEmpty() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const templateId = urlParams.get("template");
+  if (templateId) {
+    urlParams.delete("template");
+    const rest = urlParams.toString();
+    history.replaceState(null, "", window.location.pathname + (rest ? `?${rest}` : ""));
+  }
   if (Store.getProgram()) return; // never overwrite a visitor's own data
   try {
-    const days = parseWorkoutSheets(SEED_SHEET_TEXT);
+    const template = PROGRAM_TEMPLATES.find((t) => t.id === templateId);
+    const sheetText = template ? template.sheetText : SEED_SHEET_TEXT;
+    const days = parseWorkoutSheets(sheetText);
     days.forEach((day) => Store.addDay({ name: day.dayTitle || "Workout", source: null, exercises: day.exercises }));
   } catch {
     // if the bundled seed ever fails to parse, just fall back to the normal empty state
