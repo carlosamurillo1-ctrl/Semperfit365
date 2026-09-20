@@ -5,7 +5,7 @@
 // overwrites anything a visitor has already imported or logged.
 export const SEED_SHEET_TEXT = `	Workout A
 
-	Weighted Pull-ups				Rep goal: 5,6,8		Rest time: 2-3 min.
+	Weighted Pull-ups				Rep goal: 4-8		Rest time: 2-3 min.
 
 	Perform 1 warm-up set of 6-10 reps using lighter weight
 
