@@ -120,7 +120,10 @@ function renderProgram() {
             <h3>${esc(day.name)}</h3>
             <p>${exCount} exercise${exCount === 1 ? "" : "s"}${filled ? ` &middot; ${filled} week${filled === 1 ? "" : "s"} logged` : ""}</p>
           </div>
-          <span class="pill">Open</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <button class="btn ghost small" data-action="rename-day" data-day="${esc(day.id)}" style="width:auto;padding:4px 8px;font-size:15px;" aria-label="Rename day">&#9998;</button>
+            <span class="pill">Open</span>
+          </div>
         </div>
       </div>`;
   }).join("");
