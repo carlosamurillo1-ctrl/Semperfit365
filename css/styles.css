@@ -35,8 +35,8 @@ body::before {
   inset: 0;
   background-image: url("../icons/flag-bg.svg");
   background-repeat: no-repeat;
-  background-position: center 18%;
-  background-size: 130vw auto;
+  background-position: center top;
+  background-size: auto 100vh;
   opacity: 0.22;
   pointer-events: none;
   z-index: 0;

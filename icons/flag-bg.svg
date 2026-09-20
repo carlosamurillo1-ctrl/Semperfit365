@@ -1,18 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 474">
-  <rect width="900" height="474" fill="#3a3a3a"/>
-  <rect y="36.46" width="900" height="36.46" fill="#8a8a8a"/>
-  <rect y="109.38" width="900" height="36.46" fill="#8a8a8a"/>
-  <rect y="182.31" width="900" height="36.46" fill="#8a8a8a"/>
-  <rect y="255.23" width="900" height="36.46" fill="#8a8a8a"/>
-  <rect y="328.15" width="900" height="36.46" fill="#8a8a8a"/>
-  <rect y="401.08" width="900" height="36.46" fill="#8a8a8a"/>
-  <rect width="360" height="255.23" fill="#242424"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 474 900">
+  <rect width="474" height="900" fill="#3a3a3a"/>
+  <rect x="36.46" width="36.46" height="900" fill="#8a8a8a"/>
+  <rect x="109.38" width="36.46" height="900" fill="#8a8a8a"/>
+  <rect x="182.31" width="36.46" height="900" fill="#8a8a8a"/>
+  <rect x="255.23" width="36.46" height="900" fill="#8a8a8a"/>
+  <rect x="328.15" width="36.46" height="900" fill="#8a8a8a"/>
+  <rect x="401.08" width="36.46" height="900" fill="#8a8a8a"/>
+  <rect width="255.23" height="360" fill="#242424"/>
   <g fill="#a8a8a8">
-    <circle cx="30" cy="20" r="6"/><circle cx="105" cy="20" r="6"/><circle cx="180" cy="20" r="6"/><circle cx="255" cy="20" r="6"/><circle cx="330" cy="20" r="6"/>
-    <circle cx="30" cy="63" r="6"/><circle cx="105" cy="63" r="6"/><circle cx="180" cy="63" r="6"/><circle cx="255" cy="63" r="6"/><circle cx="330" cy="63" r="6"/>
-    <circle cx="30" cy="106" r="6"/><circle cx="105" cy="106" r="6"/><circle cx="180" cy="106" r="6"/><circle cx="255" cy="106" r="6"/><circle cx="330" cy="106" r="6"/>
-    <circle cx="30" cy="149" r="6"/><circle cx="105" cy="149" r="6"/><circle cx="180" cy="149" r="6"/><circle cx="255" cy="149" r="6"/><circle cx="330" cy="149" r="6"/>
-    <circle cx="30" cy="192" r="6"/><circle cx="105" cy="192" r="6"/><circle cx="180" cy="192" r="6"/><circle cx="255" cy="192" r="6"/><circle cx="330" cy="192" r="6"/>
-    <circle cx="30" cy="235" r="6"/><circle cx="105" cy="235" r="6"/><circle cx="180" cy="235" r="6"/><circle cx="255" cy="235" r="6"/><circle cx="330" cy="235" r="6"/>
+    <circle cx="25" cy="25" r="6"/><circle cx="76" cy="25" r="6"/><circle cx="128" cy="25" r="6"/><circle cx="179" cy="25" r="6"/><circle cx="230" cy="25" r="6"/>
+    <circle cx="25" cy="87" r="6"/><circle cx="76" cy="87" r="6"/><circle cx="128" cy="87" r="6"/><circle cx="179" cy="87" r="6"/><circle cx="230" cy="87" r="6"/>
+    <circle cx="25" cy="149" r="6"/><circle cx="76" cy="149" r="6"/><circle cx="128" cy="149" r="6"/><circle cx="179" cy="149" r="6"/><circle cx="230" cy="149" r="6"/>
+    <circle cx="25" cy="211" r="6"/><circle cx="76" cy="211" r="6"/><circle cx="128" cy="211" r="6"/><circle cx="179" cy="211" r="6"/><circle cx="230" cy="211" r="6"/>
+    <circle cx="25" cy="273" r="6"/><circle cx="76" cy="273" r="6"/><circle cx="128" cy="273" r="6"/><circle cx="179" cy="273" r="6"/><circle cx="230" cy="273" r="6"/>
+    <circle cx="25" cy="335" r="6"/><circle cx="76" cy="335" r="6"/><circle cx="128" cy="335" r="6"/><circle cx="179" cy="335" r="6"/><circle cx="230" cy="335" r="6"/>
   </g>
 </svg>
