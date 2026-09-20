@@ -136,6 +136,21 @@ export const SEED_SHEET_TEXT = `	Workout A
 7	WEEK 7	0	0	0	0
 8	WEEK 8	0	0	0	0
 
+	Weighted Walking Lunges			Rep goal: 10 reps
+
+	Down and back, each leg is 1 rep
+
+	Week	Set 1	Set 2	Set 3			Notes
+
+1	WEEK 1
+2	WEEK 2
+3	WEEK 3
+4	WEEK 4
+5	WEEK 5
+6	WEEK 6
+7	WEEK 7
+8	WEEK 8
+
 		set 1	set 2	set 3
 	ab roll out /wk 1
 	leg raises w ball
