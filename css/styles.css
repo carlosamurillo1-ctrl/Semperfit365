@@ -101,6 +101,32 @@ p { color: var(--text-dim); margin: 4px 0 0; font-size: 14px; }
   border-radius: 999px;
 }
 
+.reorder-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.reorder-btns button {
+  width: 28px;
+  height: 22px;
+  padding: 0;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  border-radius: 5px;
+  font-size: 9px;
+  line-height: 1;
+  cursor: pointer;
+}
+.reorder-btns button:disabled {
+  opacity: .3;
+  cursor: default;
+}
+.reorder-btns button:not(:disabled):active {
+  background: var(--bg-elev);
+  color: var(--text);
+}
+
 .btn {
   appearance: none;
   border: none;

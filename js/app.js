@@ -276,7 +276,7 @@ function renderDay() {
     navigate("program");
     return "";
   }
-  const items = day.exercises.map((ex) => {
+  const items = day.exercises.map((ex, idx) => {
     const filled = ex.weeks.filter((w) => w.updatedAt).length;
     const repText = ex.repGoal && (/rep/i.test(ex.repGoal) ? ex.repGoal : `${ex.repGoal} reps`);
     const target = [repText, ex.restTime && `rest ${ex.restTime}`].filter(Boolean).join(" &middot; ");
@@ -287,7 +287,13 @@ function renderDay() {
             <h3>${esc(ex.name)}</h3>
             <p>${target || `${ex.weeks.length} weeks`}${filled ? ` &middot; ${filled} logged` : ""}</p>
           </div>
-          <span class="pill">${ex.setLabels.length || 0} sets</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div class="reorder-btns">
+              <button data-action="move-exercise" data-dir="-1" data-day="${esc(day.id)}" data-exercise="${esc(ex.id)}" ${idx === 0 ? "disabled" : ""} aria-label="Move up">&#9650;</button>
+              <button data-action="move-exercise" data-dir="1" data-day="${esc(day.id)}" data-exercise="${esc(ex.id)}" ${idx === day.exercises.length - 1 ? "disabled" : ""} aria-label="Move down">&#9660;</button>
+            </div>
+            <span class="pill">${ex.setLabels.length || 0} sets</span>
+          </div>
         </div>
       </div>`;
   }).join("");
@@ -344,7 +350,10 @@ function renderExercise() {
     ${weekCards}
     <button class="btn" data-action="add-week" data-day="${esc(day.id)}" data-exercise="${esc(ex.id)}">+ Add week</button>
     <div style="height:8px"></div>
-    <button class="btn danger" data-action="delete-exercise" data-day="${esc(day.id)}" data-exercise="${esc(ex.id)}">Delete this exercise</button>
+    <div class="btn-row">
+      <button class="btn" data-action="rename-exercise" data-day="${esc(day.id)}" data-exercise="${esc(ex.id)}">Rename</button>
+      <button class="btn danger" data-action="delete-exercise" data-day="${esc(day.id)}" data-exercise="${esc(ex.id)}">Delete</button>
+    </div>
   `;
 }
 
@@ -499,6 +508,20 @@ function onClick(e) {
         toast("Exercise deleted");
         navigate("day", { dayId });
       }
+      break;
+    }
+    case "rename-exercise": {
+      const ex = Store.getExercise(el.dataset.day, el.dataset.exercise);
+      const name = prompt("Rename exercise", ex?.name || "");
+      if (name && name.trim()) {
+        Store.renameExercise(el.dataset.day, el.dataset.exercise, name.trim());
+        render();
+      }
+      break;
+    }
+    case "move-exercise": {
+      Store.moveExercise(el.dataset.day, el.dataset.exercise, parseInt(el.dataset.dir, 10));
+      render();
       break;
     }
     case "refresh-day": refreshDay(el.dataset.day); break;

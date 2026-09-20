@@ -93,6 +93,30 @@ export const Store = {
     this.setProgram(program);
   },
 
+  renameExercise(dayId, exerciseId, name) {
+    const program = this.getProgram();
+    if (!program) return;
+    const day = program.days.find((d) => d.id === dayId);
+    const ex = day?.exercises.find((e) => e.id === exerciseId);
+    if (!ex) return;
+    ex.name = name;
+    this.setProgram(program);
+  },
+
+  /** Move an exercise up (-1) or down (+1) within its day's list. */
+  moveExercise(dayId, exerciseId, direction) {
+    const program = this.getProgram();
+    if (!program) return;
+    const day = program.days.find((d) => d.id === dayId);
+    if (!day) return;
+    const idx = day.exercises.findIndex((e) => e.id === exerciseId);
+    const newIdx = idx + direction;
+    if (idx < 0 || newIdx < 0 || newIdx >= day.exercises.length) return;
+    const [ex] = day.exercises.splice(idx, 1);
+    day.exercises.splice(newIdx, 0, ex);
+    this.setProgram(program);
+  },
+
   getDay(dayId) {
     return this.getProgram()?.days.find((d) => d.id === dayId) || null;
   },
