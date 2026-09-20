@@ -33,7 +33,7 @@ export const SEED_SHEET_TEXT = `	Workout A
 7	WEEK 7
 8	WEEK 8
 
-	seated military press				Rep goal: 4-6, 6-8, 8-10		Rest time: 2-3 min.
+	Seated Military Press				Rep goal: 4-6, 6-8, 8-10		Rest time: 2-3 min.
 
 
 	Perform 1 warm-up set of 6-10 reps using lighter weight
