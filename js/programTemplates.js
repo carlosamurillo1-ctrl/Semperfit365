@@ -7,7 +7,7 @@ import { SEED_SHEET_TEXT } from "./seedProgram.js";
 
 const LEG_GLUTE_FOCUS_TEXT = `	Workout A
 
-	Barbell Squats			Rep goal: 8-10 reps			Rest time: 2-3 min.
+	Barbell Squats			Rep goal: 8-10 reps			Rest time: 90 sec
 
 	Perform 1 warm-up set of 6-10 reps using lighter weight
 
@@ -171,7 +171,7 @@ const LEG_GLUTE_FOCUS_TEXT = `	Workout A
 
 	Workout C
 
-	Barbell Hip Thrusts			Rep goal: 6-10 reps			Rest time: 2-3 min.
+	Barbell Hip Thrusts			Rep goal: 6-10 reps			Rest time: 90 sec
 
 	Week	Set 1	Set 2	Set 3			Notes
 
@@ -184,7 +184,7 @@ const LEG_GLUTE_FOCUS_TEXT = `	Workout A
 7	WEEK 7
 8	WEEK 8
 
-	Romanian Deadlift			Rep goal: 6-8 reps			Rest time: 2-3 min.
+	Romanian Deadlift			Rep goal: 6-8 reps			Rest time: 90 sec
 
 	Perform 1 warm-up set of 6-10 reps using lighter weight
 
