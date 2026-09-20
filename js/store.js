@@ -26,6 +26,7 @@ const KEYS = {
   programs: "sf365.programs.v1",
   legacyProgram: "sf365.program.v2", // pre-multi-program single program, migrated in place
   settings: "sf365.settings.v1",
+  cardioLog: "sf365.cardioLog.v1",
 };
 
 function read(key, fallback) {
@@ -341,8 +342,36 @@ export const Store = {
     write(KEYS.settings, settings);
   },
 
+  // ---- Cardio & steps log (one global log per device, independent of which program is active) ----
+
+  /** { calories, steps, updatedAt } for a date ("YYYY-MM-DD"), or null if nothing logged. */
+  getCardioEntry(dateStr) {
+    const log = read(KEYS.cardioLog, {});
+    return log[dateStr] || null;
+  },
+  /** Save (or, if both fields are blank, remove) a day's calories/steps. */
+  setCardioEntry(dateStr, entry) {
+    const log = read(KEYS.cardioLog, {});
+    const calories = (entry.calories || "").toString().trim();
+    const steps = (entry.steps || "").toString().trim();
+    if (calories || steps) {
+      log[dateStr] = { calories, steps, updatedAt: new Date().toISOString() };
+    } else {
+      delete log[dateStr];
+    }
+    write(KEYS.cardioLog, log);
+  },
+  /** The whole log, keyed by date string. */
+  getCardioLog() {
+    return read(KEYS.cardioLog, {});
+  },
+  clearCardioLog() {
+    localStorage.removeItem(KEYS.cardioLog);
+  },
+
   clearAll() {
     this.clearProgram();
+    this.clearCardioLog();
     localStorage.removeItem(KEYS.settings);
   },
 };

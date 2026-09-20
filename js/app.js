@@ -178,6 +178,8 @@ function render() {
     case "history": html = renderHistory(); break;
     case "settings": html = renderSettings(); break;
     case "templates": html = renderTemplates(); break;
+    case "cardio": html = renderCardio(); break;
+    case "cardio-day": html = renderCardioDay(); break;
     case "coach": html = renderCoach(); break;
     case "coach-add-client": html = renderCoachAddClient(); break;
     case "coach-client-link": html = renderCoachClientLink(); break;
@@ -203,10 +205,15 @@ function topbar(title, opts = {}) {
 
 function programSwitcherTopbarOpts() {
   const programs = Store.listPrograms();
-  if (programs.length <= 1) return {};
-  const options = programs.map((p) => `<option value="${esc(p.id)}" ${p.active ? "selected" : ""}>${esc(p.name)}</option>`).join("");
+  const switcher = programs.length > 1
+    ? `<select id="program-switcher" data-change-action="switch-program" aria-label="Switch program" style="width:auto;max-width:110px;padding:6px 8px;font-size:12px;background:var(--bg-elev-2);border:1px solid var(--border);border-radius:10px;color:var(--text);">${programs.map((p) => `<option value="${esc(p.id)}" ${p.active ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</select>`
+    : "";
+  const calendarBtn = `
+    <button class="btn ghost small" data-action="go-cardio" aria-label="Cardio and steps calendar" style="width:auto;padding:6px 8px;">
+      <svg viewBox="0 0 24 24" width="18" height="18" style="display:block;"><path fill="currentColor" d="M7 2v2H5a2 2 0 0 0-2 2v3h18V6a2 2 0 0 0-2-2h-2V2h-2v2H9V2H7zM3 10v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-9H3z"/></svg>
+    </button>`;
   return {
-    right: `<select id="program-switcher" data-change-action="switch-program" aria-label="Switch program" style="width:auto;max-width:130px;padding:6px 8px;font-size:12px;background:var(--bg-elev-2);border:1px solid var(--border);border-radius:10px;color:var(--text);">${options}</select>`,
+    right: `<div style="display:flex;align-items:center;gap:6px;">${calendarBtn}${switcher}</div>`,
   };
 }
 
@@ -249,6 +256,77 @@ function renderProgram() {
       <button class="btn ghost small" data-action="go-import">+ Add day</button>
     </div>
     ${items}
+  `;
+}
+
+// ---------- CARDIO & STEPS calendar ----------
+
+const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const WEEKDAY_LABELS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+
+function pad2(n) { return String(n).padStart(2, "0"); }
+function isoDate(year, monthIndex, day) { return `${year}-${pad2(monthIndex + 1)}-${pad2(day)}`; }
+
+function renderCardioMonth(year, monthIndex, cardioLog, todayIso) {
+  const firstWeekday = new Date(year, monthIndex, 1).getDay();
+  const numDays = new Date(year, monthIndex + 1, 0).getDate();
+  const cells = [];
+  for (let i = 0; i < firstWeekday; i++) cells.push(`<div class="cardio-cell empty"></div>`);
+  for (let d = 1; d <= numDays; d++) {
+    const dateStr = isoDate(year, monthIndex, d);
+    const entry = cardioLog[dateStr];
+    cells.push(`
+      <button class="cardio-cell${entry ? " logged" : ""}${dateStr === todayIso ? " today" : ""}" data-action="open-cardio-day" data-date="${dateStr}">
+        <span class="cardio-daynum">${d}</span>
+        ${entry ? '<span class="cardio-dot"></span>' : ""}
+      </button>
+    `);
+  }
+  return `
+    <div class="card cardio-month">
+      <h3>${MONTH_NAMES[monthIndex]} ${year}</h3>
+      <div class="cardio-grid cardio-weekdays">${WEEKDAY_LABELS.map((w) => `<div>${w}</div>`).join("")}</div>
+      <div class="cardio-grid">${cells.join("")}</div>
+    </div>
+  `;
+}
+
+function renderCardio() {
+  const cardioLog = Store.getCardioLog();
+  const now = new Date();
+  const todayIso = isoDate(now.getFullYear(), now.getMonth(), now.getDate());
+  const months = [];
+  for (let i = 0; i < 36; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+    months.push(renderCardioMonth(d.getFullYear(), d.getMonth(), cardioLog, todayIso));
+  }
+  return `
+    ${topbar("Cardio & Steps", { back: true })}
+    <div class="card">
+      <p>Tap any day to log calories burned and steps. This calendar runs 3 years forward from this month.</p>
+      <p class="hint">Steps and calories are entered by hand -- pull the numbers from your phone's Health/Fit app. A website can't read your step sensor live in the background.</p>
+    </div>
+    ${months.join("")}
+  `;
+}
+
+function renderCardioDay() {
+  const { date } = state.params;
+  const entry = Store.getCardioEntry(date) || {};
+  const d = new Date(`${date}T00:00:00`);
+  const label = d.toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+  return `
+    ${topbar("Log cardio", { back: true })}
+    <div class="card">
+      <h3>${esc(label)}</h3>
+      <label for="cardio-calories">Calories burned</label>
+      <input type="text" inputmode="numeric" id="cardio-calories" placeholder="e.g. 450" value="${esc(entry.calories || "")}" />
+      <label for="cardio-steps">Steps</label>
+      <input type="text" inputmode="numeric" id="cardio-steps" placeholder="e.g. 8200" value="${esc(entry.steps || "")}" />
+      <div style="height:10px"></div>
+      <button class="btn primary" data-action="save-cardio-day" data-date="${esc(date)}">Save</button>
+      ${(entry.calories || entry.steps) ? `<div style="height:8px"></div><button class="btn danger" data-action="clear-cardio-day" data-date="${esc(date)}">Clear this day</button>` : ""}
+    </div>
   `;
 }
 
@@ -672,7 +750,7 @@ function renderSettings() {
     ${renderSyncSettingsCard()}
     <div class="card">
       <h3>Reset</h3>
-      <p>Clears every imported day and every logged value from this device.</p>
+      <p>Clears every saved program, every logged value, and your cardio &amp; steps calendar from this device.</p>
       <div style="height:10px"></div>
       <button class="btn danger" data-action="reset-all">Erase all data</button>
     </div>
@@ -1002,6 +1080,8 @@ function onClick(e) {
       else if (state.screen === "day") navigate("program");
       else if (state.screen === "coach") navigate("settings");
       else if (state.screen === "templates") navigate("settings");
+      else if (state.screen === "cardio-day") navigate("cardio");
+      else if (state.screen === "cardio") navigate("program");
       else if (state.screen === "coach-add-client") navigate("coach");
       else if (state.screen === "coach-client-link") navigate("coach");
       else if (state.screen === "coach-client") navigate("coach");
@@ -1097,6 +1177,24 @@ function onClick(e) {
       break;
     }
     case "go-templates": navigate("templates"); break;
+    case "go-cardio": navigate("cardio"); break;
+    case "open-cardio-day": navigate("cardio-day", { date: el.dataset.date }); break;
+    case "save-cardio-day": {
+      const calories = document.getElementById("cardio-calories").value.trim();
+      const steps = document.getElementById("cardio-steps").value.trim();
+      Store.setCardioEntry(el.dataset.date, { calories, steps });
+      toast("Saved");
+      navigate("cardio");
+      break;
+    }
+    case "clear-cardio-day": {
+      if (confirm("Clear the logged calories and steps for this day?")) {
+        Store.setCardioEntry(el.dataset.date, { calories: "", steps: "" });
+        toast("Cleared");
+        navigate("cardio");
+      }
+      break;
+    }
     case "add-template": addTemplate(el.dataset.template); break;
     case "load-template": loadTemplate(el.dataset.template); break;
     case "copy-template-link": copyTemplateLink(el.dataset.template); break;
