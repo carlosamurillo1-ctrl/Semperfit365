@@ -1,5 +1,5 @@
 :root {
-  --bg: #0f1115;
+  --bg: #363a22;
   --bg-elev: #171a21;
   --bg-elev-2: #1f232c;
   --border: #2a2f3a;
@@ -25,10 +25,26 @@ html, body {
 }
 
 body {
+  position: relative;
   padding-bottom: calc(64px + var(--safe-bottom));
 }
 
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image: url("../icons/flag-bg.svg");
+  background-repeat: no-repeat;
+  background-position: center 18%;
+  background-size: 130vw auto;
+  opacity: 0.22;
+  pointer-events: none;
+  z-index: 0;
+}
+
 .app {
+  position: relative;
+  z-index: 1;
   max-width: 640px;
   margin: 0 auto;
   padding: 16px 16px 32px;

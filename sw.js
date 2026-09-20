@@ -1,4 +1,4 @@
-const CACHE = "semperfit365-v18";
+const CACHE = "semperfit365-v19";
 const ASSETS = [
   "./",
   "./index.html",
@@ -15,6 +15,7 @@ const ASSETS = [
   "./vendor/firebase/firebase-firestore-compat.js",
   "./manifest.webmanifest",
   "./icons/logo.jpg",
+  "./icons/flag-bg.svg",
 ];
 
 self.addEventListener("install", (event) => {
