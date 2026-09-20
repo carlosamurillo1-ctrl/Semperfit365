@@ -138,7 +138,7 @@ export const SEED_SHEET_TEXT = `	Workout A
 
 	Weighted Walking Lunges			Rep goal: 10 reps
 
-	Down and back, each leg is 1 rep
+	One rep equals a full walk down and back, alternating legs with each step
 
 	Week	Set 1	Set 2	Set 3			Notes
 
