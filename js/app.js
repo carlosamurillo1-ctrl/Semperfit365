@@ -14,6 +14,7 @@ import {
   listenClient,
   markClientPaid,
   onSyncStatusChange,
+  getClientLabel,
   isSignInLink,
   sendClientSignInLink,
   completeClientSignIn,
@@ -56,6 +57,20 @@ function getClientName() {
 function setClientName(name) {
   localStorage.setItem(LOCAL_KEYS.clientName, name);
 }
+const COACH_EMAIL = "Semperfit365@gmail.com";
+const COACH_PHONE_DISPLAY = "(914) 575-9554";
+const COACH_PHONE_HREF = "+19145759554";
+
+/** Email + text buttons for reaching the coach directly, used on client-facing screens. */
+function contactCoachButtons() {
+  return `
+    <div class="btn-row">
+      <a class="btn" href="mailto:${COACH_EMAIL}">Email coach</a>
+      <a class="btn" href="sms:${COACH_PHONE_HREF}">Text coach</a>
+    </div>
+  `;
+}
+
 function getOrCreateCoachId() {
   let id = localStorage.getItem(LOCAL_KEYS.coachId);
   if (!id) {
@@ -237,8 +252,14 @@ function topbar(title, opts = {}) {
 
 // ---------- PAYWALL screens (email sign-in + payment gate for a priced client link) ----------
 
+/** The name the coach gave this client, fetched once at boot (see boot()) so
+ * the paywall screens can greet by name instead of opening cold. Empty
+ * string if unavailable -- both render functions fall back gracefully. */
+let paywallClientLabel = "";
+
 function renderPaywallSignin() {
   const sent = state.params.signinSent;
+  const greetName = paywallClientLabel ? `, ${esc(paywallClientLabel)}` : "";
   return `
     <div style="text-align:center;padding:24px 0 8px;">
       <span class="logo-crop" style="width:140px;height:58px;margin:0 auto;"><img src="icons/logo.jpg" alt="SemperFit365"/></span>
@@ -250,8 +271,8 @@ function renderPaywallSignin() {
         <div style="height:10px"></div>
         <button class="btn ghost" data-action="resend-signin-link" data-email="${esc(sent)}">Use a different email</button>
       ` : `
-        <h2>Verify your email to continue</h2>
-        <p>Your coach has set up this program with a payment step. Enter your email and we'll send you a link to continue.</p>
+        <h2>Welcome${greetName}!</h2>
+        <p>Your coach set you up with a program on SemperFit365. Before it unlocks, verify your email below -- enter it and we'll send you a link to continue.</p>
         <div style="height:10px"></div>
         <label for="signin-email">Email</label>
         <input type="email" id="signin-email" placeholder="you@example.com" />
@@ -259,6 +280,8 @@ function renderPaywallSignin() {
         <button class="btn primary" data-action="send-signin-link">Send sign-in link</button>
       `}
     </div>
+    <p class="hint" style="text-align:center;margin:14px 0 8px;">Stuck, or the link isn't working?</p>
+    ${contactCoachButtons()}
   `;
 }
 
@@ -281,20 +304,23 @@ async function handleSendSigninLink() {
 function renderPaywallPayment() {
   const priceCents = parseInt(localStorage.getItem(LOCAL_KEYS.clientPriceCents) || "0", 10);
   const amount = (priceCents / 100).toFixed(2);
+  const greetName = paywallClientLabel ? `, ${esc(paywallClientLabel)}` : "";
   return `
     <div style="text-align:center;padding:24px 0 8px;">
       <span class="logo-crop" style="width:140px;height:58px;margin:0 auto;"><img src="icons/logo.jpg" alt="SemperFit365"/></span>
     </div>
     <div class="card">
-      <h2>Payment required</h2>
+      <h2>You're verified${greetName} -- almost there</h2>
       <p>Your program is ready — send <strong>$${amount}</strong> via Zelle to unlock it.</p>
       <div style="height:10px"></div>
       <div class="row">
-        <span class="source-chip">Zelle: semperfit365@gmail.com</span>
+        <span class="source-chip">Zelle: ${COACH_EMAIL}</span>
       </div>
       <div style="height:14px"></div>
       <p class="hint">Once your coach confirms the payment, this screen unlocks automatically — no need to reload or do anything else here.</p>
     </div>
+    <p class="hint" style="text-align:center;margin:14px 0 8px;">Already paid, or have a question?</p>
+    ${contactCoachButtons()}
   `;
 }
 
@@ -1141,6 +1167,12 @@ function renderSyncSettingsCard() {
         <div style="height:10px"></div>
         <button class="btn small" data-action="save-client-name">Save name</button>
       </div>
+      <div class="card">
+        <h3>Contact your coach</h3>
+        <p>Question about your program, or a payment? Reach out directly.</p>
+        <div style="height:10px"></div>
+        ${contactCoachButtons()}
+      </div>
     `;
   }
   return `
@@ -1927,6 +1959,12 @@ async function boot() {
   const alreadyUnlocked = localStorage.getItem(LOCAL_KEYS.clientPaid) === "true";
 
   if (isSyncConfigured() && clientId && priceCents > 0 && !alreadyUnlocked) {
+    // Best-effort, and never lets a slow/offline network hold up the gate
+    // screen itself -- worst case the greeting just skips the client's name.
+    paywallClientLabel = await Promise.race([
+      getClientLabel(clientId),
+      new Promise((resolve) => setTimeout(() => resolve(""), 3000)),
+    ]);
     if (!getCurrentClientEmail()) {
       navigate("paywall-signin");
       return;

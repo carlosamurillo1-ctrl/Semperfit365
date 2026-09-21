@@ -42,6 +42,8 @@ When you set a **Price** while adding a client (Coach dashboard → Add client),
 
 From then on, every time you tap **Mark as paid**, `functions/index.js` fires automatically and emails a receipt to whatever address the client signed in with. If you ever change the sender address, update `FROM_EMAIL` at the top of that file and redeploy.
 
+**Contact info shown to clients.** The "Email coach" / "Text coach" buttons on the paywall and Settings screens, and the Zelle address shown on the payment screen, come from `COACH_EMAIL` / `COACH_PHONE_DISPLAY` / `COACH_PHONE_HREF` near the top of `js/app.js` — update those three constants if either ever changes.
+
 ## Sending this to someone (e.g. a client)
 
 The app ships with a default program baked in (`js/seedProgram.js`) — anyone who opens the link for the first time sees it immediately, no import step required. It only applies on a device's very first visit: once a program exists in that browser (seeded or imported), it's never overwritten automatically, even if every day is later deleted.

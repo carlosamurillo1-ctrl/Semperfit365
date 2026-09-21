@@ -160,12 +160,25 @@ export async function addClientToRoster(coachId, clientId, label, priceCents) {
     }),
     database.collection("clients").doc(clientId).set(
       {
+        label: label || "",
         priceCents: priceCents || 0,
         paid: !priceCents,
       },
       { merge: true }
     ),
   ]);
+}
+
+/** One-off read of the name the coach gave this client (for a personalized
+ * paywall welcome, before the client has signed in or set their own name). */
+export async function getClientLabel(clientId) {
+  try {
+    const database = ensureDb();
+    const doc = await database.collection("clients").doc(clientId).get();
+    return doc.exists ? (doc.data().label || "") : "";
+  } catch {
+    return "";
+  }
 }
 
 /** Coach confirms a Zelle (or other) payment landed; flips the client's
