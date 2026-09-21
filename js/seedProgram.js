@@ -58,6 +58,18 @@ export const SEED_SHEET_TEXT = `	Push
 7	WEEK 7
 8	WEEK 8
 
+	Seated Machine Cable Chest Press			Rep goal: 6-12 reps			Rest time: 90 sec
+
+	Week	Set 1	Set 2	Set 3	Set 4		Notes
+1	WEEK 1
+2	WEEK 2
+3	WEEK 3
+4	WEEK 4
+5	WEEK 5
+6	WEEK 6
+7	WEEK 7
+8	WEEK 8
+
 
 	Legs/Shoulders
 
