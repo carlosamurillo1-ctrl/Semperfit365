@@ -15,12 +15,20 @@
 //
 // A single paste/sheet can also contain more than one day back to back (e.g.
 // a user copies several tabs' worth of cells at once); parseWorkoutSheets()
-// splits on day-title-looking lines (mentions a weekday or "Phase N") so
-// each day's exercises stay attributed to the right day.
+// splits on day-title-looking lines (mentions a weekday, "Phase N", "Workout
+// A/B/C", or a whole-cell body-part split name like "Push" or "Legs/Shoulders")
+// so each day's exercises stay attributed to the right day.
 
 import { parseCSV } from "./csv.js";
 
 const DAY_TITLE_HINT = /\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b|\bphase\s*[0-9]|\bworkout\s+[a-z]\b/i;
+
+// Matches only when the ENTIRE row is one of these split-day names (optionally
+// combined, e.g. "Legs/Shoulders") -- deliberately whole-line, not substring,
+// so it doesn't misfire on exercise names that happen to contain a body part
+// (e.g. "Tricep Push Down" or "Leg Extensions").
+const SPLIT_NAME = "push|pull|legs?|arms?|shoulders?|upper(\\s*body)?|lower(\\s*body)?|full\\s*body|chest|back|core";
+const DAY_SPLIT_NAME_EXACT = new RegExp(`^(${SPLIT_NAME})(\\s*[/&+]\\s*|\\s+and\\s+|\\s*,\\s*)?(${SPLIT_NAME})?$`, "i");
 
 function isBlankRow(row) {
   return row.every((c) => c.trim() === "");
@@ -62,7 +70,7 @@ function looksLikeDayTitle(row) {
   const rowText = row.join(" ");
   if (findCellIndex(row, /^week$/i) !== -1) return false;
   if (/rep\s*goal/i.test(rowText) || /rest\s*time/i.test(rowText)) return false;
-  return DAY_TITLE_HINT.test(rowText);
+  return DAY_TITLE_HINT.test(rowText) || DAY_SPLIT_NAME_EXACT.test(rowText.trim());
 }
 
 /** Split a sheet's rows into one chunk per detected day (see DAY_TITLE_HINT above). */
