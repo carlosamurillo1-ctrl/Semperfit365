@@ -280,6 +280,31 @@ function renderPaywallPayment() {
   `;
 }
 
+function isWeekEmptyRow(w) {
+  return w.values.every((v) => !v) && (w.reps || []).every((v) => !v) && !w.notes;
+}
+
+/**
+ * A day's overall progress: which week is still open (the earliest week
+ * number that at least one of the day's exercises hasn't logged yet) and
+ * the day's longest week count. Null for a day with no exercises.
+ */
+function dayProgress(day) {
+  const exercises = day.exercises;
+  if (!exercises.length) return null;
+  const totalWeeks = Math.max(...exercises.map((e) => e.weeks.length));
+  let currentWeek = totalWeeks;
+  for (let w = 1; w <= totalWeeks; w++) {
+    const stillOpen = exercises.some((e) => {
+      const row = e.weeks.find((wk) => wk.week === w);
+      return row ? isWeekEmptyRow(row) : false;
+    });
+    if (stillOpen) { currentWeek = w; break; }
+  }
+  const complete = exercises.every((e) => e.weeks.every((wk) => !isWeekEmptyRow(wk)));
+  return { currentWeek, totalWeeks, complete };
+}
+
 // ---------- PROGRAM screen (list of days) ----------
 
 function programSwitcherTopbarOpts() {
@@ -312,19 +337,22 @@ function renderProgram() {
 
   const items = program.days.map((day) => {
     const exCount = day.exercises.length;
-    const filled = day.exercises.reduce((n, ex) => n + ex.weeks.filter((w) => w.updatedAt).length, 0);
+    const progress = dayProgress(day);
+    const pct = progress ? Math.round(((progress.currentWeek - 1) / progress.totalWeeks) * 100) : 0;
+    const weekLabel = progress ? (progress.complete ? "Complete" : `Week ${progress.currentWeek} of ${progress.totalWeeks}`) : "";
     return `
       <div class="card tappable" data-action="open-day" data-day="${esc(day.id)}">
         <div class="row">
           <div>
             <h3>${esc(day.name)}</h3>
-            <p>${exCount} exercise${exCount === 1 ? "" : "s"}${filled ? ` &middot; ${filled} week${filled === 1 ? "" : "s"} logged` : ""}</p>
+            <p>${exCount} exercise${exCount === 1 ? "" : "s"}${weekLabel ? ` &middot; ${weekLabel}` : ""}</p>
           </div>
           <div style="display:flex;align-items:center;gap:8px;">
             <button class="btn ghost small" data-action="rename-day" data-day="${esc(day.id)}" style="width:auto;padding:4px 8px;font-size:15px;" aria-label="Rename day">&#9998;</button>
             <span class="pill">Open</span>
           </div>
         </div>
+        ${progress ? `<div class="progress-track"><div class="progress-fill${progress.complete ? " complete" : ""}" style="width:${progress.complete ? 100 : pct}%"></div></div>` : ""}
       </div>`;
   }).join("");
 
@@ -589,15 +617,18 @@ function renderDay() {
     navigate("program");
     return "";
   }
+  const progress = dayProgress(day);
   const items = day.exercises.map((ex, idx) => {
     const filled = ex.weeks.filter((w) => w.updatedAt).length;
     const repText = ex.repGoal && (/rep/i.test(ex.repGoal) ? ex.repGoal : `${ex.repGoal} reps`);
     const target = [repText, ex.restTime && `rest ${ex.restTime}`].filter(Boolean).join(" &middot; ");
+    const currentWeekRow = progress && !progress.complete && ex.weeks.find((w) => w.week === progress.currentWeek);
+    const doneThisWeek = currentWeekRow && !isWeekEmptyRow(currentWeekRow);
     return `
       <div class="card tappable" data-action="open-exercise" data-day="${esc(day.id)}" data-exercise="${esc(ex.id)}">
         <div class="row">
           <div>
-            <h3>${esc(ex.name)}</h3>
+            <h3>${doneThisWeek ? `<span class="done-check" aria-label="Logged this week">&#10003;</span> ` : ""}${esc(ex.name)}</h3>
             <p>${target || `${ex.weeks.length} weeks`}${filled ? ` &middot; ${filled} logged` : ""}</p>
           </div>
           <div style="display:flex;align-items:center;gap:8px;">
@@ -614,6 +645,11 @@ function renderDay() {
 
   return `
     ${topbar(day.name, { back: true })}
+    ${progress ? `
+      <div class="row" style="margin-bottom:14px;">
+        <span class="source-chip">${progress.complete ? "Program complete" : `Week ${progress.currentWeek} of ${progress.totalWeeks}`}</span>
+      </div>
+    ` : ""}
     ${items || `<div class="empty"><p>No exercises in this day.</p></div>`}
     <button class="btn" data-action="go-add-exercise" data-day="${esc(day.id)}">+ Add exercise</button>
     <div style="height:8px"></div>
@@ -789,6 +825,69 @@ function confirmAddExercise(dayId, swapId) {
 
 // ---------- EXERCISE screen (week-by-week log) ----------
 
+// Rest timer -- runs independently of render() (a full re-render every second
+// would blow away whatever the user is mid-typing in the week/reps fields),
+// so it owns a single interval and pokes two DOM nodes directly by id.
+let restTimer = { intervalId: null, remaining: 0, total: 0, key: null };
+
+/** "90 sec" -> 90, "2-3 min" -> 150 (average, rounded), "" / unparseable -> null. */
+function parseRestSeconds(text) {
+  if (!text) return null;
+  const nums = (text.match(/[0-9]+(\.[0-9]+)?/g) || []).map(Number);
+  if (!nums.length) return null;
+  const avg = nums.reduce((a, b) => a + b, 0) / nums.length;
+  const seconds = /min/i.test(text) ? avg * 60 : avg;
+  return Math.max(1, Math.round(seconds));
+}
+
+function formatMMSS(totalSeconds) {
+  const m = Math.floor(totalSeconds / 60);
+  const s = totalSeconds % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+function teardownRestTimer() {
+  if (restTimer.intervalId) clearInterval(restTimer.intervalId);
+  restTimer = { intervalId: null, remaining: 0, total: 0, key: null };
+}
+
+function restTimerTick() {
+  restTimer.remaining -= 1;
+  if (restTimer.remaining <= 0) {
+    clearInterval(restTimer.intervalId);
+    restTimer.intervalId = null;
+    restTimer.remaining = 0;
+    // leave restTimer.key/total set so render() (which toast() below triggers)
+    // renders this as "just finished" (0:00, flash) rather than a fresh full-duration card
+    if (navigator.vibrate) navigator.vibrate([250, 120, 250]);
+    toast("Rest's up!");
+    return;
+  }
+  const display = document.getElementById("rest-timer-display");
+  if (display) display.textContent = formatMMSS(restTimer.remaining);
+}
+
+function toggleRestTimer(key, seconds) {
+  const card = document.getElementById("rest-timer-card");
+  const btn = document.getElementById("rest-timer-btn");
+  if (restTimer.intervalId && restTimer.key === key) {
+    // already running for this exercise -- cancel
+    teardownRestTimer();
+    const display = document.getElementById("rest-timer-display");
+    if (display) display.textContent = formatMMSS(seconds);
+    if (btn) btn.textContent = "Start";
+    if (card) card.classList.remove("rest-timer-done");
+    return;
+  }
+  teardownRestTimer();
+  restTimer = { intervalId: null, remaining: seconds, total: seconds, key };
+  if (card) card.classList.remove("rest-timer-done");
+  if (btn) btn.textContent = "Cancel";
+  const display = document.getElementById("rest-timer-display");
+  if (display) display.textContent = formatMMSS(seconds);
+  restTimer.intervalId = setInterval(restTimerTick, 1000);
+}
+
 function renderExercise() {
   const { dayId, exerciseId } = state.params;
   const day = Store.getDay(dayId);
@@ -801,15 +900,30 @@ function renderExercise() {
   const isWeekEmpty = (w) => w.values.every((v) => !v) && (w.reps || []).every((v) => !v) && !w.notes;
   const currentWeek = weeksSorted.find((w) => !w.updatedAt && isWeekEmpty(w));
 
-  const weekCards = weeksSorted.map((w) => {
+  // Nearest earlier week (by position, not just the row right before) that
+  // actually has a value for this set column -- lets a skipped week fall
+  // back further instead of just showing the blank "lb"/"reps" hint.
+  const lastLoggedBefore = (idx, i, key) => {
+    for (let j = idx - 1; j >= 0; j--) {
+      const v = (weeksSorted[j][key] || [])[i];
+      if (v) return v;
+    }
+    return "";
+  };
+
+  const weekCards = weeksSorted.map((w, idx) => {
     const isCurrent = currentWeek && w.week === currentWeek.week;
-    const fields = ex.setLabels.map((label, i) => `
+    const fields = ex.setLabels.map((label, i) => {
+      const prevValue = lastLoggedBefore(idx, i, "values");
+      const prevReps = lastLoggedBefore(idx, i, "reps");
+      return `
       <div class="field">
         <label>${esc(label)}</label>
-        <input type="text" inputmode="decimal" placeholder="lb" value="${esc(w.values[i] || "")}" data-week="${w.week}" data-idx="${i}" data-kind="value" />
-        <input type="text" inputmode="numeric" placeholder="reps" value="${esc((w.reps || [])[i] || "")}" data-week="${w.week}" data-idx="${i}" data-kind="reps" />
+        <input type="text" inputmode="decimal" placeholder="${esc(prevValue || "lb")}" value="${esc(w.values[i] || "")}" data-week="${w.week}" data-idx="${i}" data-kind="value" />
+        <input type="text" inputmode="numeric" placeholder="${esc(prevReps || "reps")}" value="${esc((w.reps || [])[i] || "")}" data-week="${w.week}" data-idx="${i}" data-kind="reps" />
       </div>
-    `).join("");
+    `;
+    }).join("");
     return `
       <div class="card${isCurrent ? " current-week" : ""}">
         <div class="row">
@@ -824,6 +938,11 @@ function renderExercise() {
   }).join("");
 
   const findOnYoutube = `<a class="btn ghost small" href="${youtubeSearchUrl(ex.name)}" target="_blank" rel="noopener noreferrer" style="width:auto;padding:6px 10px;text-decoration:none;" aria-label="Find &quot;${esc(ex.name)}&quot; on YouTube">&#9654;</a>`;
+  const restKey = `${dayId}:${exerciseId}`;
+  const restSeconds = parseRestSeconds(ex.restTime);
+  const timerRunning = restTimer.intervalId && restTimer.key === restKey;
+  const timerFinished = !restTimer.intervalId && restTimer.key === restKey && restTimer.total > 0 && restTimer.remaining === 0;
+  const timerDisplaySeconds = timerRunning ? restTimer.remaining : (timerFinished ? 0 : (restSeconds || 0));
   return `
     ${topbar(ex.name, { back: true, right: findOnYoutube })}
     <div class="row" style="margin-bottom:10px;flex-wrap:wrap;gap:8px;">
@@ -831,8 +950,20 @@ function renderExercise() {
       ${ex.restTime ? `<span class="source-chip">Rest: ${esc(ex.restTime)}</span>` : ""}
       ${ex.videoUrl ? `<a class="source-chip" href="${esc(ex.videoUrl)}" target="_blank" rel="noopener noreferrer">&#9654; Video</a>` : ""}
     </div>
+    ${restSeconds ? `
+      <div class="card rest-timer-card${timerFinished ? " rest-timer-done" : ""}" id="rest-timer-card">
+        <div class="row">
+          <div>
+            <h3 id="rest-timer-display">${formatMMSS(timerDisplaySeconds)}</h3>
+            <p class="hint">Rest timer</p>
+          </div>
+          <button class="btn primary" id="rest-timer-btn" data-action="toggle-rest-timer" data-key="${esc(restKey)}" data-seconds="${restSeconds}">${timerRunning ? "Cancel" : "Start"}</button>
+        </div>
+      </div>
+    ` : ""}
     ${renderVideoEmbed(ex.videoUrl)}
     ${ex.setupNote ? `<div class="card"><p>${esc(ex.setupNote)}</p></div>` : ""}
+    <p class="hint" style="margin:2px 0 10px;">Grayed-out numbers show what you logged last time -- type over them to log this week.</p>
     ${weekCards}
     <button class="btn" data-action="add-week" data-day="${esc(day.id)}" data-exercise="${esc(ex.id)}">+ Add week</button>
     <div style="height:8px"></div>
@@ -1403,6 +1534,10 @@ function onClick(e) {
     case "add-week": {
       Store.addWeekToExercise(el.dataset.day, el.dataset.exercise);
       render();
+      break;
+    }
+    case "toggle-rest-timer": {
+      toggleRestTimer(el.dataset.key, Number(el.dataset.seconds));
       break;
     }
     case "delete-day": {

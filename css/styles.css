@@ -225,6 +225,19 @@ select { appearance: none; }
 .week-group { margin: 20px 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--text-dim); }
 
 .card.current-week { border-color: var(--accent-dim); background: linear-gradient(180deg, rgba(94,230,168,.06), transparent 40%), var(--bg-elev); }
+
+.rest-timer-card h3 { font-size: 28px; font-variant-numeric: tabular-nums; margin: 0 0 2px; }
+.rest-timer-card .btn { width: auto; padding: 10px 20px; }
+.rest-timer-card.rest-timer-done { border-color: var(--accent); animation: rest-timer-flash 0.6s ease-in-out 2; }
+@keyframes rest-timer-flash {
+  0%, 100% { background: var(--bg-elev); }
+  50% { background: rgba(94,230,168,.18); }
+}
+
+.progress-track { height: 5px; border-radius: 3px; background: var(--bg-elev-2); margin-top: 10px; overflow: hidden; }
+.progress-fill { height: 100%; background: var(--accent-dim); border-radius: 3px; transition: width .3s ease; }
+.progress-fill.complete { background: var(--accent); }
+.done-check { color: var(--accent); font-weight: 700; }
 .week-fields { display: flex; flex-wrap: nowrap; gap: 6px; margin: 10px 0; overflow-x: auto; }
 .week-fields .field { flex: 1 1 0; min-width: 52px; }
 .week-fields .field label { margin: 0 0 4px; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
