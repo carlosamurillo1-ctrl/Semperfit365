@@ -1,4 +1,4 @@
-const CACHE = "semperfit365-v44";
+const CACHE = "semperfit365-v45";
 const ASSETS = [
   "./",
   "./index.html",

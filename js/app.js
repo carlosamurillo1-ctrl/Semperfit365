@@ -895,10 +895,9 @@ function teardownRestTimer() {
   restTimer = { intervalId: null, remaining: 0, total: 0, key: null };
 }
 
-// The timer shows up in more than one place at once (a summary card up top
-// plus a compact control inside every week card, so it's reachable without
-// scrolling back up) -- all instances share this one interval/state and are
-// updated together by class rather than a single unique id.
+// The timer control repeats in every week card's header (so it's reachable
+// without scrolling back up) -- all instances share this one interval/state
+// and are updated together by class rather than a single unique id.
 function allRestTimerNodes() {
   return {
     displays: document.querySelectorAll(".rest-timer-display"),
@@ -929,14 +928,14 @@ function toggleRestTimer(key, seconds) {
     // already running for this exercise -- cancel
     teardownRestTimer();
     displays.forEach((el) => { el.textContent = formatMMSS(seconds); });
-    btns.forEach((el) => { el.textContent = "Start"; });
+    btns.forEach((el) => { el.innerHTML = "&#9654;"; el.setAttribute("aria-label", "Start rest timer"); });
     cards.forEach((el) => el.classList.remove("rest-timer-done"));
     return;
   }
   teardownRestTimer();
   restTimer = { intervalId: null, remaining: seconds, total: seconds, key };
   cards.forEach((el) => el.classList.remove("rest-timer-done"));
-  btns.forEach((el) => { el.textContent = "Cancel"; });
+  btns.forEach((el) => { el.innerHTML = "&#9632;"; el.setAttribute("aria-label", "Cancel rest timer"); });
   displays.forEach((el) => { el.textContent = formatMMSS(seconds); });
   restTimer.intervalId = setInterval(restTimerTick, 1000);
 }
@@ -958,10 +957,10 @@ function renderExercise() {
   const timerRunning = restTimer.intervalId && restTimer.key === restKey;
   const timerFinished = !restTimer.intervalId && restTimer.key === restKey && restTimer.total > 0 && restTimer.remaining === 0;
   const timerDisplaySeconds = timerRunning ? restTimer.remaining : (timerFinished ? 0 : (restSeconds || 0));
-  const restTimerMini = restSeconds ? `
-    <div class="rest-timer-mini rest-timer-card${timerFinished ? " rest-timer-done" : ""}">
+  const restTimerInline = restSeconds ? `
+    <div class="rest-timer-inline rest-timer-card${timerFinished ? " rest-timer-done" : ""}">
       <span class="rest-timer-display">${formatMMSS(timerDisplaySeconds)}</span>
-      <button class="btn small ${timerRunning ? "" : "primary"} rest-timer-btn" data-action="toggle-rest-timer" data-key="${esc(restKey)}" data-seconds="${restSeconds}">${timerRunning ? "Cancel" : "Start rest"}</button>
+      <button class="rest-timer-btn" data-action="toggle-rest-timer" data-key="${esc(restKey)}" data-seconds="${restSeconds}" aria-label="${timerRunning ? "Cancel rest timer" : "Start rest timer"}">${timerRunning ? "&#9632;" : "&#9654;"}</button>
     </div>
   ` : "";
 
@@ -993,10 +992,10 @@ function renderExercise() {
       <div class="card${isCurrent ? " current-week" : ""}">
         <div class="row">
           <h3>Week ${w.week}${isCurrent ? ' <span class="pill">Next</span>' : ""}</h3>
-          ${w.updatedAt ? `<span class="hint">updated ${relativeTime(w.updatedAt)}</span>` : ""}
+          ${restTimerInline}
         </div>
+        ${w.updatedAt ? `<p class="hint" style="margin:-6px 0 10px;">updated ${relativeTime(w.updatedAt)}</p>` : ""}
         <div class="week-fields">${fields}</div>
-        ${restTimerMini}
         <label>Notes</label>
         <input type="text" value="${esc(w.notes || "")}" data-week="${w.week}" data-kind="notes" />
       </div>
