@@ -724,8 +724,9 @@ function renderExercise() {
     `;
   }).join("");
 
+  const findOnYoutube = `<a class="btn ghost small" href="${youtubeSearchUrl(ex.name)}" target="_blank" rel="noopener noreferrer" style="width:auto;padding:6px 10px;text-decoration:none;" aria-label="Find &quot;${esc(ex.name)}&quot; on YouTube">&#9654;</a>`;
   return `
-    ${topbar(ex.name, { back: true })}
+    ${topbar(ex.name, { back: true, right: findOnYoutube })}
     <div class="row" style="margin-bottom:10px;flex-wrap:wrap;gap:8px;">
       ${ex.repGoal ? `<span class="source-chip">Reps: ${esc(ex.repGoal)}</span>` : ""}
       ${ex.restTime ? `<span class="source-chip">Rest: ${esc(ex.restTime)}</span>` : ""}
@@ -1181,8 +1182,9 @@ function renderCoachClientExercise() {
     `;
   }).join("");
 
+  const findOnYoutube = `<a class="btn ghost small" href="${youtubeSearchUrl(ex.name)}" target="_blank" rel="noopener noreferrer" style="width:auto;padding:6px 10px;text-decoration:none;" aria-label="Find &quot;${esc(ex.name)}&quot; on YouTube">&#9654;</a>`;
   return `
-    ${topbar(ex.name, { back: true })}
+    ${topbar(ex.name, { back: true, right: findOnYoutube })}
     <div class="row" style="margin-bottom:10px;flex-wrap:wrap;gap:8px;">
       ${ex.repGoal ? `<span class="source-chip">Reps: ${esc(ex.repGoal)}</span>` : ""}
       ${ex.restTime ? `<span class="source-chip">Rest: ${esc(ex.restTime)}</span>` : ""}
