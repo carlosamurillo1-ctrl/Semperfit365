@@ -8,7 +8,7 @@
 // static site to look up real YouTube videos automatically (see the
 // "Find on YouTube" button on the exercise screen for that instead).
 
-export const MUSCLE_GROUPS = ["Chest", "Back", "Legs", "Calves", "Biceps", "Triceps", "Shoulders"];
+export const MUSCLE_GROUPS = ["Chest", "Back", "Legs", "Calves", "Biceps", "Triceps", "Shoulders", "Abs", "Forearms"];
 
 export const EXERCISE_CATALOG = [
   // ---- Chest ----
@@ -132,4 +132,47 @@ export const EXERCISE_CATALOG = [
   { name: "Resistance Band Face Pull", muscleGroup: "Shoulders", equipment: "Band" },
   { name: "Cable Lateral Raise", muscleGroup: "Shoulders", equipment: "Cable" },
   { name: "Cable Front Raise", muscleGroup: "Shoulders", equipment: "Cable" },
+
+  // ---- Abs ----
+  { name: "Barbell Rollout", muscleGroup: "Abs", equipment: "Barbell" },
+  { name: "Landmine Twist", muscleGroup: "Abs", equipment: "Barbell" },
+  { name: "Weighted Sit-up", muscleGroup: "Abs", equipment: "Dumbbell" },
+  { name: "Dumbbell Russian Twist", muscleGroup: "Abs", equipment: "Dumbbell" },
+  { name: "Dumbbell Side Bend", muscleGroup: "Abs", equipment: "Dumbbell" },
+  { name: "Kettlebell Russian Twist", muscleGroup: "Abs", equipment: "Kettlebell" },
+  { name: "Kettlebell Windmill", muscleGroup: "Abs", equipment: "Kettlebell" },
+  { name: "Cable Crunch", muscleGroup: "Abs", equipment: "Cable" },
+  { name: "Cable Woodchopper", muscleGroup: "Abs", equipment: "Cable" },
+  { name: "Cable Pallof Press", muscleGroup: "Abs", equipment: "Cable" },
+  { name: "Ab Wheel Rollout", muscleGroup: "Abs", equipment: "Bodyweight" },
+  { name: "Plank", muscleGroup: "Abs", equipment: "Bodyweight" },
+  { name: "Side Plank", muscleGroup: "Abs", equipment: "Bodyweight" },
+  { name: "Crunches", muscleGroup: "Abs", equipment: "Bodyweight" },
+  { name: "Bicycle Crunch", muscleGroup: "Abs", equipment: "Bodyweight" },
+  { name: "Leg Raises", muscleGroup: "Abs", equipment: "Bodyweight" },
+  { name: "Hanging Leg Raise", muscleGroup: "Abs", equipment: "Bodyweight" },
+  { name: "V-Ups", muscleGroup: "Abs", equipment: "Bodyweight" },
+  { name: "Russian Twist", muscleGroup: "Abs", equipment: "Bodyweight" },
+  { name: "Flutter Kicks", muscleGroup: "Abs", equipment: "Bodyweight" },
+  { name: "Mountain Climbers", muscleGroup: "Abs", equipment: "Bodyweight" },
+  { name: "Dead Bug", muscleGroup: "Abs", equipment: "Bodyweight" },
+  { name: "Resistance Band Woodchopper", muscleGroup: "Abs", equipment: "Band" },
+  { name: "Resistance Band Pallof Press", muscleGroup: "Abs", equipment: "Band" },
+
+  // ---- Forearms ----
+  { name: "Barbell Wrist Curl", muscleGroup: "Forearms", equipment: "Barbell" },
+  { name: "Barbell Reverse Wrist Curl", muscleGroup: "Forearms", equipment: "Barbell" },
+  { name: "Reverse Barbell Curl", muscleGroup: "Forearms", equipment: "Barbell" },
+  { name: "Dumbbell Wrist Curl", muscleGroup: "Forearms", equipment: "Dumbbell" },
+  { name: "Dumbbell Reverse Wrist Curl", muscleGroup: "Forearms", equipment: "Dumbbell" },
+  { name: "Dumbbell Hammer Curl", muscleGroup: "Forearms", equipment: "Dumbbell" },
+  { name: "Farmer's Carry", muscleGroup: "Forearms", equipment: "Dumbbell" },
+  { name: "Kettlebell Farmer's Carry", muscleGroup: "Forearms", equipment: "Kettlebell" },
+  { name: "Kettlebell Wrist Curl", muscleGroup: "Forearms", equipment: "Kettlebell" },
+  { name: "Cable Wrist Curl", muscleGroup: "Forearms", equipment: "Cable" },
+  { name: "Reverse Cable Curl", muscleGroup: "Forearms", equipment: "Cable" },
+  { name: "Plate Pinch Hold", muscleGroup: "Forearms", equipment: "Bodyweight" },
+  { name: "Dead Hang", muscleGroup: "Forearms", equipment: "Bodyweight" },
+  { name: "Resistance Band Wrist Curl", muscleGroup: "Forearms", equipment: "Band" },
+  { name: "Resistance Band Reverse Curl", muscleGroup: "Forearms", equipment: "Band" },
 ];

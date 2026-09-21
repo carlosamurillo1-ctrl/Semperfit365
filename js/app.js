@@ -637,16 +637,22 @@ function resetMuscleBrowse() {
 
 /** A stylized clickable body silhouette. Each hotspot's data-group matches a MUSCLE_GROUPS entry. */
 function bodySilhouetteSvg(view) {
-  const torsoGroup = view === "front" ? "Chest" : "Back";
-  const armGroup = view === "front" ? "Biceps" : "Triceps";
+  const isFront = view === "front";
+  const torsoGroup = isFront ? "Chest" : "Back";
+  const armGroup = isFront ? "Biceps" : "Triceps";
+  // Abs only reads sensibly from the front; the back view keeps that same
+  // area as plain (non-interactive) torso fill.
+  const absBlock = isFront
+    ? `<g class="muscle-hotspot" data-action="pick-muscle-group" data-group="Abs">
+        <rect x="76" y="170" width="48" height="60" rx="10"/>
+        <text x="100" y="204">Abs</text>
+      </g>`
+    : `<g class="body-base"><rect x="76" y="170" width="48" height="60" rx="10"/></g>`;
   return `
     <svg viewBox="0 0 200 440" role="img" aria-label="Body diagram, ${view} view">
       <g class="body-base">
         <circle cx="100" cy="28" r="20"/>
         <rect x="92" y="44" width="16" height="14"/>
-        <rect x="76" y="170" width="48" height="60" rx="10"/>
-        <rect x="34" y="150" width="18" height="60" rx="8"/>
-        <rect x="148" y="150" width="18" height="60" rx="8"/>
         <ellipse cx="43" cy="215" rx="10" ry="8"/>
         <ellipse cx="157" cy="215" rx="10" ry="8"/>
         <rect x="70" y="225" width="60" height="25"/>
@@ -665,6 +671,11 @@ function bodySilhouetteSvg(view) {
       <g class="muscle-hotspot" data-action="pick-muscle-group" data-group="${armGroup}">
         <rect x="38" y="95" width="20" height="55" rx="10"/>
         <rect x="142" y="95" width="20" height="55" rx="10"/>
+      </g>
+      ${absBlock}
+      <g class="muscle-hotspot" data-action="pick-muscle-group" data-group="Forearms">
+        <rect x="34" y="150" width="18" height="60" rx="8"/>
+        <rect x="148" y="150" width="18" height="60" rx="8"/>
       </g>
       <g class="muscle-hotspot" data-action="pick-muscle-group" data-group="Legs">
         <rect x="72" y="250" width="26" height="95" rx="12"/>
@@ -938,7 +949,7 @@ function renderSettings() {
     </div>
     <div class="card">
       <h3>Exercise library</h3>
-      <p>Search or browse by body part (chest, back, legs, calves, biceps, triceps, shoulders) -- ${Store.getExerciseLibrary().length} exercises so far. Used to autofill the Add/Swap exercise form.</p>
+      <p>Search or browse by body part (chest, back, legs, calves, biceps, triceps, shoulders, abs, forearms) -- ${Store.getExerciseLibrary().length} exercises so far. Used to autofill the Add/Swap exercise form.</p>
       <div style="height:10px"></div>
       <button class="btn" data-action="go-exercise-library">Browse library</button>
     </div>
