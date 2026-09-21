@@ -102,20 +102,7 @@ export const SEED_SHEET_TEXT = `	Push
 7	WEEK 7	0	0	0	0
 8	WEEK 8	0	0	0	0
 
-	Leg Extensions			Rep goal : 12, 10, 8, 6			Rest time:  90 sec
-
-	Week	Set 1	Set 2	Set 3	Set 4		Notes
-
-1	WEEK 1
-2	WEEK 2
-3	WEEK 3.  SL
-4	WEEK 4
-5	WEEK 5
-6	WEEK 6	0	0	0	0
-7	WEEK 7	0	0	0	0
-8	WEEK 8	0	0	0	0
-
-	Leg Curls			Rep goal : 12, 10, 8, 6			Rest time:  90 sec
+	Seated Barbell Military Press			Rep goal: 6-10 reps			Rest time: 120 sec
 
 	Week	Set 1	Set 2	Set 3	Set 4		Notes
 
@@ -125,8 +112,21 @@ export const SEED_SHEET_TEXT = `	Push
 4	WEEK 4
 5	WEEK 5
 6	WEEK 6
-7	WEEK 7	0	0	0	0
-8	WEEK 8	0	0	0	0
+7	WEEK 7
+8	WEEK 8
+
+	Seated Lateral Raise			Rep goal: 8-12 reps			Rest time: 30-60 sec
+
+	Week	Set 1	Set 2	Set 3	Set 4		Notes
+
+1	WEEK 1
+2	WEEK 2
+3	WEEK 3
+4	WEEK 4
+5	WEEK 5
+6	WEEK 6
+7	WEEK 7
+8	WEEK 8
 
 	Weighted Walking Lunges			Rep goal: 10 reps
 
