@@ -267,6 +267,28 @@ select { appearance: none; }
 .progress-fill { height: 100%; background: var(--accent-dim); border-radius: 3px; transition: width .3s ease; }
 .progress-fill.complete { background: var(--accent); }
 .done-check { color: var(--accent); font-weight: 700; }
+
+.sync-status {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 10px);
+  right: 12px;
+  z-index: 20;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  opacity: 0;
+  transform: translateY(-6px);
+  pointer-events: none;
+  transition: opacity .2s ease, transform .2s ease;
+}
+.sync-status.show { opacity: 1; transform: translateY(0); }
+.sync-status.pending { color: var(--text-dim); }
+.sync-status.synced { color: var(--accent); border-color: var(--accent-dim); }
+.sync-status.error { color: var(--warn); border-color: var(--warn); }
 .week-fields { display: flex; flex-wrap: nowrap; gap: 6px; margin: 10px 0; overflow-x: auto; }
 .week-fields .field { flex: 1 1 0; min-width: 52px; }
 .week-fields .field label { margin: 0 0 4px; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

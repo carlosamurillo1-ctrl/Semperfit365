@@ -13,6 +13,7 @@ import {
   listenRoster,
   listenClient,
   markClientPaid,
+  onSyncStatusChange,
   isSignInLink,
   sendClientSignInLink,
   completeClientSignIn,
@@ -1822,9 +1823,43 @@ function consumeUrlParam(name, storageKey) {
   history.replaceState(null, "", window.location.pathname + (rest ? `?${rest}` : ""));
 }
 
+let syncStatusIndicatorReady = false;
+function initSyncStatusIndicator() {
+  if (syncStatusIndicatorReady) return;
+  syncStatusIndicatorReady = true;
+  const el = document.getElementById("sync-status");
+  if (!el) return;
+  let hideTimer = null;
+  let slowTimer = null;
+  onSyncStatusChange((status) => {
+    clearTimeout(hideTimer);
+    clearTimeout(slowTimer);
+    if (status === "pending") {
+      el.textContent = "Saving…";
+      el.className = "sync-status show pending";
+      // Firestore's SDK queues writes locally and doesn't reject its promise
+      // just because the network is unreachable -- it can sit "pending"
+      // indefinitely while genuinely offline. Relabel after a while so that
+      // doesn't read as a stuck/broken app.
+      slowTimer = setTimeout(() => {
+        el.textContent = "Offline — will sync later";
+        el.className = "sync-status show error";
+      }, 6000);
+    } else if (status === "synced") {
+      el.textContent = "Saved";
+      el.className = "sync-status show synced";
+      hideTimer = setTimeout(() => { el.className = "sync-status"; }, 1500);
+    } else if (status === "error") {
+      el.textContent = "Offline — will retry";
+      el.className = "sync-status show error";
+    }
+  });
+}
+
 function bootstrapClientSync() {
   const clientId = getLocalClientId();
   if (!clientId || !isSyncConfigured()) return;
+  initSyncStatusIndicator();
   const unsubscribePush = Store.onChange((program) => {
     if (program) pushClientProgram(clientId, getClientName(), program);
   });

@@ -101,10 +101,28 @@ export async function recordClientEmail(clientId, email) {
 
 let pushTimer = null;
 
+// Tiny status pub-sub so the UI can show "saving.../synced/offline" without
+// pushClientProgram's caller (a Store change listener firing on every
+// keystroke) needing to await anything itself.
+let syncStatus = "idle"; // idle | pending | synced | error
+const syncStatusListeners = new Set();
+function setSyncStatus(next) {
+  syncStatus = next;
+  syncStatusListeners.forEach((fn) => fn(next));
+}
+export function getSyncStatus() {
+  return syncStatus;
+}
+export function onSyncStatusChange(fn) {
+  syncStatusListeners.add(fn);
+  return () => syncStatusListeners.delete(fn);
+}
+
 /** Debounced push of a client's program to Firestore (harmless no-op if sync isn't configured). */
 export function pushClientProgram(clientId, displayName, program) {
   if (!isSyncConfigured() || !clientId) return;
   clearTimeout(pushTimer);
+  setSyncStatus("pending");
   pushTimer = setTimeout(async () => {
     try {
       const database = ensureDb();
@@ -116,9 +134,11 @@ export function pushClientProgram(clientId, displayName, program) {
         },
         { merge: true }
       );
+      setSyncStatus("synced");
     } catch (e) {
       // offline / blocked / misconfigured project — fail silently, local data is unaffected
       console.warn("sync push failed", e);
+      setSyncStatus("error");
     }
   }, 800);
 }
