@@ -1,18 +1,25 @@
 // Optional cloud sync layer on top of the local Store, built on Firebase
-// Firestore. Everything here is a no-op (isSyncConfigured() === false) until
-// js/firebaseConfig.js has a real project config, so the app works exactly
-// as before if you never set this up.
+// Firestore (+ Firebase Auth for paywalled clients only). Everything here is
+// a no-op (isSyncConfigured() === false) until js/firebaseConfig.js has a
+// real project config, so the app works exactly as before if you never set
+// this up.
 //
 // Data model:
-//   clients/{clientId}            { displayName, program, updatedAt }
-//   coaches/{coachId}/roster/{clientId}  { label, addedAt }
+//   clients/{clientId}            { displayName, program, updatedAt, priceCents, paid }
+//   coaches/{coachId}/roster/{clientId}  { label, addedAt, priceCents, paid }
 //
-// There's no login. A clientId/coachId is a long random string generated on
-// first use and kept in localStorage; possessing it is what grants access
-// (the same "anyone with the link" model as a shared Google Doc). Firestore
-// rules (see firestore.rules) allow fetching a *known* document id but deny
-// listing either top-level collection, so a client/coach id can't be
-// brute-forced or enumerated even though the API key itself is public.
+// There's no login for *free* clients or coaches. A clientId/coachId is a
+// long random string generated on first use and kept in localStorage;
+// possessing it is what grants access (the same "anyone with the link"
+// model as a shared Google Doc). Firestore rules (see firestore.rules)
+// allow fetching a *known* document id but deny listing either top-level
+// collection, so a client/coach id can't be brute-forced or enumerated even
+// though the API key itself is public.
+//
+// A *paywalled* client (priceCents > 0) is the one case that does use real
+// sign-in: Firebase Auth's passwordless "email link" flow. This doesn't
+// replace the clientId/link model -- it's an extra gate in front of it, so
+// existing free clients and the coach's own flows are completely unaffected.
 
 import { firebaseConfig } from "./firebaseConfig.js";
 
@@ -30,8 +37,64 @@ function ensureDb() {
   return db;
 }
 
+function ensureAuth() {
+  ensureDb();
+  if (!window.firebase.auth) throw new Error("Firebase Auth SDK didn't load");
+  return window.firebase.auth();
+}
+
 export function newId() {
   return crypto.randomUUID();
+}
+
+// ---------- client auth (passwordless email-link sign-in, paywalled clients only) ----------
+
+const PENDING_EMAIL_KEY = "sf365.pendingSignInEmail";
+
+/** True if the current URL is a Firebase email sign-in link (i.e. the client just clicked the link in their inbox). */
+export function isSignInLink() {
+  try {
+    return ensureAuth().isSignInWithEmailLink(window.location.href);
+  } catch {
+    return false;
+  }
+}
+
+/** Emails the client a passwordless sign-in link back to this same app. */
+export async function sendClientSignInLink(email) {
+  const auth = ensureAuth();
+  const actionCodeSettings = {
+    url: `${window.location.origin}${window.location.pathname}`,
+    handleCodeInApp: true,
+  };
+  await auth.sendSignInLinkToEmail(email, actionCodeSettings);
+  localStorage.setItem(PENDING_EMAIL_KEY, email);
+}
+
+/** If the current URL is a sign-in link, completes it. Returns the signed-in email, or null. */
+export async function completeClientSignIn() {
+  const auth = ensureAuth();
+  if (!auth.isSignInWithEmailLink(window.location.href)) return null;
+  let email = localStorage.getItem(PENDING_EMAIL_KEY);
+  if (!email) email = window.prompt("Confirm the email you used to sign in:");
+  if (!email) return null;
+  const result = await auth.signInWithEmailLink(email, window.location.href);
+  localStorage.removeItem(PENDING_EMAIL_KEY);
+  return result.user?.email || email;
+}
+
+export function getCurrentClientEmail() {
+  try {
+    return ensureAuth().currentUser?.email || null;
+  } catch {
+    return null;
+  }
+}
+
+/** Records the signed-in client's email on their doc, so the coach can see who paid and the receipt-email Cloud Function knows where to send it. */
+export async function recordClientEmail(clientId, email) {
+  const database = ensureDb();
+  await database.collection("clients").doc(clientId).set({ clientEmail: email }, { merge: true });
 }
 
 // ---------- client side: push this device's program up ----------
@@ -62,12 +125,44 @@ export function pushClientProgram(clientId, displayName, program) {
 
 // ---------- coach side ----------
 
-export async function addClientToRoster(coachId, clientId, label) {
+/** priceCents: 0/undefined means free -- the client's link works exactly as
+ * it always has, no sign-in or payment gate. Any positive amount creates
+ * the client's doc up front as unpaid, so the paywall gate has something
+ * to check against the moment they open the link. */
+export async function addClientToRoster(coachId, clientId, label, priceCents) {
   const database = ensureDb();
-  await database.collection("coaches").doc(coachId).collection("roster").doc(clientId).set({
-    label: label || "Unnamed client",
-    addedAt: window.firebase.firestore.FieldValue.serverTimestamp(),
-  });
+  await Promise.all([
+    database.collection("coaches").doc(coachId).collection("roster").doc(clientId).set({
+      label: label || "Unnamed client",
+      addedAt: window.firebase.firestore.FieldValue.serverTimestamp(),
+      priceCents: priceCents || 0,
+      paid: !priceCents,
+    }),
+    database.collection("clients").doc(clientId).set(
+      {
+        priceCents: priceCents || 0,
+        paid: !priceCents,
+      },
+      { merge: true }
+    ),
+  ]);
+}
+
+/** Coach confirms a Zelle (or other) payment landed; flips the client's
+ * doc so their already-open app unlocks in real time via listenClient,
+ * and mirrors it onto the roster entry so the dashboard list reflects it. */
+export async function markClientPaid(coachId, clientId) {
+  const database = ensureDb();
+  await Promise.all([
+    database.collection("clients").doc(clientId).set(
+      { paid: true, paidAt: window.firebase.firestore.FieldValue.serverTimestamp() },
+      { merge: true }
+    ),
+    database.collection("coaches").doc(coachId).collection("roster").doc(clientId).set(
+      { paid: true },
+      { merge: true }
+    ),
+  ]);
 }
 
 /** Un-list a client AND revoke their sync privileges: their own device stops

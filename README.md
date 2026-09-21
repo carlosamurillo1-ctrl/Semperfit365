@@ -20,6 +20,28 @@ Once configured:
 - A client can optionally set "Your name" in their own Settings so you see something friendlier than the label you gave them.
 - This is intentionally simple, not enterprise security: a client/coach id is a long random string (`crypto.randomUUID()`) that functions like a capability link. That's an appropriate bar for workout logs shared with people you already know, not for sensitive data.
 
+## Charging clients — Zelle paywall + real sign-in
+
+When you set a **Price** while adding a client (Coach dashboard → Add client), that specific client's link works differently from a free one: they have to verify a real email and you have to confirm payment before their program unlocks. Everything below is optional — leave the price field blank and a client's link works exactly as described above, no sign-in, no payment step.
+
+**Why sign-in is required at all, and what it doesn't do:** Zelle has no API, so nothing — not this app, not any app — can automatically detect that a payment landed in your account. You confirm payment yourself (check your bank/Zelle app), then tap **Mark as paid** on that client in your coach dashboard; their already-open app unlocks automatically within seconds via a live listener, no visit to their device needed. The email sign-in step is a real identity check (they have to own that inbox), which is a meaningful step up from a bare link, but it isn't a hard security wall — the Firestore rules stay open the same way they already are for the coach's own dashboard, so enforcement of "don't show the program until paid" happens in the app itself, not the database. That's an appropriate bar for gating access with clients you already know, same spirit as the rest of this app's security model.
+
+**One-time setup, in order:**
+
+1. **Turn on Firebase Authentication.** In the [Firebase console](https://console.firebase.google.com) for this project → **Build → Authentication → Get started** → under **Sign-in method**, enable **Email/Password**, then toggle on **Email link (passwordless sign-in)** for it. Nothing else to configure.
+2. That's it for the sign-in + payment-gate screens to work. Test it: add a client with a price, open the generated link in a private/incognito window, and you should land on a "Verify your email" screen instead of the normal program.
+
+**Optional: automatic receipt emails.** By default, marking a client paid unlocks their app but sends no email — they'll just see it unlock. To also send them an automatic receipt:
+
+1. **Upgrade to the Blaze plan.** Firebase console → the little gear icon → **Usage and billing** → **Modify plan** → Blaze. This requires a card on file but includes the same free monthly quota as the free plan — realistic usage here (a receipt email each time you confirm a payment) stays well under it. Consider setting a budget alert on the linked Google Cloud project so you'd be notified of any unexpected charge.
+2. **Create a free SendGrid account** at [sendgrid.com](https://sendgrid.com), verify a sender address under **Settings → Sender Authentication** (use `semperfit365@gmail.com`, or whichever address you want receipts to come from — it must be verified there or SendGrid will reject the send), and create an API key under **Settings → API Keys** (Full Access is simplest).
+3. **Install the Firebase CLI and log in**, once, on your own computer: `npm install -g firebase-tools`, then `firebase login`.
+4. From this project's folder, install the function's dependencies: `cd functions && npm install`.
+5. Set the SendGrid key as a secret (you'll be prompted to paste it): `firebase functions:secrets:set SENDGRID_API_KEY`.
+6. Deploy: `firebase deploy --only functions`.
+
+From then on, every time you tap **Mark as paid**, `functions/index.js` fires automatically and emails a receipt to whatever address the client signed in with. If you ever change the sender address, update `FROM_EMAIL` at the top of that file and redeploy.
+
 ## Sending this to someone (e.g. a client)
 
 The app ships with a default program baked in (`js/seedProgram.js`) — anyone who opens the link for the first time sees it immediately, no import step required. It only applies on a device's very first visit: once a program exists in that browser (seeded or imported), it's never overwritten automatically, even if every day is later deleted.

@@ -12,12 +12,21 @@ import {
   removeClientFromRoster,
   listenRoster,
   listenClient,
+  markClientPaid,
+  isSignInLink,
+  sendClientSignInLink,
+  completeClientSignIn,
+  getCurrentClientEmail,
+  recordClientEmail,
 } from "./sync.js";
 
 const LOCAL_KEYS = {
   clientId: "sf365.clientId",
   clientName: "sf365.clientName",
   coachId: "sf365.coachId",
+  clientPriceCents: "sf365.clientPriceCents",
+  clientPaid: "sf365.clientPaid",
+  clientEmail: "sf365.clientEmail",
 };
 
 function getLocalClientId() {
@@ -165,12 +174,16 @@ function youtubeVideoId(url) {
 // ---------- render root ----------
 
 function render() {
+  const isPaywallGate = state.screen === "paywall-signin" || state.screen === "paywall-payment";
+  tabbar.style.display = isPaywallGate ? "none" : "";
   tabbar.querySelectorAll(".tab").forEach((btn) => {
     btn.classList.toggle("active", btn.dataset.route === state.tab && ["program", "history", "settings"].includes(state.screen));
   });
 
   let html = "";
   switch (state.screen) {
+    case "paywall-signin": html = renderPaywallSignin(); break;
+    case "paywall-payment": html = renderPaywallPayment(); break;
     case "program": html = renderProgram(); break;
     case "import": html = renderImport(); break;
     case "review": html = renderReview(); break;
@@ -202,6 +215,69 @@ function topbar(title, opts = {}) {
     : `<div class="brand"><span class="logo-crop"><img src="icons/logo.jpg" alt="SemperFit365"/></span></div>`;
   const right = opts.right || `<div style="width:${opts.back ? "70px" : "0"}"></div>`;
   return `<div class="topbar">${backBtn}<h1 style="margin:0;font-size:17px;">${esc(title)}</h1>${right}</div>`;
+}
+
+// ---------- PAYWALL screens (email sign-in + payment gate for a priced client link) ----------
+
+function renderPaywallSignin() {
+  const sent = state.params.signinSent;
+  return `
+    <div style="text-align:center;padding:24px 0 8px;">
+      <span class="logo-crop" style="width:140px;height:58px;margin:0 auto;"><img src="icons/logo.jpg" alt="SemperFit365"/></span>
+    </div>
+    <div class="card">
+      ${sent ? `
+        <h2>Check your email</h2>
+        <p>We sent a sign-in link to <strong>${esc(sent)}</strong>. Open it on this device to continue.</p>
+        <div style="height:10px"></div>
+        <button class="btn ghost" data-action="resend-signin-link" data-email="${esc(sent)}">Use a different email</button>
+      ` : `
+        <h2>Verify your email to continue</h2>
+        <p>Your coach has set up this program with a payment step. Enter your email and we'll send you a link to continue.</p>
+        <div style="height:10px"></div>
+        <label for="signin-email">Email</label>
+        <input type="email" id="signin-email" placeholder="you@example.com" />
+        <div style="height:10px"></div>
+        <button class="btn primary" data-action="send-signin-link">Send sign-in link</button>
+      `}
+    </div>
+  `;
+}
+
+async function handleSendSigninLink() {
+  const input = document.getElementById("signin-email");
+  const email = input.value.trim();
+  if (!email || !email.includes("@")) {
+    toast("Enter a valid email");
+    return;
+  }
+  try {
+    await sendClientSignInLink(email);
+    state.params.signinSent = email;
+    render();
+  } catch {
+    toast("Couldn't send that link — check your connection and try again");
+  }
+}
+
+function renderPaywallPayment() {
+  const priceCents = parseInt(localStorage.getItem(LOCAL_KEYS.clientPriceCents) || "0", 10);
+  const amount = (priceCents / 100).toFixed(2);
+  return `
+    <div style="text-align:center;padding:24px 0 8px;">
+      <span class="logo-crop" style="width:140px;height:58px;margin:0 auto;"><img src="icons/logo.jpg" alt="SemperFit365"/></span>
+    </div>
+    <div class="card">
+      <h2>Payment required</h2>
+      <p>Your program is ready — send <strong>$${amount}</strong> via Zelle to unlock it.</p>
+      <div style="height:10px"></div>
+      <div class="row">
+        <span class="source-chip">Zelle: semperfit365@gmail.com</span>
+      </div>
+      <div style="height:14px"></div>
+      <p class="hint">Once your coach confirms the payment, this screen unlocks automatically — no need to reload or do anything else here.</p>
+    </div>
+  `;
 }
 
 // ---------- PROGRAM screen (list of days) ----------
@@ -931,17 +1007,25 @@ function renderExerciseLibrary() {
 // ---------- COACH screens (view clients' synced data, read-only) ----------
 
 function renderCoach() {
-  const rows = coachRosterData.map((c) => `
-    <div class="card tappable" data-action="open-coach-client" data-client="${esc(c.id)}" data-label="${esc(c.label)}">
-      <div class="row">
+  const rows = coachRosterData.map((c) => {
+    const priced = c.priceCents > 0;
+    const paid = c.paid;
+    return `
+    <div class="card">
+      <div class="row tappable" data-action="open-coach-client" data-client="${esc(c.id)}" data-label="${esc(c.label)}">
         <div>
           <h3>${esc(c.label)}</h3>
-          <p>${c.addedAt ? `Added ${relativeTime(firestoreTimeToIso(c.addedAt))}` : "Just added"}</p>
+          <p>${c.addedAt ? `Added ${relativeTime(firestoreTimeToIso(c.addedAt))}` : "Just added"}${priced ? ` &middot; $${(c.priceCents / 100).toFixed(2)}` : ""}</p>
         </div>
-        <button class="btn ghost small" data-action="remove-coach-client" data-client="${esc(c.id)}" data-label="${esc(c.label)}" style="width:auto;">Remove</button>
+        ${priced ? `<span class="pill" style="${paid ? "" : "color:var(--warn);border-color:var(--warn);background:rgba(255,180,84,.12);"}">${paid ? "Paid" : "Awaiting payment"}</span>` : ""}
+      </div>
+      <div class="btn-row" style="margin-top:10px;">
+        ${priced && !paid ? `<button class="btn small primary" data-action="mark-client-paid" data-client="${esc(c.id)}" data-label="${esc(c.label)}">Mark as paid</button>` : ""}
+        <button class="btn ghost small" data-action="remove-coach-client" data-client="${esc(c.id)}" data-label="${esc(c.label)}">Remove</button>
       </div>
     </div>
-  `).join("");
+  `;
+  }).join("");
 
   return `
     ${topbar("Coach dashboard", { back: true })}
@@ -961,6 +1045,9 @@ function renderCoachAddClient() {
       <label for="coach-client-template">Starting program</label>
       <select id="coach-client-template">${options}</select>
       <p class="hint">This is only the program they'll see the first time they open the link — it won't touch anything if they've already opened it before.</p>
+      <label for="coach-client-price">Price (optional)</label>
+      <input type="text" id="coach-client-price" inputmode="decimal" placeholder="e.g. 50" />
+      <p class="hint">Leave blank for free, instant access (how client links have always worked). Set a price and they'll have to verify their email and pay before the program unlocks -- you confirm payment yourself and their access unlocks automatically the moment you do.</p>
     </div>
     <button class="btn primary" data-action="confirm-add-coach-client">Generate client link</button>
   `;
@@ -969,30 +1056,41 @@ function renderCoachAddClient() {
 async function confirmAddCoachClient() {
   const label = document.getElementById("coach-client-label").value.trim();
   const templateId = document.getElementById("coach-client-template").value;
+  const priceRaw = document.getElementById("coach-client-price").value.trim();
   if (!label) {
     toast("Give the client a name");
     return;
   }
+  const priceDollars = priceRaw ? parseFloat(priceRaw) : 0;
+  if (priceRaw && (isNaN(priceDollars) || priceDollars < 0)) {
+    toast("Enter a valid price, or leave it blank");
+    return;
+  }
+  const priceCents = Math.round(priceDollars * 100);
   const clientId = newId();
   try {
-    await addClientToRoster(getOrCreateCoachId(), clientId, label);
-    navigate("coach-client-link", { clientId, label, templateId });
+    await addClientToRoster(getOrCreateCoachId(), clientId, label, priceCents);
+    navigate("coach-client-link", { clientId, label, templateId, priceCents });
   } catch {
     toast("Couldn't create the client link — check your connection");
   }
 }
 
 function renderCoachClientLink() {
-  const { clientId, label, templateId } = state.params;
+  const { clientId, label, templateId, priceCents } = state.params;
   const linkParams = new URLSearchParams({ client: clientId });
   if (templateId && templateId !== "default") linkParams.set("template", templateId);
+  if (priceCents > 0) linkParams.set("price", String(priceCents));
   const link = `${window.location.origin}${window.location.pathname}?${linkParams.toString()}`;
   const template = PROGRAM_TEMPLATES.find((t) => t.id === templateId);
   return `
     ${topbar("Client link ready", { back: true })}
     <div class="card">
       <h3>${esc(label)}</h3>
-      <p>Send this link to your client. The moment they open it, their logged workouts start syncing to you — no account needed on their end.${template && templateId !== "default" ? ` They'll start with the "${esc(template.name)}" program.` : ""}</p>
+      <p>Send this link to your client.${priceCents > 0
+        ? ` They'll be asked to verify their email and pay $${(priceCents / 100).toFixed(2)} before the program unlocks. Once you confirm the payment yourself (Settings &gt; Coach dashboard &gt; Mark as paid), their access unlocks automatically.`
+        : " The moment they open it, their logged workouts start syncing to you — no account needed on their end."
+      }${template && templateId !== "default" ? ` They'll start with the "${esc(template.name)}" program.` : ""}</p>
       <div style="height:10px"></div>
       <input type="text" id="coach-link-output" value="${esc(link)}" readonly onclick="this.select()" />
       <div style="height:10px"></div>
@@ -1149,6 +1247,12 @@ function onClick(e) {
   const action = el.dataset.action;
 
   switch (action) {
+    case "send-signin-link": handleSendSigninLink(); break;
+    case "resend-signin-link": {
+      state.params.signinSent = null;
+      render();
+      break;
+    }
     case "go-import": navigate("import"); break;
     case "back": {
       if (state.screen === "review") navigate("import");
@@ -1317,6 +1421,12 @@ function onClick(e) {
       break;
     }
     case "open-coach-client": navigate("coach-client", { clientId: el.dataset.client, clientLabel: el.dataset.label }); break;
+    case "mark-client-paid": {
+      if (confirm(`Confirm you've received ${el.dataset.label}'s payment? Their app will unlock automatically.`)) {
+        markClientPaid(getOrCreateCoachId(), el.dataset.client).catch(() => toast("Couldn't update — check your connection"));
+      }
+      break;
+    }
     case "remove-coach-client": {
       if (confirm(`Remove ${el.dataset.label} and stop their workouts from syncing to you? Their own logged data stays on their device -- they'll just no longer have a coach connection.`)) {
         removeClientFromRoster(getOrCreateCoachId(), el.dataset.client).catch(() => toast("Couldn't remove — check your connection"));
@@ -1407,15 +1517,18 @@ function seedIfEmpty() {
   }
 }
 
-function bootstrapClientSync() {
+/** Reads a one-shot param out of the current URL into localStorage and strips it, if present. */
+function consumeUrlParam(name, storageKey) {
   const urlParams = new URLSearchParams(window.location.search);
-  const linkedId = urlParams.get("client");
-  if (linkedId) {
-    localStorage.setItem(LOCAL_KEYS.clientId, linkedId);
-    urlParams.delete("client");
-    const rest = urlParams.toString();
-    history.replaceState(null, "", window.location.pathname + (rest ? `?${rest}` : ""));
-  }
+  const value = urlParams.get(name);
+  if (value === null) return;
+  localStorage.setItem(storageKey, value);
+  urlParams.delete(name);
+  const rest = urlParams.toString();
+  history.replaceState(null, "", window.location.pathname + (rest ? `?${rest}` : ""));
+}
+
+function bootstrapClientSync() {
   const clientId = getLocalClientId();
   if (!clientId || !isSyncConfigured()) return;
   const unsubscribePush = Store.onChange((program) => {
@@ -1435,10 +1548,68 @@ function bootstrapClientSync() {
   });
 }
 
-seedIfEmpty();
-Store.seedLibraryCatalog(EXERCISE_CATALOG);
-bootstrapClientSync();
-navigate("program");
+/** The normal, non-paywalled boot path -- unchanged from before paywalls existed. */
+function enterApp() {
+  seedIfEmpty();
+  Store.seedLibraryCatalog(EXERCISE_CATALOG);
+  bootstrapClientSync();
+  navigate("program");
+}
+
+let paywallUnlockListener = null;
+
+/** Live-watches a paywalled client's own doc; shows the payment-required
+ * screen until paid, then unlocks automatically (real-time, no reload). */
+function watchPaywallUnlock(clientId) {
+  if (paywallUnlockListener) return;
+  paywallUnlockListener = listenClient(clientId, (data) => {
+    if (data && data.paid) {
+      localStorage.setItem(LOCAL_KEYS.clientPaid, "true");
+      if (state.screen === "paywall-signin" || state.screen === "paywall-payment") {
+        toast("Payment confirmed — welcome in!");
+        enterApp();
+      }
+    } else {
+      navigate("paywall-payment");
+    }
+  });
+}
+
+async function boot() {
+  consumeUrlParam("client", LOCAL_KEYS.clientId);
+  consumeUrlParam("price", LOCAL_KEYS.clientPriceCents);
+
+  if (isSyncConfigured() && isSignInLink()) {
+    try {
+      const email = await completeClientSignIn();
+      const clientId = getLocalClientId();
+      if (email && clientId) {
+        localStorage.setItem(LOCAL_KEYS.clientEmail, email);
+        await recordClientEmail(clientId, email);
+      }
+    } catch (e) {
+      console.warn("sign-in completion failed", e);
+      toast("That sign-in link didn't work — try requesting a new one");
+    }
+  }
+
+  const clientId = getLocalClientId();
+  const priceCents = parseInt(localStorage.getItem(LOCAL_KEYS.clientPriceCents) || "0", 10);
+  const alreadyUnlocked = localStorage.getItem(LOCAL_KEYS.clientPaid) === "true";
+
+  if (isSyncConfigured() && clientId && priceCents > 0 && !alreadyUnlocked) {
+    if (!getCurrentClientEmail()) {
+      navigate("paywall-signin");
+      return;
+    }
+    watchPaywallUnlock(clientId);
+    return;
+  }
+
+  enterApp();
+}
+
+boot();
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
