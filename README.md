@@ -31,6 +31,8 @@ Settings → **Program templates** lists the app's built-in starter programs -- 
 
 Requires coach sync to already be set up (above). Like everything else in that setup, this is "soft" privacy, not a hard security wall: a published program is fetchable by anyone who has its exact random id (which only ends up in a client link you generate and send), but the `customPrograms` collection itself can't be listed or browsed.
 
+**Starting from a built-in template instead of from scratch?** Skip the manual save-then-publish steps above with **Copy, rename & assign to a client**, on any template under Settings → Program templates, or as a "Copy..." option right inside the Starting program dropdown when adding a client. Either way it asks what to name your copy on the spot, publishes it, and (from Add Client) uses it for that client immediately -- no detour through Saved programs needed.
+
 ## Charging clients — Zelle paywall + real sign-in
 
 When you set a **Price** while adding a client (Coach dashboard → Add client), that specific client's link works differently from a free one: they have to verify a real email and you have to confirm payment before their program unlocks. Everything below is optional — leave the price field blank and a client's link works exactly as described above, no sign-in, no payment step.

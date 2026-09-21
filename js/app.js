@@ -1203,6 +1203,7 @@ function renderSyncSettingsCard() {
 // ---------- TEMPLATES screen (load a whole prebuilt program) ----------
 
 function renderTemplates() {
+  const canPublish = !getLocalClientId() && isSyncConfigured();
   const rows = PROGRAM_TEMPLATES.map((t) => `
     <div class="card">
       <h3>${esc(t.name)}</h3>
@@ -1213,7 +1214,10 @@ function renderTemplates() {
         <button class="btn ghost" data-action="load-template" data-template="${esc(t.id)}">Replace current</button>
       </div>
       <div style="height:8px"></div>
-      <button class="btn small" data-action="copy-template-link" data-template="${esc(t.id)}">Copy link for a new client</button>
+      <div class="btn-row">
+        ${canPublish ? `<button class="btn small" data-action="copy-template-for-client" data-template="${esc(t.id)}">Copy, rename &amp; assign to a client</button>` : ""}
+        <button class="btn small" data-action="copy-template-link" data-template="${esc(t.id)}">Copy link for a new client</button>
+      </div>
     </div>
   `).join("");
 
@@ -1222,6 +1226,7 @@ function renderTemplates() {
     <div class="card">
       <p><strong>Save as new program</strong> saves this template as a separate program on this device and switches to it. Nothing on the old program is touched — switch back to it any time from the dropdown at the top of the Program tab (once you have more than one saved).</p>
       <p><strong>Replace current</strong> erases the currently active program and every logged week in it, then loads the template in its place. Any other saved programs on this device are untouched.</p>
+      ${canPublish ? `<p><strong>Copy, rename &amp; assign to a client</strong> makes your own editable copy under whatever name you give it, publishes it privately (not as a public template), and takes you straight to Add Client with it pre-selected.</p>` : ""}
       <p><strong>Copy link for a new client</strong> gives you a link that seeds this template automatically the first time someone opens it — only useful for a device that hasn't opened the app before.</p>
     </div>
     ${rows}
@@ -1248,6 +1253,49 @@ function loadTemplate(id) {
   days.forEach((day) => Store.addDay({ name: day.dayTitle || "Workout", source: null, exercises: day.exercises }));
   toast(`Loaded "${template.name}"`);
   navigate("program");
+}
+
+/** Copies a built-in template into a new saved program under a name the
+ * coach picks on the spot, then publishes it so it's immediately assignable
+ * to a client. Used both from the Program templates screen and inline from
+ * Add Client. Returns { localId, publishedId, name }, or null if the coach
+ * canceled the rename prompt (no side effects in that case) or the
+ * template's id didn't match anything. publishedId is null if the copy was
+ * made but publishing failed/timed out -- the caller decides what to do.
+ */
+async function copyTemplateAndPublish(templateId, onPending) {
+  const template = PROGRAM_TEMPLATES.find((t) => t.id === templateId);
+  if (!template) return null;
+  const name = prompt("Name this program", template.name);
+  if (!name || !name.trim()) return null;
+  const trimmedName = name.trim();
+  const days = parseWorkoutSheets(template.sheetText);
+  const localId = Store.createProgram(trimmedName, days);
+  const publishedId = newId();
+  // toast() forces a full re-render, which would blow away an in-progress
+  // form the caller might be mid-filling-out (see confirmAddCoachClient) --
+  // let the caller decide how to show "working on it" instead of assuming.
+  if (onPending) onPending();
+  else toast("Publishing…");
+  try {
+    await Promise.race([
+      publishCustomProgram(getOrCreateCoachId(), publishedId, trimmedName, blankDaysForPublish(Store.getProgramDaysById(localId))),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 8000)),
+    ]);
+    Store.setProgramPublishedId(localId, publishedId);
+    return { localId, publishedId, name: trimmedName };
+  } catch (e) {
+    toast(e?.message === "timeout" ? "Taking a while — check your connection and try again" : "Couldn't publish — check your connection and try again");
+    return { localId, publishedId: null, name: trimmedName };
+  }
+}
+
+async function copyTemplateForClient(id) {
+  const result = await copyTemplateAndPublish(id);
+  if (!result) return;
+  if (!result.publishedId) return; // couldn't publish -- stay put so they can retry from Settings
+  toast(`"${result.name}" is ready — pick your client`);
+  navigate("coach-add-client", { preselectProgram: `custom:${result.publishedId}` });
 }
 
 function copyTemplateLink(id) {
@@ -1397,9 +1445,12 @@ async function unpublishSavedProgram(programId, publishedId) {
 }
 
 function renderCoachAddClient() {
-  const builtInOptions = PROGRAM_TEMPLATES.map((t) => `<option value="${esc(t.id)}">${esc(t.name)}</option>`).join("");
+  const preselect = state.params.preselectProgram || "";
+  const builtInOptions = PROGRAM_TEMPLATES.map((t) => `<option value="${esc(t.id)}" ${preselect === t.id ? "selected" : ""}>${esc(t.name)}</option>`).join("");
   const myPrograms = Store.listPrograms().filter((p) => p.publishedId);
-  const myOptions = myPrograms.map((p) => `<option value="custom:${esc(p.publishedId)}">${esc(p.name)}</option>`).join("");
+  const myOptions = myPrograms.map((p) => `<option value="custom:${esc(p.publishedId)}" ${preselect === `custom:${p.publishedId}` ? "selected" : ""}>${esc(p.name)}</option>`).join("");
+  const canPublish = isSyncConfigured();
+  const copyOptions = canPublish ? PROGRAM_TEMPLATES.map((t) => `<option value="copy:${esc(t.id)}">Copy "${esc(t.name)}"...</option>`).join("") : "";
   return `
     ${topbar("Add client", { back: true })}
     <div class="card">
@@ -1409,8 +1460,9 @@ function renderCoachAddClient() {
       <select id="coach-client-template">
         ${myOptions ? `<optgroup label="My programs">${myOptions}</optgroup>` : ""}
         <optgroup label="Built-in templates">${builtInOptions}</optgroup>
+        ${copyOptions ? `<optgroup label="Copy &amp; customize for this client">${copyOptions}</optgroup>` : ""}
       </select>
-      <p class="hint">This is only the program they'll see the first time they open the link — it won't touch anything if they've already opened it before.${myOptions ? "" : ` Want to hand a client one of your own saved programs instead? Publish it first from Settings → Saved programs.`}</p>
+      <p class="hint">This is only the program they'll see the first time they open the link — it won't touch anything if they've already opened it before.${copyOptions ? ` Picking a "Copy..." option asks you to name it, then publishes your copy so it's ready for this (and future) clients.` : ""}</p>
       <label for="coach-client-price">Price (optional)</label>
       <input type="text" id="coach-client-price" inputmode="decimal" placeholder="e.g. 50" />
       <p class="hint">Leave blank for free, instant access (how client links have always worked). Set a price and they'll have to verify their email and pay before the program unlocks -- you confirm payment yourself and their access unlocks automatically the moment you do.</p>
@@ -1421,7 +1473,7 @@ function renderCoachAddClient() {
 
 async function confirmAddCoachClient() {
   const label = document.getElementById("coach-client-label").value.trim();
-  const selected = document.getElementById("coach-client-template").value;
+  let selected = document.getElementById("coach-client-template").value;
   const priceRaw = document.getElementById("coach-client-price").value.trim();
   if (!label) {
     toast("Give the client a name");
@@ -1431,6 +1483,19 @@ async function confirmAddCoachClient() {
   if (priceRaw && (isNaN(priceDollars) || priceDollars < 0)) {
     toast("Enter a valid price, or leave it blank");
     return;
+  }
+  if (selected.startsWith("copy:")) {
+    const submitBtn = document.querySelector('[data-action="confirm-add-coach-client"]');
+    const result = await copyTemplateAndPublish(selected.slice("copy:".length), () => {
+      if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = "Publishing your copy…"; }
+    });
+    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = "Generate client link"; }
+    if (!result) return; // canceled the rename prompt
+    if (!result.publishedId) {
+      toast(`Couldn't publish "${result.name}" yet — it's saved under Settings → Saved programs, retry publishing from there once you're back online`);
+      return;
+    }
+    selected = `custom:${result.publishedId}`;
   }
   const priceCents = Math.round(priceDollars * 100);
   const clientId = newId();
@@ -1785,6 +1850,7 @@ function onClick(e) {
     }
     case "add-template": addTemplate(el.dataset.template); break;
     case "load-template": loadTemplate(el.dataset.template); break;
+    case "copy-template-for-client": copyTemplateForClient(el.dataset.template); break;
     case "copy-template-link": copyTemplateLink(el.dataset.template); break;
     case "switch-program-btn": {
       Store.switchProgram(el.dataset.program);
