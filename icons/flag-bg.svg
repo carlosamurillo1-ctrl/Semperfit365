@@ -1,4 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 474 900">
+  <defs>
+    <polygon id="star" points="0.00,-7.50 1.70,-2.35 7.13,-2.32 2.76,0.90 4.41,6.07 0.00,2.90 -4.41,6.07 -2.76,0.90 -7.13,-2.32 -1.70,-2.35"/>
+  </defs>
   <rect width="474" height="900" fill="#3a3a3a"/>
   <rect x="36.46" width="36.46" height="900" fill="#8a8a8a"/>
   <rect x="109.38" width="36.46" height="900" fill="#8a8a8a"/>
@@ -8,11 +11,11 @@
   <rect x="401.08" width="36.46" height="900" fill="#8a8a8a"/>
   <rect width="255.23" height="360" fill="#242424"/>
   <g fill="#a8a8a8">
-    <circle cx="25" cy="25" r="6"/><circle cx="76" cy="25" r="6"/><circle cx="128" cy="25" r="6"/><circle cx="179" cy="25" r="6"/><circle cx="230" cy="25" r="6"/>
-    <circle cx="25" cy="87" r="6"/><circle cx="76" cy="87" r="6"/><circle cx="128" cy="87" r="6"/><circle cx="179" cy="87" r="6"/><circle cx="230" cy="87" r="6"/>
-    <circle cx="25" cy="149" r="6"/><circle cx="76" cy="149" r="6"/><circle cx="128" cy="149" r="6"/><circle cx="179" cy="149" r="6"/><circle cx="230" cy="149" r="6"/>
-    <circle cx="25" cy="211" r="6"/><circle cx="76" cy="211" r="6"/><circle cx="128" cy="211" r="6"/><circle cx="179" cy="211" r="6"/><circle cx="230" cy="211" r="6"/>
-    <circle cx="25" cy="273" r="6"/><circle cx="76" cy="273" r="6"/><circle cx="128" cy="273" r="6"/><circle cx="179" cy="273" r="6"/><circle cx="230" cy="273" r="6"/>
-    <circle cx="25" cy="335" r="6"/><circle cx="76" cy="335" r="6"/><circle cx="128" cy="335" r="6"/><circle cx="179" cy="335" r="6"/><circle cx="230" cy="335" r="6"/>
+    <use href="#star" x="25" y="25"/><use href="#star" x="76" y="25"/><use href="#star" x="128" y="25"/><use href="#star" x="179" y="25"/><use href="#star" x="230" y="25"/>
+    <use href="#star" x="25" y="87"/><use href="#star" x="76" y="87"/><use href="#star" x="128" y="87"/><use href="#star" x="179" y="87"/><use href="#star" x="230" y="87"/>
+    <use href="#star" x="25" y="149"/><use href="#star" x="76" y="149"/><use href="#star" x="128" y="149"/><use href="#star" x="179" y="149"/><use href="#star" x="230" y="149"/>
+    <use href="#star" x="25" y="211"/><use href="#star" x="76" y="211"/><use href="#star" x="128" y="211"/><use href="#star" x="179" y="211"/><use href="#star" x="230" y="211"/>
+    <use href="#star" x="25" y="273"/><use href="#star" x="76" y="273"/><use href="#star" x="128" y="273"/><use href="#star" x="179" y="273"/><use href="#star" x="230" y="273"/>
+    <use href="#star" x="25" y="335"/><use href="#star" x="76" y="335"/><use href="#star" x="128" y="335"/><use href="#star" x="179" y="335"/><use href="#star" x="230" y="335"/>
   </g>
 </svg>
