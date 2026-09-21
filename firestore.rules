@@ -22,5 +22,15 @@ service cloud.firestore {
         allow list: if true;
       }
     }
+
+    // A coach's own custom program, published so it can be assigned to a new
+    // client from the Add Client screen. Same model as everything else here:
+    // the random programId is the secret, so it's fetchable by a brand-new
+    // client's device (which only knows the id from its link, not the coach's
+    // coachId) but never listable/enumerable.
+    match /customPrograms/{programId} {
+      allow get, write: if true;
+      allow list: if false;
+    }
   }
 }

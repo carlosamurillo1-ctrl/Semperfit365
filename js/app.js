@@ -15,6 +15,9 @@ import {
   markClientPaid,
   onSyncStatusChange,
   getClientLabel,
+  publishCustomProgram,
+  getCustomProgram,
+  unpublishCustomProgram,
   isSignInLink,
   sendClientSignInLink,
   completeClientSignIn,
@@ -1074,15 +1077,22 @@ function renderSettings() {
   const program = Store.getProgram();
   const days = program?.days || [];
   const programs = Store.listPrograms();
+  const isCoachDevice = !getLocalClientId();
+  const canPublish = isCoachDevice && isSyncConfigured();
   const programRows = programs.map((p) => `
     <div class="row">
       <div>
         <h3 style="font-size:14px;">${esc(p.name)}${p.active ? ' <span class="pill">Active</span>' : ""}</h3>
-        <p>${p.dayCount} day${p.dayCount === 1 ? "" : "s"}</p>
+        <p>${p.dayCount} day${p.dayCount === 1 ? "" : "s"}${p.publishedId ? " &middot; Published for clients" : ""}</p>
       </div>
-      <div class="btn-row" style="width:auto;gap:6px;">
+      <div class="btn-row" style="width:auto;gap:6px;flex-wrap:wrap;">
         ${p.active ? "" : `<button class="btn small" data-action="switch-program-btn" data-program="${esc(p.id)}">Switch to</button>`}
         <button class="btn small" data-action="rename-program" data-program="${esc(p.id)}">Rename</button>
+        ${canPublish ? (
+          p.publishedId
+            ? `<button class="btn small" data-action="unpublish-program" data-program="${esc(p.id)}" data-published="${esc(p.publishedId)}">Unpublish</button>`
+            : `<button class="btn small" data-action="publish-program" data-program="${esc(p.id)}">Publish for clients</button>`
+        ) : ""}
         ${programs.length > 1 ? `<button class="btn small danger" data-action="delete-program" data-program="${esc(p.id)}">Delete</button>` : ""}
       </div>
     </div>
@@ -1331,16 +1341,76 @@ function renderCoach() {
   `;
 }
 
+/** Strips logged data from a copy of a saved program's days before publishing
+ * it -- a new client should start with a blank slate, not the coach's own
+ * test weights/notes. Structure (exercises, rep goals, set columns, week
+ * count) is kept as-is. */
+function blankDaysForPublish(days) {
+  return days.map((day) => ({
+    name: day.name,
+    exercises: day.exercises.map((ex) => ({
+      name: ex.name,
+      repGoal: ex.repGoal,
+      restTime: ex.restTime,
+      setupNote: ex.setupNote,
+      videoUrl: ex.videoUrl,
+      setLabels: ex.setLabels,
+      weeks: ex.weeks.map((w) => ({ week: w.week, values: ex.setLabels.map(() => ""), reps: ex.setLabels.map(() => ""), notes: "" })),
+    })),
+  }));
+}
+
+async function publishSavedProgram(programId) {
+  const days = Store.getProgramDaysById(programId);
+  const meta = Store.listPrograms().find((p) => p.id === programId);
+  if (!days || !meta) return;
+  const publishedId = meta.publishedId || newId();
+  toast("Publishing…");
+  try {
+    // Firestore writes queue locally and don't reject on a dead network --
+    // they can hang indefinitely instead of failing (learned the hard way
+    // building the sync-status indicator). A timeout here means a flaky
+    // connection gives up with a clear message instead of a silent hang;
+    // the write is safe to retry since it's a plain overwrite (same id).
+    await Promise.race([
+      publishCustomProgram(getOrCreateCoachId(), publishedId, meta.name, blankDaysForPublish(days)),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 8000)),
+    ]);
+    Store.setProgramPublishedId(programId, publishedId);
+    toast(`"${meta.name}" is now available when adding a client`);
+    render();
+  } catch (e) {
+    toast(e?.message === "timeout" ? "Taking a while — check your connection and try again" : "Couldn't publish — check your connection and try again");
+  }
+}
+
+async function unpublishSavedProgram(programId, publishedId) {
+  try {
+    await unpublishCustomProgram(publishedId);
+  } catch {
+    // even if the delete fails (e.g. offline), still forget it locally --
+    // worst case a stale doc lingers in Firestore, unreachable without its id
+  }
+  Store.setProgramPublishedId(programId, null);
+  toast("Unpublished");
+  render();
+}
+
 function renderCoachAddClient() {
-  const options = PROGRAM_TEMPLATES.map((t) => `<option value="${esc(t.id)}">${esc(t.name)}</option>`).join("");
+  const builtInOptions = PROGRAM_TEMPLATES.map((t) => `<option value="${esc(t.id)}">${esc(t.name)}</option>`).join("");
+  const myPrograms = Store.listPrograms().filter((p) => p.publishedId);
+  const myOptions = myPrograms.map((p) => `<option value="custom:${esc(p.publishedId)}">${esc(p.name)}</option>`).join("");
   return `
     ${topbar("Add client", { back: true })}
     <div class="card">
       <label for="coach-client-label">Client name</label>
       <input type="text" id="coach-client-label" placeholder="e.g. Jordan" />
       <label for="coach-client-template">Starting program</label>
-      <select id="coach-client-template">${options}</select>
-      <p class="hint">This is only the program they'll see the first time they open the link — it won't touch anything if they've already opened it before.</p>
+      <select id="coach-client-template">
+        ${myOptions ? `<optgroup label="My programs">${myOptions}</optgroup>` : ""}
+        <optgroup label="Built-in templates">${builtInOptions}</optgroup>
+      </select>
+      <p class="hint">This is only the program they'll see the first time they open the link — it won't touch anything if they've already opened it before.${myOptions ? "" : ` Want to hand a client one of your own saved programs instead? Publish it first from Settings → Saved programs.`}</p>
       <label for="coach-client-price">Price (optional)</label>
       <input type="text" id="coach-client-price" inputmode="decimal" placeholder="e.g. 50" />
       <p class="hint">Leave blank for free, instant access (how client links have always worked). Set a price and they'll have to verify their email and pay before the program unlocks -- you confirm payment yourself and their access unlocks automatically the moment you do.</p>
@@ -1351,7 +1421,7 @@ function renderCoachAddClient() {
 
 async function confirmAddCoachClient() {
   const label = document.getElementById("coach-client-label").value.trim();
-  const templateId = document.getElementById("coach-client-template").value;
+  const selected = document.getElementById("coach-client-template").value;
   const priceRaw = document.getElementById("coach-client-price").value.trim();
   if (!label) {
     toast("Give the client a name");
@@ -1364,21 +1434,27 @@ async function confirmAddCoachClient() {
   }
   const priceCents = Math.round(priceDollars * 100);
   const clientId = newId();
+  const isCustom = selected.startsWith("custom:");
+  const templateId = isCustom ? null : selected;
+  const customProgramId = isCustom ? selected.slice("custom:".length) : null;
+  const programName = isCustom
+    ? Store.listPrograms().find((p) => p.publishedId === customProgramId)?.name
+    : PROGRAM_TEMPLATES.find((t) => t.id === templateId)?.name;
   try {
     await addClientToRoster(getOrCreateCoachId(), clientId, label, priceCents);
-    navigate("coach-client-link", { clientId, label, templateId, priceCents });
+    navigate("coach-client-link", { clientId, label, templateId, customProgramId, programName, priceCents });
   } catch {
     toast("Couldn't create the client link — check your connection");
   }
 }
 
 function renderCoachClientLink() {
-  const { clientId, label, templateId, priceCents } = state.params;
+  const { clientId, label, templateId, customProgramId, programName, priceCents } = state.params;
   const linkParams = new URLSearchParams({ client: clientId });
-  if (templateId && templateId !== "default") linkParams.set("template", templateId);
+  if (customProgramId) linkParams.set("cp", customProgramId);
+  else if (templateId && templateId !== "default") linkParams.set("template", templateId);
   if (priceCents > 0) linkParams.set("price", String(priceCents));
   const link = `${window.location.origin}${window.location.pathname}?${linkParams.toString()}`;
-  const template = PROGRAM_TEMPLATES.find((t) => t.id === templateId);
   return `
     ${topbar("Client link ready", { back: true })}
     <div class="card">
@@ -1386,7 +1462,7 @@ function renderCoachClientLink() {
       <p>Send this link to your client.${priceCents > 0
         ? ` They'll be asked to verify their email and pay $${(priceCents / 100).toFixed(2)} before the program unlocks. Once you confirm the payment yourself (Settings &gt; Coach dashboard &gt; Mark as paid), their access unlocks automatically.`
         : " The moment they open it, their logged workouts start syncing to you — no account needed on their end."
-      }${template && templateId !== "default" ? ` They'll start with the "${esc(template.name)}" program.` : ""}</p>
+      }${programName && (customProgramId || templateId !== "default") ? ` They'll start with the "${esc(programName)}" program.` : ""}</p>
       <div style="height:10px"></div>
       <input type="text" id="coach-link-output" value="${esc(link)}" readonly onclick="this.select()" />
       <div style="height:10px"></div>
@@ -1733,6 +1809,16 @@ function onClick(e) {
       }
       break;
     }
+    case "publish-program": {
+      publishSavedProgram(el.dataset.program);
+      break;
+    }
+    case "unpublish-program": {
+      if (confirm("Unpublish this program? It'll no longer show up as an option when adding a new client. Clients who already started with it are unaffected.")) {
+        unpublishSavedProgram(el.dataset.program, el.dataset.published);
+      }
+      break;
+    }
     case "go-coach": navigate("coach"); break;
     case "go-coach-add-client": navigate("coach-add-client"); break;
     case "confirm-add-coach-client": confirmAddCoachClient(); break;
@@ -1849,6 +1935,32 @@ function seedIfEmpty() {
   }
 }
 
+/** A brand-new visitor's link can carry ?cp=<id> pointing at one of their
+ * coach's own published programs (see publishSavedProgram) instead of a
+ * built-in template. Best-effort and timeout-guarded so a slow/offline
+ * network never holds up boot -- falls through to seedIfEmpty()'s normal
+ * default seed if the fetch doesn't come back in time. */
+async function seedFromCustomProgramIfPresent() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const cpId = urlParams.get("cp");
+  if (!cpId) return;
+  urlParams.delete("cp");
+  const rest = urlParams.toString();
+  history.replaceState(null, "", window.location.pathname + (rest ? `?${rest}` : ""));
+  if (Store.getProgram() || !isSyncConfigured()) return; // never overwrite a visitor's own data
+  try {
+    const data = await Promise.race([
+      getCustomProgram(cpId),
+      new Promise((resolve) => setTimeout(() => resolve(null), 5000)),
+    ]);
+    if (data && Array.isArray(data.days)) {
+      data.days.forEach((day) => Store.addDay({ name: day.name || "Workout", source: null, exercises: day.exercises || [] }));
+    }
+  } catch {
+    // fall through -- seedIfEmpty() applies the normal default seed instead
+  }
+}
+
 /** Reads a one-shot param out of the current URL into localStorage and strips it, if present. */
 function consumeUrlParam(name, storageKey) {
   const urlParams = new URLSearchParams(window.location.search);
@@ -1915,7 +2027,8 @@ function bootstrapClientSync() {
 }
 
 /** The normal, non-paywalled boot path -- unchanged from before paywalls existed. */
-function enterApp() {
+async function enterApp() {
+  await seedFromCustomProgramIfPresent();
   seedIfEmpty();
   Store.seedLibraryCatalog(EXERCISE_CATALOG);
   bootstrapClientSync();

@@ -216,6 +216,38 @@ export async function removeClientFromRoster(coachId, clientId) {
   ]);
 }
 
+// ---------- coach-only custom programs (assignable to a new client, never shown as a public template) ----------
+
+/** Publishes (or re-publishes) a coach's own saved program so it can be
+ * assigned to a new client from the Add Client screen. `days` should
+ * already have logged values/reps/notes stripped by the caller -- a new
+ * client shouldn't start with the coach's own test data pre-filled. */
+export async function publishCustomProgram(coachId, programId, name, days) {
+  const database = ensureDb();
+  await database.collection("customPrograms").doc(programId).set({
+    coachId,
+    name,
+    days,
+    updatedAt: window.firebase.firestore.FieldValue.serverTimestamp(),
+  });
+}
+
+/** One-off fetch of a published custom program, used to seed a brand-new client's device. */
+export async function getCustomProgram(programId) {
+  try {
+    const database = ensureDb();
+    const doc = await database.collection("customPrograms").doc(programId).get();
+    return doc.exists ? doc.data() : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function unpublishCustomProgram(programId) {
+  const database = ensureDb();
+  await database.collection("customPrograms").doc(programId).delete();
+}
+
 /** Live-subscribe to a coach's client roster. Returns an unsubscribe function. */
 export function listenRoster(coachId, callback) {
   const database = ensureDb();

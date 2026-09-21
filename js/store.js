@@ -20,7 +20,10 @@
 // }
 //
 // On-disk shape (sf365.programs.v1):
-// { activeId, programs: [{ id, name, days, importedAt }] }
+// { activeId, programs: [{ id, name, days, importedAt, publishedId? }] }
+// publishedId, when present, is that program's id in the coach-only Firestore
+// customPrograms collection (see sync.js) -- how a coach's own custom program
+// gets assigned to a new client from the Add Client screen.
 
 const KEYS = {
   programs: "sf365.programs.v1",
@@ -121,7 +124,21 @@ export const Store = {
   listPrograms() {
     const state = readState();
     if (!state) return [];
-    return state.programs.map((p) => ({ id: p.id, name: p.name, dayCount: p.days.length, active: p.id === state.activeId }));
+    return state.programs.map((p) => ({ id: p.id, name: p.name, dayCount: p.days.length, active: p.id === state.activeId, publishedId: p.publishedId || null }));
+  },
+  /** A saved program's days by id (any program, not just the active one) -- used to publish a program for clients without first switching to it. */
+  getProgramDaysById(id) {
+    const state = readState();
+    return state?.programs.find((p) => p.id === id)?.days || null;
+  },
+  /** Marks (or clears, passing null) a saved program's remote "published for clients" id. */
+  setProgramPublishedId(id, publishedId) {
+    const state = readState();
+    const p = state?.programs.find((p) => p.id === id);
+    if (!p) return;
+    if (publishedId) p.publishedId = publishedId;
+    else delete p.publishedId;
+    writeState(state);
   },
   /** Create a brand-new, separate program from parsed days and make it active. Returns its id. Doesn't touch any other saved program. */
   createProgram(name, days) {

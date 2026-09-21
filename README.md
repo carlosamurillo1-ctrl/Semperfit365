@@ -20,6 +20,17 @@ Once configured:
 - A client can optionally set "Your name" in their own Settings so you see something friendlier than the label you gave them.
 - This is intentionally simple, not enterprise security: a client/coach id is a long random string (`crypto.randomUUID()`) that functions like a capability link. That's an appropriate bar for workout logs shared with people you already know, not for sensitive data.
 
+## Handing a client one of your own programs
+
+Settings → **Program templates** lists the app's built-in starter programs -- those ship with the code, so anyone can see them. If you'd rather build your own program (or customize one of your saved ones) and hand it to a specific client without it being a public template, use **Publish for clients** instead:
+
+1. Build or import the program on your own device like normal, so it shows up under Settings → **Saved programs**.
+2. Tap **Publish for clients** on it. This uploads just its structure (days, exercises, rep goals, rest times, set columns) to your private Firestore project -- never anything you've personally logged in it, that's stripped before it's sent.
+3. From then on, it shows up under **"My programs"** in the Starting program dropdown when you add a new client (Coach dashboard → **+ Add client**), right alongside the built-in templates.
+4. **Unpublish** any time to stop offering it to new clients -- it never affects a client who already started with it.
+
+Requires coach sync to already be set up (above). Like everything else in that setup, this is "soft" privacy, not a hard security wall: a published program is fetchable by anyone who has its exact random id (which only ends up in a client link you generate and send), but the `customPrograms` collection itself can't be listed or browsed.
+
 ## Charging clients — Zelle paywall + real sign-in
 
 When you set a **Price** while adding a client (Coach dashboard → Add client), that specific client's link works differently from a free one: they have to verify a real email and you have to confirm payment before their program unlocks. Everything below is optional — leave the price field blank and a client's link works exactly as described above, no sign-in, no payment step.
