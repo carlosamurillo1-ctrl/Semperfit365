@@ -27,7 +27,24 @@ const LOCAL_KEYS = {
   clientPriceCents: "sf365.clientPriceCents",
   clientPaid: "sf365.clientPaid",
   clientEmail: "sf365.clientEmail",
+  theme: "sf365.theme",
 };
+
+/** "auto" (default, follows system) | "light" | "dark" -- a per-device display preference, not synced. */
+function getTheme() {
+  return localStorage.getItem(LOCAL_KEYS.theme) || "auto";
+}
+function applyTheme(theme) {
+  if (theme === "light" || theme === "dark") {
+    document.documentElement.dataset.theme = theme;
+  } else {
+    delete document.documentElement.dataset.theme;
+  }
+}
+function setTheme(theme) {
+  localStorage.setItem(LOCAL_KEYS.theme, theme);
+  applyTheme(theme);
+}
 
 function getLocalClientId() {
   return localStorage.getItem(LOCAL_KEYS.clientId) || "";
@@ -1062,6 +1079,15 @@ function renderSettings() {
       </div>
     </div>
     <div class="card">
+      <h3>Appearance</h3>
+      <div class="btn-row" style="margin-top:10px;">
+        <button class="btn ${getTheme() === "auto" ? "primary" : ""}" data-action="set-theme" data-theme="auto">Auto</button>
+        <button class="btn ${getTheme() === "light" ? "primary" : ""}" data-action="set-theme" data-theme="light">Light</button>
+        <button class="btn ${getTheme() === "dark" ? "primary" : ""}" data-action="set-theme" data-theme="dark">Dark</button>
+      </div>
+      <p class="hint" style="margin-top:8px;">"Auto" follows your phone's system setting -- handy in bright gym lighting.</p>
+    </div>
+    <div class="card">
       <h3>Saved programs</h3>
       ${programRows || "<p>None yet.</p>"}
     </div>
@@ -1248,7 +1274,7 @@ function renderCoach() {
           <h3>${esc(c.label)}</h3>
           <p>${c.addedAt ? `Added ${relativeTime(firestoreTimeToIso(c.addedAt))}` : "Just added"}${priced ? ` &middot; $${(c.priceCents / 100).toFixed(2)}` : ""}</p>
         </div>
-        ${priced ? `<span class="pill" style="${paid ? "" : "color:var(--warn);border-color:var(--warn);background:rgba(255,180,84,.12);"}">${paid ? "Paid" : "Awaiting payment"}</span>` : ""}
+        ${priced ? `<span class="pill" style="${paid ? "" : "color:var(--warn);border-color:var(--warn);background:color-mix(in srgb, var(--warn) 12%, transparent);"}">${paid ? "Paid" : "Awaiting payment"}</span>` : ""}
       </div>
       <div class="btn-row" style="margin-top:10px;">
         ${priced && !paid ? `<button class="btn small primary" data-action="mark-client-paid" data-client="${esc(c.id)}" data-label="${esc(c.label)}">Mark as paid</button>` : ""}
@@ -1594,6 +1620,11 @@ function onClick(e) {
       const settings = Store.getSettings();
       settings.units = el.dataset.units;
       Store.setSettings(settings);
+      render();
+      break;
+    }
+    case "set-theme": {
+      setTheme(el.dataset.theme);
       render();
       break;
     }

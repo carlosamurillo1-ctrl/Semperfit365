@@ -10,6 +10,13 @@
 <link rel="icon" href="icons/favicon.png" type="image/png" />
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
 <link rel="stylesheet" href="css/styles.css" />
+<script>
+  // Applied before CSS paints so there's no flash of the wrong theme.
+  try {
+    var t = localStorage.getItem("sf365.theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
 </head>
 <body>
   <div id="app" class="app"></div>
