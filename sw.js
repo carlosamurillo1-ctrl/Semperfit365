@@ -18,6 +18,12 @@ const ASSETS = [
   "./manifest.webmanifest",
   "./icons/logo.jpg",
   "./icons/flag-bg.svg",
+  "./icons/icon-192.png",
+  "./icons/icon-512.png",
+  "./icons/icon-maskable-192.png",
+  "./icons/icon-maskable-512.png",
+  "./icons/apple-touch-icon.png",
+  "./icons/favicon.png",
 ];
 
 self.addEventListener("install", (event) => {
