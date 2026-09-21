@@ -312,3 +312,16 @@ select { appearance: none; }
 @media (min-width: 520px) {
   .tabbar { max-width: 640px; left: 50%; transform: translateX(-50%); border-left: 1px solid var(--border); border-right: 1px solid var(--border); border-radius: 16px 16px 0 0; }
 }
+
+.body-map { max-width: 220px; margin: 0 auto; }
+.body-map svg { width: 100%; height: auto; display: block; }
+.body-map .body-base { fill: var(--bg-elev-2); stroke: var(--border); stroke-width: 1.5; }
+.body-map .muscle-hotspot { fill: var(--accent-dim); stroke: var(--accent); stroke-width: 1.5; cursor: pointer; }
+.body-map .muscle-hotspot:active, .body-map .muscle-hotspot:hover { fill: var(--accent); }
+.body-map .muscle-hotspot text {
+  fill: var(--text);
+  font-size: 10px;
+  font-weight: 600;
+  text-anchor: middle;
+  pointer-events: none;
+}

@@ -211,7 +211,7 @@ function render() {
 
 function topbar(title, opts = {}) {
   const backBtn = opts.back
-    ? `<button class="btn ghost small" data-action="back" style="width:auto;padding:6px 10px;">&larr; Back</button>`
+    ? `<button class="btn ghost small" data-action="${opts.backAction || "back"}" style="width:auto;padding:6px 10px;">&larr; Back</button>`
     : `<div class="brand"><span class="logo-crop"><img src="icons/logo.jpg" alt="SemperFit365"/></span></div>`;
   const right = opts.right || `<div style="width:${opts.back ? "70px" : "0"}"></div>`;
   return `<div class="topbar">${backBtn}<h1 style="margin:0;font-size:17px;">${esc(title)}</h1>${right}</div>`;
@@ -626,6 +626,87 @@ function renderDay() {
 
 // ---------- ADD EXERCISE screen (manually create a new exercise) ----------
 
+// Local UI state for the "browse by muscle group" body-map picker -- not
+// part of the persisted app state, just a transient overlay on top of the
+// add/swap exercise form. Reset whenever that form is freshly opened.
+let muscleBrowse = { open: false, view: "front", group: null, prefill: null };
+
+function resetMuscleBrowse() {
+  muscleBrowse = { open: false, view: "front", group: null, prefill: null };
+}
+
+/** A stylized clickable body silhouette. Each hotspot's data-group matches a MUSCLE_GROUPS entry. */
+function bodySilhouetteSvg(view) {
+  const torsoGroup = view === "front" ? "Chest" : "Back";
+  const armGroup = view === "front" ? "Biceps" : "Triceps";
+  return `
+    <svg viewBox="0 0 200 440" role="img" aria-label="Body diagram, ${view} view">
+      <g class="body-base">
+        <circle cx="100" cy="28" r="20"/>
+        <rect x="92" y="44" width="16" height="14"/>
+        <rect x="76" y="170" width="48" height="60" rx="10"/>
+        <rect x="34" y="150" width="18" height="60" rx="8"/>
+        <rect x="148" y="150" width="18" height="60" rx="8"/>
+        <ellipse cx="43" cy="215" rx="10" ry="8"/>
+        <ellipse cx="157" cy="215" rx="10" ry="8"/>
+        <rect x="70" y="225" width="60" height="25"/>
+        <ellipse cx="83" cy="428" rx="14" ry="8"/>
+        <ellipse cx="117" cy="428" rx="14" ry="8"/>
+      </g>
+      <g class="muscle-hotspot" data-action="pick-muscle-group" data-group="Shoulders">
+        <ellipse cx="62" cy="72" rx="20" ry="16"/>
+        <ellipse cx="138" cy="72" rx="20" ry="16"/>
+        <text x="100" y="58">Shoulders</text>
+      </g>
+      <g class="muscle-hotspot" data-action="pick-muscle-group" data-group="${torsoGroup}">
+        <rect x="68" y="82" width="64" height="50" rx="14"/>
+        <text x="100" y="112">${torsoGroup}</text>
+      </g>
+      <g class="muscle-hotspot" data-action="pick-muscle-group" data-group="${armGroup}">
+        <rect x="38" y="95" width="20" height="55" rx="10"/>
+        <rect x="142" y="95" width="20" height="55" rx="10"/>
+      </g>
+      <g class="muscle-hotspot" data-action="pick-muscle-group" data-group="Legs">
+        <rect x="72" y="250" width="26" height="95" rx="12"/>
+        <rect x="102" y="250" width="26" height="95" rx="12"/>
+        <text x="100" y="300">Legs</text>
+      </g>
+      <g class="muscle-hotspot" data-action="pick-muscle-group" data-group="Calves">
+        <rect x="74" y="350" width="22" height="75" rx="10"/>
+        <rect x="104" y="350" width="22" height="75" rx="10"/>
+        <text x="100" y="392">Calves</text>
+      </g>
+    </svg>
+  `;
+}
+
+function renderMuscleBrowse(library) {
+  if (muscleBrowse.group) {
+    const group = muscleBrowse.group;
+    const filtered = library.filter((e) => e.muscleGroup === group);
+    const rows = filtered.map((e) => `
+      <div class="card tappable" data-action="pick-muscle-exercise" data-name="${esc(e.name)}">
+        <h3>${esc(e.name)}</h3>
+        <p>${[e.equipment, e.repGoal && `${e.repGoal} reps`].filter(Boolean).join(" &middot; ") || "Tap to use"}</p>
+      </div>
+    `).join("");
+    return `
+      ${topbar(group, { back: true, backAction: "muscle-back-to-map" })}
+      ${rows || `<div class="empty"><p>No ${esc(group)} exercises in your library yet.</p></div>`}
+      <button class="btn ghost" data-action="pick-muscle-exercise-custom">Type a name instead</button>
+    `;
+  }
+  return `
+    ${topbar("Browse by muscle", { back: true, backAction: "close-muscle-browse" })}
+    <div class="row" style="justify-content:center;gap:8px;margin-bottom:14px;">
+      <button class="btn ${muscleBrowse.view === "front" ? "primary" : "ghost"} small" data-action="muscle-view" data-view="front" style="width:auto;">Front</button>
+      <button class="btn ${muscleBrowse.view === "back" ? "primary" : "ghost"} small" data-action="muscle-view" data-view="back" style="width:auto;">Back</button>
+    </div>
+    <div class="body-map">${bodySilhouetteSvg(muscleBrowse.view)}</div>
+    <p class="hint" style="text-align:center;margin-top:10px;">Tap a muscle group to see exercises</p>
+  `;
+}
+
 function renderAddExercise() {
   const day = Store.getDay(state.params.dayId);
   if (!day) {
@@ -635,21 +716,28 @@ function renderAddExercise() {
   const swapId = state.params.swapExerciseId;
   const isSwap = !!swapId;
   const library = Store.getExerciseLibrary();
+
+  if (muscleBrowse.open) return renderMuscleBrowse(library);
+
+  const prefill = muscleBrowse.prefill;
+  muscleBrowse.prefill = null;
+
   return `
     ${topbar(isSwap ? "Swap exercise" : "Add exercise", { back: true })}
+    <button class="btn ghost" data-action="open-muscle-browse" style="margin-bottom:12px;">Browse by muscle group</button>
     <div class="card">
       <label for="new-ex-name">Exercise name *</label>
-      <input type="text" id="new-ex-name" list="exercise-library-list" placeholder="e.g. Barbell Squat" autocomplete="off" />
+      <input type="text" id="new-ex-name" list="exercise-library-list" placeholder="e.g. Barbell Squat" autocomplete="off" value="${esc(prefill?.name || "")}" />
       <datalist id="exercise-library-list">
         ${library.map((e) => `<option value="${esc(e.name)}"></option>`).join("")}
       </datalist>
       ${library.length ? `<p class="hint">Start typing to pick from ${library.length} exercise${library.length === 1 ? "" : "s"} you've used before -- it'll fill in reps, rest, and video automatically.</p>` : ""}
 
       <label for="new-ex-repgoal">Rep goal</label>
-      <input type="text" id="new-ex-repgoal" placeholder="e.g. 8-10" />
+      <input type="text" id="new-ex-repgoal" placeholder="e.g. 8-10" value="${esc(prefill?.repGoal || "")}" />
 
       <label for="new-ex-resttime">Rest time</label>
-      <input type="text" id="new-ex-resttime" placeholder="e.g. 90 sec" />
+      <input type="text" id="new-ex-resttime" placeholder="e.g. 90 sec" value="${esc(prefill?.restTime || "")}" />
 
       <label for="new-ex-sets">Set columns</label>
       <input type="text" id="new-ex-sets" value="Set 1, Set 2, Set 3" placeholder="comma-separated" />
@@ -659,7 +747,7 @@ function renderAddExercise() {
       <input type="number" id="new-ex-weeks" value="8" min="1" max="52" />
 
       <label for="new-ex-video">YouTube video (optional)</label>
-      <input type="url" id="new-ex-video" placeholder="https://youtube.com/watch?v=..." />
+      <input type="url" id="new-ex-video" placeholder="https://youtube.com/watch?v=..." value="${esc(prefill?.videoUrl || "")}" />
       <p class="hint">Shown as a how-to video on the exercise screen.</p>
     </div>
     <button class="btn primary" data-action="confirm-add-exercise" data-day="${esc(day.id)}" ${isSwap ? `data-swap="${esc(swapId)}"` : ""}>${isSwap ? "Swap exercise" : "Add exercise"}</button>
@@ -1282,9 +1370,25 @@ function onClick(e) {
     case "confirm-review": confirmReview(); break;
     case "open-day": navigate("day", { dayId: el.dataset.day }); break;
     case "open-exercise": navigate("exercise", { dayId: el.dataset.day, exerciseId: el.dataset.exercise }); break;
-    case "go-add-exercise": navigate("add-exercise", { dayId: el.dataset.day }); break;
-    case "go-swap-exercise": navigate("add-exercise", { dayId: el.dataset.day, swapExerciseId: el.dataset.exercise }); break;
+    case "go-add-exercise": resetMuscleBrowse(); navigate("add-exercise", { dayId: el.dataset.day }); break;
+    case "go-swap-exercise": resetMuscleBrowse(); navigate("add-exercise", { dayId: el.dataset.day, swapExerciseId: el.dataset.exercise }); break;
     case "confirm-add-exercise": confirmAddExercise(el.dataset.day, el.dataset.swap); break;
+    case "open-muscle-browse": muscleBrowse.open = true; muscleBrowse.group = null; render(); break;
+    case "close-muscle-browse": muscleBrowse.open = false; render(); break;
+    case "muscle-view": muscleBrowse.view = el.dataset.view; render(); break;
+    case "pick-muscle-group": muscleBrowse.group = el.dataset.group; render(); break;
+    case "muscle-back-to-map": muscleBrowse.group = null; render(); break;
+    case "pick-muscle-exercise": {
+      const match = Store.getExerciseLibrary().find((e) => e.name === el.dataset.name);
+      muscleBrowse.open = false;
+      muscleBrowse.group = null;
+      muscleBrowse.prefill = match
+        ? { name: match.name, repGoal: match.repGoal || "", restTime: match.restTime || "", videoUrl: match.videoUrl || "" }
+        : { name: el.dataset.name, repGoal: "", restTime: "", videoUrl: "" };
+      render();
+      break;
+    }
+    case "pick-muscle-exercise-custom": muscleBrowse.open = false; muscleBrowse.group = null; muscleBrowse.prefill = null; render(); break;
     case "add-week": {
       Store.addWeekToExercise(el.dataset.day, el.dataset.exercise);
       render();
