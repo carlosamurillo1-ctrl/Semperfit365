@@ -258,11 +258,22 @@ select { appearance: none; }
 
 .card.current-week { border-color: var(--accent-dim); background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 6%, transparent), transparent 40%), var(--bg-elev); }
 
-.rest-timer-card h3 { font-size: 28px; font-variant-numeric: tabular-nums; margin: 0 0 2px; }
-.rest-timer-card .btn { width: auto; padding: 10px 20px; }
+.rest-timer-mini {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+}
+.rest-timer-mini .rest-timer-display { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.rest-timer-mini .btn { width: auto; }
 .rest-timer-card.rest-timer-done { border-color: var(--accent); animation: rest-timer-flash 0.6s ease-in-out 2; }
 @keyframes rest-timer-flash {
-  0%, 100% { background: var(--bg-elev); }
+  0%, 100% { background: var(--bg-elev-2); }
   50% { background: color-mix(in srgb, var(--accent) 18%, transparent); }
 }
 

@@ -895,6 +895,18 @@ function teardownRestTimer() {
   restTimer = { intervalId: null, remaining: 0, total: 0, key: null };
 }
 
+// The timer shows up in more than one place at once (a summary card up top
+// plus a compact control inside every week card, so it's reachable without
+// scrolling back up) -- all instances share this one interval/state and are
+// updated together by class rather than a single unique id.
+function allRestTimerNodes() {
+  return {
+    displays: document.querySelectorAll(".rest-timer-display"),
+    cards: document.querySelectorAll(".rest-timer-card"),
+    btns: document.querySelectorAll(".rest-timer-btn"),
+  };
+}
+
 function restTimerTick() {
   restTimer.remaining -= 1;
   if (restTimer.remaining <= 0) {
@@ -907,28 +919,25 @@ function restTimerTick() {
     toast("Rest's up!");
     return;
   }
-  const display = document.getElementById("rest-timer-display");
-  if (display) display.textContent = formatMMSS(restTimer.remaining);
+  const { displays } = allRestTimerNodes();
+  displays.forEach((el) => { el.textContent = formatMMSS(restTimer.remaining); });
 }
 
 function toggleRestTimer(key, seconds) {
-  const card = document.getElementById("rest-timer-card");
-  const btn = document.getElementById("rest-timer-btn");
+  const { displays, cards, btns } = allRestTimerNodes();
   if (restTimer.intervalId && restTimer.key === key) {
     // already running for this exercise -- cancel
     teardownRestTimer();
-    const display = document.getElementById("rest-timer-display");
-    if (display) display.textContent = formatMMSS(seconds);
-    if (btn) btn.textContent = "Start";
-    if (card) card.classList.remove("rest-timer-done");
+    displays.forEach((el) => { el.textContent = formatMMSS(seconds); });
+    btns.forEach((el) => { el.textContent = "Start"; });
+    cards.forEach((el) => el.classList.remove("rest-timer-done"));
     return;
   }
   teardownRestTimer();
   restTimer = { intervalId: null, remaining: seconds, total: seconds, key };
-  if (card) card.classList.remove("rest-timer-done");
-  if (btn) btn.textContent = "Cancel";
-  const display = document.getElementById("rest-timer-display");
-  if (display) display.textContent = formatMMSS(seconds);
+  cards.forEach((el) => el.classList.remove("rest-timer-done"));
+  btns.forEach((el) => { el.textContent = "Cancel"; });
+  displays.forEach((el) => { el.textContent = formatMMSS(seconds); });
   restTimer.intervalId = setInterval(restTimerTick, 1000);
 }
 
@@ -943,6 +952,18 @@ function renderExercise() {
   const weeksSorted = [...ex.weeks].sort((a, b) => a.week - b.week);
   const isWeekEmpty = (w) => w.values.every((v) => !v) && (w.reps || []).every((v) => !v) && !w.notes;
   const currentWeek = weeksSorted.find((w) => !w.updatedAt && isWeekEmpty(w));
+
+  const restKey = `${dayId}:${exerciseId}`;
+  const restSeconds = parseRestSeconds(ex.restTime);
+  const timerRunning = restTimer.intervalId && restTimer.key === restKey;
+  const timerFinished = !restTimer.intervalId && restTimer.key === restKey && restTimer.total > 0 && restTimer.remaining === 0;
+  const timerDisplaySeconds = timerRunning ? restTimer.remaining : (timerFinished ? 0 : (restSeconds || 0));
+  const restTimerMini = restSeconds ? `
+    <div class="rest-timer-mini rest-timer-card${timerFinished ? " rest-timer-done" : ""}">
+      <span class="rest-timer-display">${formatMMSS(timerDisplaySeconds)}</span>
+      <button class="btn small ${timerRunning ? "" : "primary"} rest-timer-btn" data-action="toggle-rest-timer" data-key="${esc(restKey)}" data-seconds="${restSeconds}">${timerRunning ? "Cancel" : "Start rest"}</button>
+    </div>
+  ` : "";
 
   // Nearest earlier week (by position, not just the row right before) that
   // actually has a value for this set column -- lets a skipped week fall
@@ -975,6 +996,7 @@ function renderExercise() {
           ${w.updatedAt ? `<span class="hint">updated ${relativeTime(w.updatedAt)}</span>` : ""}
         </div>
         <div class="week-fields">${fields}</div>
+        ${restTimerMini}
         <label>Notes</label>
         <input type="text" value="${esc(w.notes || "")}" data-week="${w.week}" data-kind="notes" />
       </div>
@@ -982,11 +1004,6 @@ function renderExercise() {
   }).join("");
 
   const findOnYoutube = `<a class="btn ghost small" href="${youtubeSearchUrl(ex.name)}" target="_blank" rel="noopener noreferrer" style="width:auto;padding:6px 10px;text-decoration:none;" aria-label="Find &quot;${esc(ex.name)}&quot; on YouTube">&#9654;</a>`;
-  const restKey = `${dayId}:${exerciseId}`;
-  const restSeconds = parseRestSeconds(ex.restTime);
-  const timerRunning = restTimer.intervalId && restTimer.key === restKey;
-  const timerFinished = !restTimer.intervalId && restTimer.key === restKey && restTimer.total > 0 && restTimer.remaining === 0;
-  const timerDisplaySeconds = timerRunning ? restTimer.remaining : (timerFinished ? 0 : (restSeconds || 0));
   return `
     ${topbar(ex.name, { back: true, right: findOnYoutube })}
     <div class="row" style="margin-bottom:10px;flex-wrap:wrap;gap:8px;">
@@ -994,17 +1011,6 @@ function renderExercise() {
       ${ex.restTime ? `<span class="source-chip">Rest: ${esc(ex.restTime)}</span>` : ""}
       ${ex.videoUrl ? `<a class="source-chip" href="${esc(ex.videoUrl)}" target="_blank" rel="noopener noreferrer">&#9654; Video</a>` : ""}
     </div>
-    ${restSeconds ? `
-      <div class="card rest-timer-card${timerFinished ? " rest-timer-done" : ""}" id="rest-timer-card">
-        <div class="row">
-          <div>
-            <h3 id="rest-timer-display">${formatMMSS(timerDisplaySeconds)}</h3>
-            <p class="hint">Rest timer</p>
-          </div>
-          <button class="btn primary" id="rest-timer-btn" data-action="toggle-rest-timer" data-key="${esc(restKey)}" data-seconds="${restSeconds}">${timerRunning ? "Cancel" : "Start"}</button>
-        </div>
-      </div>
-    ` : ""}
     ${renderVideoEmbed(ex.videoUrl)}
     ${ex.setupNote ? `<div class="card"><p>${esc(ex.setupNote)}</p></div>` : ""}
     <p class="hint" style="margin:2px 0 10px;">Grayed-out numbers show what you logged last time -- type over them to log this week.</p>
