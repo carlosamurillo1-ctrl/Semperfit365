@@ -1021,6 +1021,7 @@ function renderCoach() {
       </div>
       <div class="btn-row" style="margin-top:10px;">
         ${priced && !paid ? `<button class="btn small primary" data-action="mark-client-paid" data-client="${esc(c.id)}" data-label="${esc(c.label)}">Mark as paid</button>` : ""}
+        <button class="btn ghost small" data-action="copy-existing-client-link" data-client="${esc(c.id)}" data-price="${c.priceCents || 0}">Copy link</button>
         <button class="btn ghost small" data-action="remove-coach-client" data-client="${esc(c.id)}" data-label="${esc(c.label)}">Remove</button>
       </div>
     </div>
@@ -1421,6 +1422,16 @@ function onClick(e) {
       break;
     }
     case "open-coach-client": navigate("coach-client", { clientId: el.dataset.client, clientLabel: el.dataset.label }); break;
+    case "copy-existing-client-link": {
+      const linkParams = new URLSearchParams({ client: el.dataset.client });
+      const priceCents = Number(el.dataset.price) || 0;
+      if (priceCents > 0) linkParams.set("price", String(priceCents));
+      const link = `${window.location.origin}${window.location.pathname}?${linkParams.toString()}`;
+      navigator.clipboard.writeText(link)
+        .then(() => toast("Link copied"))
+        .catch(() => toast("Couldn't copy — try again"));
+      break;
+    }
     case "mark-client-paid": {
       if (confirm(`Confirm you've received ${el.dataset.label}'s payment? Their app will unlock automatically.`)) {
         markClientPaid(getOrCreateCoachId(), el.dataset.client).catch(() => toast("Couldn't update — check your connection"));
