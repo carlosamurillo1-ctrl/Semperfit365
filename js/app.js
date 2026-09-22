@@ -4,6 +4,8 @@ import { Store } from "./store.js";
 import { SEED_SHEET_TEXT } from "./seedProgram.js";
 import { PROGRAM_TEMPLATES } from "./programTemplates.js";
 import { EXERCISE_CATALOG, MUSCLE_GROUPS } from "./exerciseCatalog.js";
+import { Nutrition } from "./nutrition.js";
+import { lookupBarcode, searchFoodByName } from "./foodApi.js";
 import {
   isSyncConfigured,
   newId,
@@ -153,7 +155,7 @@ function teardownCoachClientListener() {
 function navigate(screen, params = {}) {
   state.screen = screen;
   state.params = params;
-  if (["program", "history", "settings"].includes(screen)) state.tab = screen;
+  if (["program", "history", "nutrition", "settings"].includes(screen)) state.tab = screen;
 
   if (screen === "coach") {
     teardownCoachClientListener();
@@ -215,7 +217,7 @@ function render() {
   const isPaywallGate = state.screen === "paywall-signin" || state.screen === "paywall-payment";
   tabbar.style.display = isPaywallGate ? "none" : "";
   tabbar.querySelectorAll(".tab").forEach((btn) => {
-    btn.classList.toggle("active", btn.dataset.route === state.tab && ["program", "history", "settings"].includes(state.screen));
+    btn.classList.toggle("active", btn.dataset.route === state.tab && ["program", "history", "nutrition", "settings"].includes(state.screen));
   });
 
   let html = "";
@@ -241,6 +243,16 @@ function render() {
     case "coach-client-assign-program": html = renderCoachClientAssignProgram(); break;
     case "coach-client-day": html = renderCoachClientDay(); break;
     case "coach-client-exercise": html = renderCoachClientExercise(); break;
+    case "nutrition": html = renderNutrition(); break;
+    case "nutrition-add": html = renderNutritionAdd(); break;
+    case "nutrition-search": html = renderNutritionSearch(); break;
+    case "nutrition-scan": html = renderNutritionScan(); break;
+    case "nutrition-review": html = renderNutritionReview(); break;
+    case "nutrition-manual": html = renderNutritionManual(); break;
+    case "nutrition-weight": html = renderNutritionWeight(); break;
+    case "nutrition-goals": html = renderNutritionGoals(); break;
+    case "nutrition-recipes": html = renderNutritionRecipes(); break;
+    case "nutrition-recipe-new": html = renderNutritionRecipeNew(); break;
     default: html = renderProgram();
   }
   if (state.toast) html += `<div class="toast">${esc(state.toast)}</div>`;
@@ -1784,6 +1796,18 @@ function onClick(e) {
       else if (state.screen === "coach-client-assign-program") navigate("coach-client", { clientId: state.params.clientId, clientLabel: state.params.clientLabel });
       else if (state.screen === "coach-client-day") navigate("coach-client", { clientId: state.params.clientId, clientLabel: state.params.clientLabel });
       else if (state.screen === "coach-client-exercise") navigate("coach-client-day", { clientId: state.params.clientId, clientLabel: state.params.clientLabel, dayId: state.params.dayId });
+      else if (state.screen === "nutrition-add") navigate("nutrition", { dateStr: state.params.dateStr });
+      else if (["nutrition-manual", "nutrition-search", "nutrition-review"].includes(state.screen)) {
+        if (recipeDraft) navigate("nutrition-recipe-new");
+        else navigate("nutrition-add", { dateStr: state.params.dateStr, mealType: state.params.mealType });
+      }
+      else if (state.screen === "nutrition-scan") {
+        stopBarcodeScan();
+        navigate("nutrition-add", { dateStr: state.params.dateStr, mealType: state.params.mealType });
+      }
+      else if (["nutrition-weight", "nutrition-goals", "nutrition-recipes"].includes(state.screen)) navigate("nutrition");
+      else if (state.screen === "nutrition-recipe-new") navigate("nutrition-recipes");
+      else if (state.screen === "nutrition") navigate("program");
       else navigate("program");
       break;
     }
@@ -1998,11 +2022,89 @@ function onClick(e) {
     case "go-assign-program": navigate("coach-client-assign-program", { clientId: el.dataset.client, clientLabel: el.dataset.label }); break;
     case "confirm-assign-program": confirmAssignProgram(el.dataset.client, el.dataset.label); break;
     case "open-coach-client-exercise": navigate("coach-client-exercise", { clientId: el.dataset.client, clientLabel: el.dataset.label, dayId: el.dataset.day, exerciseId: el.dataset.exercise }); break;
+
+    // ---- Nutrition ----
+    case "nutrition-date-shift": navigate("nutrition", { dateStr: shiftDateStr(el.dataset.date, Number(el.dataset.delta)) }); break;
+    case "go-nutrition-add": navigate("nutrition-add", { dateStr: el.dataset.date, mealType: el.dataset.meal }); break;
+    case "go-nutrition-manual": navigate("nutrition-manual", { dateStr: el.dataset.date, mealType: el.dataset.meal }); break;
+    case "go-nutrition-search": navigate("nutrition-search", { dateStr: el.dataset.date, mealType: el.dataset.meal }); break;
+    case "go-nutrition-scan": navigate("nutrition-scan", { dateStr: el.dataset.date, mealType: el.dataset.meal }); break;
+    case "go-nutrition-weight": navigate("nutrition-weight"); break;
+    case "go-nutrition-goals": navigate("nutrition-goals"); break;
+    case "go-nutrition-recipes": navigate("nutrition-recipes"); break;
+    case "confirm-manual-food": confirmManualFood(el.dataset.date); break;
+    case "do-food-search": doFoodSearch(el.dataset.date, el.dataset.meal); break;
+    case "pick-search-food": {
+      const food = (state.params.searchResults || [])[Number(el.dataset.index)];
+      if (food) navigate("nutrition-review", { dateStr: state.params.dateStr, mealType: state.params.mealType, food });
+      break;
+    }
+    case "pick-recent-food": {
+      const food = Nutrition.getRecentFoods()[Number(el.dataset.index)];
+      if (food) navigate("nutrition-review", { dateStr: state.params.dateStr, mealType: state.params.mealType, food });
+      break;
+    }
+    case "confirm-review-food": confirmReviewFood(el.dataset.date); break;
+    case "delete-diary-entry": {
+      Nutrition.deleteDiaryEntry(el.dataset.date, el.dataset.entry);
+      render();
+      break;
+    }
+    case "confirm-log-weight": confirmLogWeight(); break;
+    case "delete-weight-entry": {
+      if (confirm("Delete this weigh-in?")) {
+        Nutrition.deleteWeightEntry(el.dataset.id);
+        render();
+      }
+      break;
+    }
+    case "set-weight-unit": {
+      const g = Nutrition.getGoals();
+      g.weightUnit = el.dataset.unit;
+      Nutrition.setGoals(g);
+      render();
+      break;
+    }
+    case "confirm-save-goals": confirmSaveGoals(); break;
+    case "new-recipe": recipeDraft = { name: "", servings: "1", ingredients: [] }; navigate("nutrition-recipe-new"); break;
+    case "cancel-recipe-draft": {
+      if (confirm("Discard this recipe? Any ingredients you've added will be lost.")) {
+        recipeDraft = null;
+        navigate("nutrition-recipes");
+      }
+      break;
+    }
+    case "remove-recipe-ingredient": {
+      recipeDraft.ingredients.splice(Number(el.dataset.index), 1);
+      render();
+      break;
+    }
+    case "confirm-save-recipe": confirmSaveRecipe(); break;
+    case "log-recipe": logRecipeToDiary(el.dataset.recipe); break;
+    case "delete-recipe": {
+      if (confirm("Delete this recipe?")) {
+        Nutrition.deleteRecipe(el.dataset.recipe);
+        render();
+      }
+      break;
+    }
   }
 }
 
 function onInput(e) {
   const el = e.target;
+  if (el.id === "rev-qty" && state.screen === "nutrition-review") {
+    recomputeReviewPreview();
+    return;
+  }
+  if (el.id === "recipe-name" && state.screen === "nutrition-recipe-new" && recipeDraft) {
+    recipeDraft.name = el.value;
+    return;
+  }
+  if (el.id === "recipe-servings" && state.screen === "nutrition-recipe-new" && recipeDraft) {
+    recipeDraft.servings = el.value;
+    return;
+  }
   if (el.id === "library-search" && state.screen === "exercise-library") {
     state.libraryFilter.query = el.value;
     const filtered = filterLibraryEntries(Store.getExerciseLibrary(), state.libraryFilter.query, state.libraryFilter.group);
@@ -2058,6 +2160,554 @@ tabbar.addEventListener("click", (e) => {
   if (!btn) return;
   navigate(btn.dataset.route);
 });
+
+// ---------- NUTRITION (local-only: calories/macros, weight, diary, recipes) ----------
+
+// A recipe being built, held here (not in state.params) because it's
+// accumulated across several round trips through the manual-entry and
+// search screens (each "+ Add ingredient" tap navigates away and back).
+// Non-null only while actively building a new recipe.
+let recipeDraft = null;
+
+function macroRow(totals, goals) {
+  const stat = (label, value, goal, unit) => {
+    const g = Number(goal) || 0;
+    const v = Number(value) || 0;
+    const pct = g > 0 ? Math.min(100, Math.round((v / g) * 100)) : 0;
+    return `
+      <div class="macro-stat">
+        <p class="macro-stat-label">${esc(label)}</p>
+        <h3>${Math.round(v)}${g > 0 ? `<span class="macro-stat-goal">/${Math.round(g)}${unit}</span>` : unit}</h3>
+        ${g > 0 ? `<div class="progress-track"><div class="progress-fill${pct >= 100 ? " complete" : ""}" style="width:${pct}%"></div></div>` : ""}
+      </div>
+    `;
+  };
+  return `
+    <div class="macro-row">
+      ${stat("Calories", totals.calories, goals.calorieGoal, "")}
+      ${stat("Protein", totals.protein, goals.proteinGoal, "g")}
+      ${stat("Carbs", totals.carbs, goals.carbGoal, "g")}
+      ${stat("Fat", totals.fat, goals.fatGoal, "g")}
+    </div>
+  `;
+}
+
+function shiftDateStr(dateStr, deltaDays) {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const dt = new Date(y, m - 1, d + deltaDays);
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
+}
+
+function formatDiaryDate(dateStr) {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const dt = new Date(y, m - 1, d);
+  const todayStr = Nutrition.todayStr();
+  if (dateStr === todayStr) return "Today";
+  if (dateStr === shiftDateStr(todayStr, -1)) return "Yesterday";
+  if (dateStr === shiftDateStr(todayStr, 1)) return "Tomorrow";
+  return dt.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+}
+
+function renderNutrition() {
+  const dateStr = state.params.dateStr || Nutrition.todayStr();
+  const day = Nutrition.getDiaryDay(dateStr);
+  const totals = Nutrition.getDayTotals(dateStr);
+  const goals = Nutrition.getGoals();
+  const hasGoals = goals.calorieGoal || goals.proteinGoal || goals.carbGoal || goals.fatGoal;
+
+  const mealSections = Nutrition.MEAL_TYPES.map((meal) => {
+    const entries = day.entries.filter((e) => e.mealType === meal);
+    const mealTotal = entries.reduce((n, e) => n + (e.calories || 0), 0);
+    const rows = entries.map((e) => `
+      <div class="row food-entry-row">
+        <div>
+          <h3 style="font-size:14px;">${esc(e.name)}${e.brand ? ` <span class="hint">(${esc(e.brand)})</span>` : ""}</h3>
+          <p>${esc(e.qty)} ${esc(e.unit)} &middot; ${Math.round(e.calories)} cal &middot; P${Math.round(e.protein)} C${Math.round(e.carbs)} F${Math.round(e.fat)}</p>
+        </div>
+        <button class="btn ghost small" data-action="delete-diary-entry" data-date="${dateStr}" data-entry="${esc(e.id)}" aria-label="Delete">&#10005;</button>
+      </div>
+    `).join("");
+    return `
+      <div class="card">
+        <div class="row">
+          <h3>${esc(meal)}</h3>
+          <span class="hint">${entries.length ? `${Math.round(mealTotal)} cal` : ""}</span>
+        </div>
+        ${rows}
+        <button class="btn ghost small" style="margin-top:8px;width:auto;" data-action="go-nutrition-add" data-date="${dateStr}" data-meal="${esc(meal)}">+ Add to ${esc(meal.toLowerCase())}</button>
+      </div>
+    `;
+  }).join("");
+
+  return `
+    ${topbar("Nutrition")}
+    <div class="row" style="margin-bottom:12px;">
+      <button class="btn ghost small" style="width:auto;" data-action="nutrition-date-shift" data-date="${dateStr}" data-delta="-1" aria-label="Previous day">&larr;</button>
+      <span class="source-chip" style="flex:1;text-align:center;">${formatDiaryDate(dateStr)}</span>
+      <button class="btn ghost small" style="width:auto;" data-action="nutrition-date-shift" data-date="${dateStr}" data-delta="1" aria-label="Next day">&rarr;</button>
+    </div>
+    <div class="card">
+      ${macroRow(totals, goals)}
+      ${hasGoals ? "" : `<p class="hint" style="margin-top:10px;">No goals set yet. <a href="#" data-action="go-nutrition-goals">Set calorie &amp; macro goals</a> to track progress here.</p>`}
+    </div>
+    ${mealSections}
+    <div class="btn-row">
+      <button class="btn" data-action="go-nutrition-weight">Weight</button>
+      <button class="btn" data-action="go-nutrition-recipes">Recipes</button>
+      <button class="btn" data-action="go-nutrition-goals">Goals</button>
+    </div>
+  `;
+}
+
+function renderNutritionAdd() {
+  const { dateStr, mealType } = state.params;
+  const recent = Nutrition.getRecentFoods().slice(0, 8);
+  const recentRows = recent.map((f, i) => `
+    <div class="card tappable" data-action="pick-recent-food" data-index="${i}">
+      <h3 style="font-size:14px;">${esc(f.name)}${f.brand ? ` <span class="hint">(${esc(f.brand)})</span>` : ""}</h3>
+      <p>${esc(f.qty)} ${esc(f.unit)} &middot; ${Math.round(f.calories)} cal</p>
+    </div>
+  `).join("");
+  return `
+    ${topbar(`Add to ${esc(mealType || "diary")}`, { back: true })}
+    <div class="btn-row">
+      <button class="btn primary" data-action="go-nutrition-scan" data-date="${esc(dateStr)}" data-meal="${esc(mealType)}">Scan barcode</button>
+      <button class="btn" data-action="go-nutrition-search" data-date="${esc(dateStr)}" data-meal="${esc(mealType)}">Search by name</button>
+    </div>
+    <div style="height:8px"></div>
+    <button class="btn" data-action="go-nutrition-manual" data-date="${esc(dateStr)}" data-meal="${esc(mealType)}">Enter manually</button>
+    ${recentRows ? `<div style="height:14px"></div><p class="hint" style="margin-bottom:8px;">Recently logged</p>${recentRows}` : ""}
+  `;
+}
+
+function renderNutritionManual() {
+  const { dateStr, mealType } = state.params;
+  return `
+    ${topbar("Enter manually", { back: true })}
+    <div class="card">
+      <label for="man-name">Food name *</label>
+      <input type="text" id="man-name" placeholder="e.g. Grilled chicken breast" />
+      <label for="man-brand">Brand (optional)</label>
+      <input type="text" id="man-brand" placeholder="e.g. Trader Joe's" />
+      <div class="row">
+        <div style="flex:1;">
+          <label for="man-qty">Quantity</label>
+          <input type="text" id="man-qty" value="1" inputmode="decimal" />
+        </div>
+        <div style="flex:1;">
+          <label for="man-unit">Unit</label>
+          <input type="text" id="man-unit" value="serving" />
+        </div>
+      </div>
+      <label for="man-calories">Calories</label>
+      <input type="text" id="man-calories" inputmode="decimal" placeholder="0" />
+      <div class="row">
+        <div style="flex:1;">
+          <label for="man-protein">Protein (g)</label>
+          <input type="text" id="man-protein" inputmode="decimal" placeholder="0" />
+        </div>
+        <div style="flex:1;">
+          <label for="man-carbs">Carbs (g)</label>
+          <input type="text" id="man-carbs" inputmode="decimal" placeholder="0" />
+        </div>
+        <div style="flex:1;">
+          <label for="man-fat">Fat (g)</label>
+          <input type="text" id="man-fat" inputmode="decimal" placeholder="0" />
+        </div>
+      </div>
+      <label for="man-meal">Meal</label>
+      <select id="man-meal">${Nutrition.MEAL_TYPES.map((m) => `<option value="${esc(m)}" ${m === mealType ? "selected" : ""}>${esc(m)}</option>`).join("")}</select>
+    </div>
+    <button class="btn primary" data-action="confirm-manual-food" data-date="${esc(dateStr)}">${recipeDraft ? "Add to recipe" : "Log it"}</button>
+  `;
+}
+
+function confirmManualFood(dateStr) {
+  const name = document.getElementById("man-name").value.trim();
+  if (!name) { toast("Give it a name"); return; }
+  const entry = {
+    name,
+    brand: document.getElementById("man-brand").value.trim(),
+    qty: document.getElementById("man-qty").value.trim() || "1",
+    unit: document.getElementById("man-unit").value.trim() || "serving",
+    calories: parseFloat(document.getElementById("man-calories").value) || 0,
+    protein: parseFloat(document.getElementById("man-protein").value) || 0,
+    carbs: parseFloat(document.getElementById("man-carbs").value) || 0,
+    fat: parseFloat(document.getElementById("man-fat").value) || 0,
+    mealType: document.getElementById("man-meal").value,
+    source: "manual",
+  };
+  if (recipeDraft) {
+    recipeDraft.ingredients.push(entry);
+    toast(`"${name}" added to recipe`);
+    navigate("nutrition-recipe-new");
+    return;
+  }
+  Nutrition.addDiaryEntry(dateStr, entry);
+  toast(`"${name}" logged`);
+  navigate("nutrition", { dateStr });
+}
+
+function renderNutritionSearch() {
+  const { dateStr, mealType, searchResults, searchQuery, searching } = state.params;
+  const results = (searchResults || []).map((f, i) => `
+    <div class="card tappable" data-action="pick-search-food" data-index="${i}">
+      <h3 style="font-size:14px;">${esc(f.name)}${f.brand ? ` <span class="hint">(${esc(f.brand)})</span>` : ""}</h3>
+      <p>${f.per100g.calories !== null ? `${Math.round(f.per100g.calories)} cal / 100g` : "Nutrition info incomplete"}</p>
+    </div>
+  `).join("");
+  return `
+    ${topbar("Search food", { back: true })}
+    <div class="card">
+      <label for="food-search-input">Food name</label>
+      <input type="text" id="food-search-input" placeholder="e.g. greek yogurt" value="${esc(searchQuery || "")}" />
+      <div style="height:10px"></div>
+      <button class="btn primary" data-action="do-food-search" data-date="${esc(dateStr)}" data-meal="${esc(mealType)}">Search</button>
+    </div>
+    ${searching ? `<p class="hint" style="text-align:center;">Searching...</p>` : ""}
+    ${results || (searchResults ? `<div class="empty"><p>No results. Try a simpler search term, or enter it manually.</p></div>` : "")}
+  `;
+}
+
+async function doFoodSearch(dateStr, mealType) {
+  const query = document.getElementById("food-search-input").value.trim();
+  if (!query) { toast("Type something to search for"); return; }
+  navigate("nutrition-search", { dateStr, mealType, searchQuery: query, searching: true });
+  const results = await searchFoodByName(query);
+  if (state.screen !== "nutrition-search") return; // navigated away while waiting
+  navigate("nutrition-search", { dateStr, mealType, searchQuery: query, searchResults: results, searching: false });
+}
+
+let zxingReader = null;
+function ensureZXingLoaded() {
+  return new Promise((resolve, reject) => {
+    if (window.ZXing) return resolve();
+    const script = document.createElement("script");
+    script.src = "vendor/zxing/zxing-library.min.js";
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("load failed"));
+    document.head.appendChild(script);
+  });
+}
+
+function stopBarcodeScan() {
+  if (zxingReader) {
+    try { zxingReader.reset(); } catch { /* already stopped */ }
+    zxingReader = null;
+  }
+}
+
+async function startBarcodeScan(dateStr, mealType) {
+  const statusEl = document.getElementById("scan-status");
+  try {
+    await ensureZXingLoaded();
+    stopBarcodeScan();
+    zxingReader = new window.ZXing.BrowserMultiFormatReader();
+    const devices = await zxingReader.listVideoInputDevices();
+    if (!devices.length) throw new Error("no camera");
+    const backCam = devices.find((d) => /back|rear|environment/i.test(d.label)) || devices[devices.length - 1];
+    zxingReader.decodeFromVideoDevice(backCam.deviceId, "scan-video", (result) => {
+      if (result) handleBarcodeDetected(result.getText(), dateStr, mealType);
+    });
+  } catch {
+    if (statusEl) statusEl.textContent = "Couldn't access the camera -- check that this browser has camera permission, or use search / manual entry instead.";
+  }
+}
+
+async function handleBarcodeDetected(barcode, dateStr, mealType) {
+  stopBarcodeScan();
+  toast("Looking up barcode…");
+  const food = await lookupBarcode(barcode);
+  if (!food) {
+    toast("Couldn't find that product — try search or manual entry");
+    navigate("nutrition-add", { dateStr, mealType });
+    return;
+  }
+  navigate("nutrition-review", { dateStr, mealType, food });
+}
+
+function renderNutritionScan() {
+  const { dateStr, mealType } = state.params;
+  // Kicked off after render (the <video> element must exist in the DOM first).
+  setTimeout(() => startBarcodeScan(dateStr, mealType), 0);
+  return `
+    ${topbar("Scan barcode", { back: true })}
+    <div class="scan-video-wrap">
+      <video id="scan-video"></video>
+    </div>
+    <p id="scan-status" class="hint" style="text-align:center;margin-top:10px;">Point the camera at a barcode.</p>
+    <button class="btn" data-action="go-nutrition-manual" data-date="${esc(dateStr)}" data-meal="${esc(mealType)}">Enter manually instead</button>
+  `;
+}
+
+function renderNutritionReview() {
+  const { dateStr, mealType, food } = state.params;
+  const usingServing = !!food.perServing;
+  const baseQty = food.qty !== undefined ? Number(food.qty) : (usingServing ? 1 : 100);
+  const baseUnit = food.unit || (usingServing ? "serving" : "g");
+  const per = food.calories !== undefined
+    ? { calories: food.calories, protein: food.protein, carbs: food.carbs, fat: food.fat } // recent-food shape, already for baseQty
+    : (usingServing ? food.perServing : food.per100g);
+  const perBaseQty = usingServing || food.calories !== undefined ? baseQty : 100;
+  return `
+    ${topbar("Review", { back: true })}
+    <div class="card">
+      <h3>${esc(food.name)}</h3>
+      ${food.brand ? `<p class="hint">${esc(food.brand)}</p>` : ""}
+      <div class="row">
+        <div style="flex:1;">
+          <label for="rev-qty">Quantity</label>
+          <input type="text" id="rev-qty" inputmode="decimal" value="${esc(String(baseQty))}" data-per-base-qty="${perBaseQty}" data-per-cal="${per.calories || 0}" data-per-protein="${per.protein || 0}" data-per-carbs="${per.carbs || 0}" data-per-fat="${per.fat || 0}" />
+        </div>
+        <div style="flex:1;">
+          <label for="rev-unit">Unit</label>
+          <input type="text" id="rev-unit" value="${esc(baseUnit)}" />
+        </div>
+      </div>
+      <div id="rev-macro-preview">${macroRow({ calories: per.calories, protein: per.protein, carbs: per.carbs, fat: per.fat }, {})}</div>
+      <label for="rev-meal">Meal</label>
+      <select id="rev-meal">${Nutrition.MEAL_TYPES.map((m) => `<option value="${esc(m)}" ${m === mealType ? "selected" : ""}>${esc(m)}</option>`).join("")}</select>
+    </div>
+    <button class="btn primary" data-action="confirm-review-food" data-date="${esc(dateStr)}">${recipeDraft ? "Add to recipe" : "Log it"}</button>
+  `;
+}
+
+function recomputeReviewPreview() {
+  const qtyEl = document.getElementById("rev-qty");
+  if (!qtyEl) return;
+  const qty = parseFloat(qtyEl.value) || 0;
+  const baseQty = parseFloat(qtyEl.dataset.perBaseQty) || 1;
+  const scale = baseQty > 0 ? qty / baseQty : 0;
+  const totals = {
+    calories: (parseFloat(qtyEl.dataset.perCal) || 0) * scale,
+    protein: (parseFloat(qtyEl.dataset.perProtein) || 0) * scale,
+    carbs: (parseFloat(qtyEl.dataset.perCarbs) || 0) * scale,
+    fat: (parseFloat(qtyEl.dataset.perFat) || 0) * scale,
+  };
+  const preview = document.getElementById("rev-macro-preview");
+  if (preview) preview.innerHTML = macroRow(totals, {});
+}
+
+function confirmReviewFood(dateStr) {
+  const { food } = state.params;
+  const qtyEl = document.getElementById("rev-qty");
+  const qty = parseFloat(qtyEl.value) || 0;
+  const baseQty = parseFloat(qtyEl.dataset.perBaseQty) || 1;
+  const scale = baseQty > 0 ? qty / baseQty : 0;
+  const entry = {
+    name: food.name,
+    brand: food.brand || "",
+    qty: qtyEl.value.trim() || "1",
+    unit: document.getElementById("rev-unit").value.trim() || "serving",
+    calories: (parseFloat(qtyEl.dataset.perCal) || 0) * scale,
+    protein: (parseFloat(qtyEl.dataset.perProtein) || 0) * scale,
+    carbs: (parseFloat(qtyEl.dataset.perCarbs) || 0) * scale,
+    fat: (parseFloat(qtyEl.dataset.perFat) || 0) * scale,
+    mealType: document.getElementById("rev-meal").value,
+    source: food.barcode ? "barcode" : "search",
+  };
+  if (recipeDraft) {
+    recipeDraft.ingredients.push(entry);
+    toast(`"${entry.name}" added to recipe`);
+    navigate("nutrition-recipe-new");
+    return;
+  }
+  Nutrition.addDiaryEntry(dateStr, entry);
+  toast(`"${entry.name}" logged`);
+  navigate("nutrition", { dateStr });
+}
+
+function renderNutritionWeight() {
+  const log = Nutrition.getWeightLog();
+  const goals = Nutrition.getGoals();
+  const unit = goals.weightUnit || "lb";
+  const rows = log.slice().reverse().map((w) => `
+    <div class="row">
+      <div>
+        <h3 style="font-size:14px;">${w.weight} ${esc(unit)}</h3>
+        <p>${esc(w.date)}${w.note ? ` &middot; ${esc(w.note)}` : ""}</p>
+      </div>
+      <button class="btn ghost small" data-action="delete-weight-entry" data-id="${esc(w.id)}" aria-label="Delete">&#10005;</button>
+    </div>
+  `).join("");
+  const latest = log.length ? log[log.length - 1] : null;
+  return `
+    ${topbar("Weight", { back: true })}
+    <div class="card">
+      ${latest ? `<p>Latest: <strong>${latest.weight} ${esc(unit)}</strong> (${esc(latest.date)})</p>` : `<p class="hint">No weigh-ins logged yet.</p>`}
+      ${goals.weightGoal ? `<p>Goal: <strong>${esc(goals.weightGoal)} ${esc(unit)}</strong></p>` : `<p class="hint">No weight goal set -- <a href="#" data-action="go-nutrition-goals">set one</a>.</p>`}
+    </div>
+    <div class="card">
+      <label for="weight-date">Date</label>
+      <input type="date" id="weight-date" value="${Nutrition.todayStr()}" />
+      <label for="weight-input">Weight (${esc(unit)})</label>
+      <input type="text" id="weight-input" inputmode="decimal" placeholder="e.g. 165" />
+      <label for="weight-note">Note (optional)</label>
+      <input type="text" id="weight-note" placeholder="e.g. after workout" />
+      <div style="height:10px"></div>
+      <button class="btn primary" data-action="confirm-log-weight">Log weight</button>
+    </div>
+    ${rows || ""}
+  `;
+}
+
+function confirmLogWeight() {
+  const dateStr = document.getElementById("weight-date").value || Nutrition.todayStr();
+  const weight = parseFloat(document.getElementById("weight-input").value);
+  if (!weight || weight <= 0) { toast("Enter a valid weight"); return; }
+  const note = document.getElementById("weight-note").value.trim();
+  Nutrition.logWeight(dateStr, weight, note);
+  toast("Weight logged");
+  render();
+}
+
+function renderNutritionGoals() {
+  const g = Nutrition.getGoals();
+  return `
+    ${topbar("Nutrition goals", { back: true })}
+    <div class="card">
+      <h3>Daily targets</h3>
+      <label for="goal-calories">Calorie goal</label>
+      <input type="text" id="goal-calories" inputmode="decimal" value="${esc(g.calorieGoal)}" placeholder="e.g. 2200" />
+      <div class="row">
+        <div style="flex:1;">
+          <label for="goal-protein">Protein (g)</label>
+          <input type="text" id="goal-protein" inputmode="decimal" value="${esc(g.proteinGoal)}" placeholder="e.g. 160" />
+        </div>
+        <div style="flex:1;">
+          <label for="goal-carbs">Carbs (g)</label>
+          <input type="text" id="goal-carbs" inputmode="decimal" value="${esc(g.carbGoal)}" placeholder="e.g. 220" />
+        </div>
+        <div style="flex:1;">
+          <label for="goal-fat">Fat (g)</label>
+          <input type="text" id="goal-fat" inputmode="decimal" value="${esc(g.fatGoal)}" placeholder="e.g. 70" />
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Weight</h3>
+      <div class="btn-row" style="margin-top:10px;">
+        <button class="btn ${g.weightUnit !== "kg" ? "primary" : ""}" data-action="set-weight-unit" data-unit="lb">lb</button>
+        <button class="btn ${g.weightUnit === "kg" ? "primary" : ""}" data-action="set-weight-unit" data-unit="kg">kg</button>
+      </div>
+      <label for="goal-start-weight">Starting weight</label>
+      <input type="text" id="goal-start-weight" inputmode="decimal" value="${esc(g.startWeight)}" />
+      <label for="goal-weight">Goal weight</label>
+      <input type="text" id="goal-weight" inputmode="decimal" value="${esc(g.weightGoal)}" />
+    </div>
+    <button class="btn primary" data-action="confirm-save-goals">Save goals</button>
+  `;
+}
+
+function confirmSaveGoals() {
+  const g = Nutrition.getGoals();
+  Nutrition.setGoals({
+    calorieGoal: document.getElementById("goal-calories").value.trim(),
+    proteinGoal: document.getElementById("goal-protein").value.trim(),
+    carbGoal: document.getElementById("goal-carbs").value.trim(),
+    fatGoal: document.getElementById("goal-fat").value.trim(),
+    weightUnit: g.weightUnit || "lb",
+    startWeight: document.getElementById("goal-start-weight").value.trim(),
+    weightGoal: document.getElementById("goal-weight").value.trim(),
+  });
+  toast("Goals saved");
+  navigate("nutrition");
+}
+
+function renderNutritionRecipes() {
+  if (recipeDraft) return renderNutritionRecipeNew();
+  const recipes = Nutrition.getRecipes();
+  const rows = recipes.map((r) => {
+    const per = Nutrition.perServing(r);
+    return `
+      <div class="card tappable" data-action="log-recipe" data-recipe="${esc(r.id)}">
+        <div class="row">
+          <div>
+            <h3 style="font-size:14px;">${esc(r.name)}</h3>
+            <p>${r.servings} serving${r.servings === 1 ? "" : "s"} &middot; ${Math.round(per.calories)} cal/serving &middot; P${Math.round(per.protein)} C${Math.round(per.carbs)} F${Math.round(per.fat)}</p>
+          </div>
+          <button class="btn ghost small" data-action="delete-recipe" data-recipe="${esc(r.id)}" aria-label="Delete">&#10005;</button>
+        </div>
+      </div>
+    `;
+  }).join("");
+  return `
+    ${topbar("Recipes", { back: true })}
+    <button class="btn primary" data-action="new-recipe">+ New recipe</button>
+    <div style="height:12px"></div>
+    ${rows || `<div class="empty"><p>No recipes saved yet. Build one from ingredients with their macros, then quick-log a serving any time.</p></div>`}
+  `;
+}
+
+function renderNutritionRecipeNew() {
+  if (!recipeDraft) recipeDraft = { name: "", servings: "1", ingredients: [] };
+  const ingredientRows = recipeDraft.ingredients.map((ing, i) => `
+    <div class="row">
+      <div>
+        <h3 style="font-size:14px;">${esc(ing.name)}</h3>
+        <p>${Math.round(ing.calories)} cal &middot; P${Math.round(ing.protein)} C${Math.round(ing.carbs)} F${Math.round(ing.fat)}</p>
+      </div>
+      <button class="btn ghost small" data-action="remove-recipe-ingredient" data-index="${i}" aria-label="Remove">&#10005;</button>
+    </div>
+  `).join("");
+  const totals = recipeDraft.ingredients.reduce((t, i) => ({
+    calories: t.calories + (i.calories || 0),
+    protein: t.protein + (i.protein || 0),
+    carbs: t.carbs + (i.carbs || 0),
+    fat: t.fat + (i.fat || 0),
+  }), { calories: 0, protein: 0, carbs: 0, fat: 0 });
+  return `
+    ${topbar("New recipe", { back: true })}
+    <div class="card">
+      <label for="recipe-name">Recipe name</label>
+      <input type="text" id="recipe-name" value="${esc(recipeDraft.name)}" placeholder="e.g. Protein overnight oats" />
+      <label for="recipe-servings">Servings</label>
+      <input type="text" id="recipe-servings" inputmode="numeric" value="${esc(recipeDraft.servings)}" />
+    </div>
+    <div class="card">
+      <h3>Ingredients</h3>
+      ${ingredientRows || `<p class="hint">None added yet.</p>`}
+      <div class="btn-row" style="margin-top:10px;">
+        <button class="btn" data-action="go-nutrition-manual" data-date="" data-meal="">+ Add ingredient (manual)</button>
+        <button class="btn" data-action="go-nutrition-search" data-date="" data-meal="">+ Add ingredient (search)</button>
+      </div>
+      ${recipeDraft.ingredients.length ? `<p class="hint" style="margin-top:10px;">Total: ${Math.round(totals.calories)} cal &middot; P${Math.round(totals.protein)} C${Math.round(totals.carbs)} F${Math.round(totals.fat)}</p>` : ""}
+    </div>
+    <button class="btn primary" data-action="confirm-save-recipe" ${recipeDraft.ingredients.length ? "" : "disabled"}>Save recipe</button>
+    <div style="height:8px"></div>
+    <button class="btn ghost" data-action="cancel-recipe-draft">Cancel</button>
+  `;
+}
+
+function confirmSaveRecipe() {
+  const name = document.getElementById("recipe-name").value.trim();
+  if (!name) { toast("Give the recipe a name"); return; }
+  const servings = document.getElementById("recipe-servings").value.trim() || "1";
+  if (!recipeDraft.ingredients.length) { toast("Add at least one ingredient"); return; }
+  Nutrition.saveRecipe(name, servings, recipeDraft.ingredients);
+  recipeDraft = null;
+  navigate("nutrition-recipes");
+  toast(`"${name}" saved`);
+}
+
+function logRecipeToDiary(recipeId) {
+  const recipe = Nutrition.getRecipe(recipeId);
+  if (!recipe) return;
+  const per = Nutrition.perServing(recipe);
+  Nutrition.addDiaryEntry(Nutrition.todayStr(), {
+    name: recipe.name,
+    qty: "1",
+    unit: "serving",
+    calories: per.calories,
+    protein: per.protein,
+    carbs: per.carbs,
+    fat: per.fat,
+    mealType: "Snacks",
+    source: "recipe",
+  });
+  toast(`"${recipe.name}" logged to today`);
+  navigate("nutrition");
+}
 
 // ---------- boot ----------
 

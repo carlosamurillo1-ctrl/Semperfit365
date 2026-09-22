@@ -418,3 +418,65 @@ select { appearance: none; }
   text-anchor: middle;
   pointer-events: none;
 }
+
+/* ---- Nutrition ---- */
+
+.macro-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+.macro-stat { min-width: 0; }
+.macro-stat-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.macro-stat h3 {
+  margin: 2px 0 0;
+  font-size: 18px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.macro-stat-goal {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-top: 1px;
+}
+
+.food-entry-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+}
+.food-entry-row:first-of-type { border-top: none; padding-top: 0; }
+
+.scan-video-wrap {
+  position: relative;
+  width: 100%;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: #000;
+  margin-bottom: 14px;
+  aspect-ratio: 3 / 4;
+}
+#scan-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.scan-video-wrap::after {
+  content: "";
+  position: absolute;
+  inset: 18% 12%;
+  border: 2px solid color-mix(in srgb, #fff 70%, transparent);
+  border-radius: 12px;
+  pointer-events: none;
+}

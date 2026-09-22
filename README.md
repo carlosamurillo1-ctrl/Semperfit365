@@ -37,6 +37,19 @@ Requires coach sync to already be set up (above). Like everything else in that s
 
 **Changing an *existing* client's program** (not just what a new client starts with): open that client from your coach dashboard and tap **Assign new program**. Pick from the same list (built-in templates, your own published programs, or copy-and-customize one on the spot) and it applies automatically the next time their app syncs -- they don't have to do anything, though a fresh reopen of the app is the fastest way. It's added as a new program on their device alongside whatever they already had; nothing already there is touched or deleted. If they end up with programs they no longer need, they (or you, walking them through it) can remove any of them from their own Settings → Saved programs → **Delete**.
 
+## Nutrition tracker
+
+A **Nutrition** tab sits alongside Program/History/Settings: daily calorie & macro goals, a food diary (Breakfast/Lunch/Dinner/Snacks), a weight log, and simple recipes you build once from ingredients and re-log with one tap.
+
+Three ways to log a food:
+- **Enter manually** — type in the name and macros yourself. Always available, works fully offline.
+- **Search by name** — looks up [Open Food Facts](https://world.openfoodfacts.org), a free, no-signup food database, then lets you adjust the quantity before logging.
+- **Scan barcode** — uses the device camera (via the vendored ZXing library) to read a barcode and looks up the same database. Needs camera permission and a real phone/browser — this can't be exercised in an automated test environment, so if scanning ever looks off, it's worth testing directly on a phone.
+
+Both the search and scan paths fall back gracefully to manual entry if a food isn't found or the network/camera isn't available.
+
+This is deliberately **local-only, like the app's original workout data**: nothing in the nutrition tracker is synced to Firestore or visible to a coach, even with coach sync configured. It's a client's own private data on their own device unless a future change explicitly says otherwise.
+
 ## Charging clients — Zelle paywall + real sign-in
 
 When you set a **Price** while adding a client (Coach dashboard → Add client), that specific client's link works differently from a free one: they have to verify a real email and you have to confirm payment before their program unlocks. Everything below is optional — leave the price field blank and a client's link works exactly as described above, no sign-in, no payment step.
@@ -134,3 +147,4 @@ Any other static host (Netlify, Vercel, Cloudflare Pages, S3, etc.) works too �
 - One Google Sheet tab (gid) = one workout day. Import each day of your program separately from Settings, or paste several days at once — the importer splits on lines that mention a weekday (Monday–Sunday) or "Phase N" and reviews each as its own day.
 - Merged cells or ragged rows in the source sheet can occasionally shift a value into the wrong column on import (the app reads columns by position, faithfully, without guessing) — everything is editable after import, so just retype anything that landed wrong.
 - Settings → a day's "Refresh" button re-pulls that day from its Google Sheet and updates exercises/rep goals/rest times, while keeping anything you've already logged for a given week.
+- Nutrition data (goals, diary, weight log, recipes) lives in local storage only, same as the base workout data — it's never part of coach sync.
