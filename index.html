@@ -121,25 +121,8 @@
     gap: 16px;
     height: 76px;
   }
-  .nav-logo { display: flex; align-items: center; gap: 11px; text-decoration: none; color: var(--text); }
-  .nav-logo .ring { width: 42px; height: 42px; display: block; flex: none; }
-  @media (min-width: 560px) { .nav-logo .ring { width: 38px; height: 38px; } }
-  .nav-logo .wordmark {
-    /* Arial Narrow keeps the fallback condensed, so a slow webfont can't
-       suddenly widen the lockup enough to shove the Start Here button. */
-    font-family: Oswald, "Arial Narrow", sans-serif;
-    font-weight: 700;
-    font-size: 25px;
-    letter-spacing: .015em;
-    text-transform: uppercase;
-    line-height: 1;
-    white-space: nowrap;
-    display: none;
-  }
-  .nav-logo .wordmark .yr { color: var(--accent); }
-  /* Phones get the mark alone: there is no room for the wordmark beside the
-     Start Here button, and the mark is the half that has to survive anyway. */
-  @media (min-width: 560px) { .nav-logo .wordmark { display: block; } }
+  .nav-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--text); }
+  .nav-logo img { height: 46px; width: auto; display: block; }
   .nav-links { display: none; gap: 28px; }
   .nav-links a {
     font-family: Oswald, sans-serif;
@@ -686,17 +669,7 @@
     color: var(--dim);
     font-size: 14px;
   }
-  .foot-logo { display: inline-flex; align-items: center; gap: 13px; margin-bottom: 20px; color: var(--text); }
-  .foot-logo .ring { width: 46px; height: 46px; display: block; flex: none; }
-  .foot-logo .wordmark {
-    font-family: Oswald, "Arial Narrow", sans-serif;
-    font-weight: 700;
-    font-size: 30px;
-    letter-spacing: .015em;
-    text-transform: uppercase;
-    line-height: 1;
-  }
-  .foot-logo .wordmark .yr { color: var(--accent); }
+  footer img { height: 76px; width: auto; margin-bottom: 20px; opacity: .92; }
   footer .legal { margin-top: 12px; font-size: 12.5px; opacity: .75; }
 
   /* ---------- scroll reveal ---------- */
@@ -710,8 +683,7 @@
 <header class="nav">
   <div class="wrap nav-inner">
     <a class="nav-logo" href="#top">
-      <svg class="ring" viewBox="0 0 100 100" aria-hidden="true"><path d="M 61.29 18.99 A 33 33 0 1 1 38.71 18.99" fill="none" stroke="currentColor" stroke-width="10"/><circle cx="50" cy="17" r="6.5" fill="#5ee6a8"/></svg>
-      <span class="wordmark">SemperFit<span class="yr">365</span></span>
+      <img src="app/icons/logo-mark.png" alt="SemperFit365" />
     </a>
     <nav class="nav-links">
       <a href="#about">About</a>
@@ -1220,7 +1192,7 @@
 <!-- ================= FOOTER ================= -->
 <footer>
   <div class="wrap">
-    <div class="foot-logo"><svg class="ring" viewBox="0 0 100 100" aria-hidden="true"><path d="M 61.29 18.99 A 33 33 0 1 1 38.71 18.99" fill="none" stroke="currentColor" stroke-width="10"/><circle cx="50" cy="17" r="6.5" fill="#5ee6a8"/></svg><span class="wordmark">SemperFit<span class="yr">365</span></span></div>
+    <img src="app/icons/logo-mark.png" alt="SemperFit365" />
     <div>SemperFit365 &middot; Personal Training</div>
     <div style="color:var(--accent);font-family:Oswald,sans-serif;text-transform:uppercase;letter-spacing:.1em;font-size:13px;margin-top:6px;">
       &ldquo;It all starts with a mindset&rdquo;

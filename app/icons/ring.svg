@@ -1,6 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="SemperFit365">
-  <!-- A year as a closed ring, broken at the top, with today marked in the gap. -->
-  <path d="M 61.29 18.99 A 33 33 0 1 1 38.71 18.99"
-        fill="none" stroke="currentColor" stroke-width="10" stroke-linecap="butt" />
-  <circle cx="50" cy="17" r="6.5" fill="#5ee6a8" />
-</svg>
