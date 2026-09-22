@@ -248,6 +248,23 @@ export async function unpublishCustomProgram(programId) {
   await database.collection("customPrograms").doc(programId).delete();
 }
 
+/** Pushes a new program onto an *existing* client -- picked up automatically
+ * the next time their device syncs (the same live listener that already
+ * watches for revocation), as a new saved program alongside whatever they
+ * already have, never overwriting or deleting their history. */
+export async function assignProgramToClient(clientId, assignment) {
+  const database = ensureDb();
+  await database.collection("clients").doc(clientId).set(
+    {
+      assignedProgram: {
+        ...assignment,
+        assignedAt: window.firebase.firestore.FieldValue.serverTimestamp(),
+      },
+    },
+    { merge: true }
+  );
+}
+
 /** Live-subscribe to a coach's client roster. Returns an unsubscribe function. */
 export function listenRoster(coachId, callback) {
   const database = ensureDb();

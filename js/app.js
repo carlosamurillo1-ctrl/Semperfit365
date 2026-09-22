@@ -18,6 +18,7 @@ import {
   publishCustomProgram,
   getCustomProgram,
   unpublishCustomProgram,
+  assignProgramToClient,
   isSignInLink,
   sendClientSignInLink,
   completeClientSignIn,
@@ -33,6 +34,7 @@ const LOCAL_KEYS = {
   clientPaid: "sf365.clientPaid",
   clientEmail: "sf365.clientEmail",
   theme: "sf365.theme",
+  lastAppliedAssignment: "sf365.lastAppliedAssignment",
 };
 
 /** "auto" (default, follows system) | "light" | "dark" -- a per-device display preference, not synced. */
@@ -236,6 +238,7 @@ function render() {
     case "coach-add-client": html = renderCoachAddClient(); break;
     case "coach-client-link": html = renderCoachClientLink(); break;
     case "coach-client": html = renderCoachClient(); break;
+    case "coach-client-assign-program": html = renderCoachClientAssignProgram(); break;
     case "coach-client-day": html = renderCoachClientDay(); break;
     case "coach-client-exercise": html = renderCoachClientExercise(); break;
     default: html = renderProgram();
@@ -1083,7 +1086,7 @@ function renderSettings() {
     <div class="row">
       <div>
         <h3 style="font-size:14px;">${esc(p.name)}${p.active ? ' <span class="pill">Active</span>' : ""}</h3>
-        <p>${p.dayCount} day${p.dayCount === 1 ? "" : "s"}${p.publishedId ? " &middot; Published for clients" : ""}</p>
+        <p>${p.dayCount} day${p.dayCount === 1 ? "" : "s"}${p.importedAt ? ` &middot; Updated ${relativeTime(p.importedAt)}` : ""}${p.publishedId ? " &middot; Published for clients" : ""}</p>
       </div>
       <div class="btn-row" style="width:auto;gap:6px;flex-wrap:wrap;">
         ${p.active ? "" : `<button class="btn small" data-action="switch-program-btn" data-program="${esc(p.id)}">Switch to</button>`}
@@ -1131,6 +1134,7 @@ function renderSettings() {
     </div>
     <div class="card">
       <h3>Saved programs</h3>
+      ${programs.length > 1 ? `<p class="hint">Switch between these any time, or tap Delete to remove one you no longer need (never the last one).</p>` : ""}
       ${programRows || "<p>None yet.</p>"}
     </div>
     <div class="card">
@@ -1224,6 +1228,12 @@ function renderTemplates() {
   return `
     ${topbar("Program templates", { back: true })}
     <div class="card">
+      <h3>Build one from scratch</h3>
+      <p>Start a brand-new, empty program and build it day by day, picking exercises from the library (search or the body-part diagram) as you go.</p>
+      <div style="height:10px"></div>
+      <button class="btn primary" data-action="create-blank-program">+ Create new program</button>
+    </div>
+    <div class="card">
       <p><strong>Save as new program</strong> saves this template as a separate program on this device and switches to it. Nothing on the old program is touched — switch back to it any time from the dropdown at the top of the Program tab (once you have more than one saved).</p>
       <p><strong>Replace current</strong> erases the currently active program and every logged week in it, then loads the template in its place. Any other saved programs on this device are untouched.</p>
       ${canPublish ? `<p><strong>Copy, rename &amp; assign to a client</strong> makes your own editable copy under whatever name you give it, publishes it privately (not as a public template), and takes you straight to Add Client with it pre-selected.</p>` : ""}
@@ -1231,6 +1241,14 @@ function renderTemplates() {
     </div>
     ${rows}
   `;
+}
+
+function createBlankProgram() {
+  const name = prompt("Name your new program", "New Program");
+  if (!name || !name.trim()) return;
+  Store.createProgram(name.trim(), []);
+  toast(`"${name.trim()}" created — add your first day`);
+  navigate("import");
 }
 
 function addTemplate(id) {
@@ -1444,25 +1462,51 @@ async function unpublishSavedProgram(programId, publishedId) {
   render();
 }
 
-function renderCoachAddClient() {
-  const preselect = state.params.preselectProgram || "";
+/** Shared <optgroup> markup for a "which program" <select>: built-in
+ * templates, the coach's own published programs, and (if sync is set up) a
+ * "copy & customize" option per template. Used by both Add Client and
+ * Assign Program (existing client). */
+function programPickerOptgroups(preselect, copyLabel) {
   const builtInOptions = PROGRAM_TEMPLATES.map((t) => `<option value="${esc(t.id)}" ${preselect === t.id ? "selected" : ""}>${esc(t.name)}</option>`).join("");
   const myPrograms = Store.listPrograms().filter((p) => p.publishedId);
   const myOptions = myPrograms.map((p) => `<option value="custom:${esc(p.publishedId)}" ${preselect === `custom:${p.publishedId}` ? "selected" : ""}>${esc(p.name)}</option>`).join("");
-  const canPublish = isSyncConfigured();
-  const copyOptions = canPublish ? PROGRAM_TEMPLATES.map((t) => `<option value="copy:${esc(t.id)}">Copy "${esc(t.name)}"...</option>`).join("") : "";
+  const copyOptions = isSyncConfigured() ? PROGRAM_TEMPLATES.map((t) => `<option value="copy:${esc(t.id)}">Copy "${esc(t.name)}"...</option>`).join("") : "";
+  return `
+    ${myOptions ? `<optgroup label="My programs">${myOptions}</optgroup>` : ""}
+    <optgroup label="Built-in templates">${builtInOptions}</optgroup>
+    ${copyOptions ? `<optgroup label="${esc(copyLabel || "Copy & customize")}">${copyOptions}</optgroup>` : ""}
+  `;
+}
+
+/** Resolves a program-picker <select>'s value into { templateId, customProgramId, programName },
+ * or null if the coach canceled a "copy:" rename prompt, or { failed: true, name } if the
+ * copy was made but couldn't be published. `onPending` lets the caller show its own
+ * non-rendering "working on it" feedback for the copy case (see copyTemplateAndPublish). */
+async function resolveProgramSelection(selected, onPending) {
+  if (selected.startsWith("copy:")) {
+    const result = await copyTemplateAndPublish(selected.slice("copy:".length), onPending);
+    if (!result) return null; // canceled the rename prompt
+    if (!result.publishedId) return { failed: true, name: result.name };
+    return { templateId: null, customProgramId: result.publishedId, programName: result.name };
+  }
+  if (selected.startsWith("custom:")) {
+    const customProgramId = selected.slice("custom:".length);
+    const programName = Store.listPrograms().find((p) => p.publishedId === customProgramId)?.name;
+    return { templateId: null, customProgramId, programName };
+  }
+  return { templateId: selected, customProgramId: null, programName: PROGRAM_TEMPLATES.find((t) => t.id === selected)?.name };
+}
+
+function renderCoachAddClient() {
+  const preselect = state.params.preselectProgram || "";
   return `
     ${topbar("Add client", { back: true })}
     <div class="card">
       <label for="coach-client-label">Client name</label>
       <input type="text" id="coach-client-label" placeholder="e.g. Jordan" />
       <label for="coach-client-template">Starting program</label>
-      <select id="coach-client-template">
-        ${myOptions ? `<optgroup label="My programs">${myOptions}</optgroup>` : ""}
-        <optgroup label="Built-in templates">${builtInOptions}</optgroup>
-        ${copyOptions ? `<optgroup label="Copy &amp; customize for this client">${copyOptions}</optgroup>` : ""}
-      </select>
-      <p class="hint">This is only the program they'll see the first time they open the link — it won't touch anything if they've already opened it before.${copyOptions ? ` Picking a "Copy..." option asks you to name it, then publishes your copy so it's ready for this (and future) clients.` : ""}</p>
+      <select id="coach-client-template">${programPickerOptgroups(preselect, "Copy & customize for this client")}</select>
+      <p class="hint">This is only the program they'll see the first time they open the link — it won't touch anything if they've already opened it before. Picking a "Copy..." option asks you to name it, then publishes your copy so it's ready for this (and future) clients.</p>
       <label for="coach-client-price">Price (optional)</label>
       <input type="text" id="coach-client-price" inputmode="decimal" placeholder="e.g. 50" />
       <p class="hint">Leave blank for free, instant access (how client links have always worked). Set a price and they'll have to verify their email and pay before the program unlocks -- you confirm payment yourself and their access unlocks automatically the moment you do.</p>
@@ -1484,27 +1528,19 @@ async function confirmAddCoachClient() {
     toast("Enter a valid price, or leave it blank");
     return;
   }
-  if (selected.startsWith("copy:")) {
-    const submitBtn = document.querySelector('[data-action="confirm-add-coach-client"]');
-    const result = await copyTemplateAndPublish(selected.slice("copy:".length), () => {
-      if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = "Publishing your copy…"; }
-    });
-    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = "Generate client link"; }
-    if (!result) return; // canceled the rename prompt
-    if (!result.publishedId) {
-      toast(`Couldn't publish "${result.name}" yet — it's saved under Settings → Saved programs, retry publishing from there once you're back online`);
-      return;
-    }
-    selected = `custom:${result.publishedId}`;
+  const submitBtn = document.querySelector('[data-action="confirm-add-coach-client"]');
+  const resolved = await resolveProgramSelection(selected, () => {
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = "Publishing your copy…"; }
+  });
+  if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = "Generate client link"; }
+  if (!resolved) return; // canceled the rename prompt
+  if (resolved.failed) {
+    toast(`Couldn't publish "${resolved.name}" yet — it's saved under Settings → Saved programs, retry publishing from there once you're back online`);
+    return;
   }
+  const { templateId, customProgramId, programName } = resolved;
   const priceCents = Math.round(priceDollars * 100);
   const clientId = newId();
-  const isCustom = selected.startsWith("custom:");
-  const templateId = isCustom ? null : selected;
-  const customProgramId = isCustom ? selected.slice("custom:".length) : null;
-  const programName = isCustom
-    ? Store.listPrograms().find((p) => p.publishedId === customProgramId)?.name
-    : PROGRAM_TEMPLATES.find((t) => t.id === templateId)?.name;
   try {
     await addClientToRoster(getOrCreateCoachId(), clientId, label, priceCents);
     navigate("coach-client-link", { clientId, label, templateId, customProgramId, programName, priceCents });
@@ -1539,8 +1575,9 @@ function renderCoachClientLink() {
 
 function renderCoachClient() {
   const { clientId, clientLabel } = state.params;
+  const assignBtn = `<button class="btn" data-action="go-assign-program" data-client="${esc(clientId)}" data-label="${esc(clientLabel || "")}" style="margin-bottom:14px;">Assign new program</button>`;
   if (!coachClientData) {
-    return `${topbar(clientLabel || "Client", { back: true })}<div class="empty"><p>Waiting for this client to open their link and sync for the first time...</p></div>`;
+    return `${topbar(clientLabel || "Client", { back: true })}${assignBtn}<div class="empty"><p>Waiting for this client to open their link and sync for the first time...</p></div>`;
   }
   const days = coachClientData.program?.days || [];
   const items = days.map((day) => {
@@ -1561,8 +1598,46 @@ function renderCoachClient() {
   return `
     ${topbar(coachClientData.displayName || clientLabel || "Client", { back: true })}
     <p style="margin-bottom:12px;">Last synced ${coachClientData.updatedAt ? relativeTime(firestoreTimeToIso(coachClientData.updatedAt)) : "never"}</p>
+    ${assignBtn}
     ${items || `<div class="empty"><p>No workout days yet.</p></div>`}
   `;
+}
+
+function renderCoachClientAssignProgram() {
+  const { clientId, clientLabel } = state.params;
+  return `
+    ${topbar("Assign program", { back: true })}
+    <div class="card">
+      <h3>${esc(clientLabel || "Client")}</h3>
+      <label for="assign-program-select">Program</label>
+      <select id="assign-program-select">${programPickerOptgroups("", "Copy & customize for this client")}</select>
+      <p class="hint">This adds it as a new program on their device, alongside whatever they already have -- nothing they've logged is touched or deleted. It applies automatically the next time their app syncs (they don't need to do anything, though telling them to reopen the app speeds it up).</p>
+    </div>
+    <button class="btn primary" data-action="confirm-assign-program" data-client="${esc(clientId)}" data-label="${esc(clientLabel || "")}">Assign</button>
+  `;
+}
+
+async function confirmAssignProgram(clientId, clientLabel) {
+  const selected = document.getElementById("assign-program-select").value;
+  const submitBtn = document.querySelector('[data-action="confirm-assign-program"]');
+  const resolved = await resolveProgramSelection(selected, () => {
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = "Publishing your copy…"; }
+  });
+  if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = "Assign"; }
+  if (!resolved) return; // canceled the rename prompt
+  if (resolved.failed) {
+    toast(`Couldn't publish "${resolved.name}" yet — it's saved under Settings → Saved programs, retry publishing from there once you're back online`);
+    return;
+  }
+  const { templateId, customProgramId, programName } = resolved;
+  const assignment = customProgramId ? { kind: "custom", customProgramId, name: programName } : { kind: "template", templateId, name: programName };
+  try {
+    await assignProgramToClient(clientId, assignment);
+    toast(`"${programName}" assigned to ${clientLabel || "client"} — it'll apply next time their app syncs`);
+    navigate("coach-client", { clientId, clientLabel });
+  } catch {
+    toast("Couldn't assign — check your connection and try again");
+  }
 }
 
 function renderCoachClientDay() {
@@ -1706,6 +1781,7 @@ function onClick(e) {
       else if (state.screen === "coach-add-client") navigate("coach");
       else if (state.screen === "coach-client-link") navigate("coach");
       else if (state.screen === "coach-client") navigate("coach");
+      else if (state.screen === "coach-client-assign-program") navigate("coach-client", { clientId: state.params.clientId, clientLabel: state.params.clientLabel });
       else if (state.screen === "coach-client-day") navigate("coach-client", { clientId: state.params.clientId, clientLabel: state.params.clientLabel });
       else if (state.screen === "coach-client-exercise") navigate("coach-client-day", { clientId: state.params.clientId, clientLabel: state.params.clientLabel, dayId: state.params.dayId });
       else navigate("program");
@@ -1714,6 +1790,7 @@ function onClick(e) {
     case "import-sheet": handleImportSheet(); break;
     case "import-paste": handleImportPaste(); break;
     case "create-blank-day": handleCreateBlankDay(); break;
+    case "create-blank-program": createBlankProgram(); break;
     case "confirm-review": confirmReview(); break;
     case "open-day": navigate("day", { dayId: el.dataset.day }); break;
     case "open-exercise": navigate("exercise", { dayId: el.dataset.day, exerciseId: el.dataset.exercise }); break;
@@ -1918,6 +1995,8 @@ function onClick(e) {
       break;
     }
     case "open-coach-client-day": navigate("coach-client-day", { clientId: el.dataset.client, clientLabel: el.dataset.label, dayId: el.dataset.day }); break;
+    case "go-assign-program": navigate("coach-client-assign-program", { clientId: el.dataset.client, clientLabel: el.dataset.label }); break;
+    case "confirm-assign-program": confirmAssignProgram(el.dataset.client, el.dataset.label); break;
     case "open-coach-client-exercise": navigate("coach-client-exercise", { clientId: el.dataset.client, clientLabel: el.dataset.label, dayId: el.dataset.day, exerciseId: el.dataset.exercise }); break;
   }
 }
@@ -2071,6 +2150,42 @@ function initSyncStatusIndicator() {
   });
 }
 
+// Guards applyAssignedProgramIfNew against re-running for the same
+// assignment while its fetch is still in flight (the client's own program
+// pushes touch the same doc and re-fire this same listener).
+let processingAssignmentKey = null;
+
+/** A coach can push a new program onto an *already-synced* client (see
+ * assignProgramToClient / "Assign new program" in the coach dashboard) by
+ * writing clients/{id}.assignedProgram. This applies it -- as a brand-new
+ * saved program, never overwriting what's already there -- the moment this
+ * listener sees it, which fires on every fresh load (a "refresh") and any
+ * time it changes while the app is already open. Only ever applies a given
+ * assignment once, tracked by its assignedAt timestamp. */
+async function applyAssignedProgramIfNew(assignedProgram) {
+  if (!assignedProgram || !assignedProgram.assignedAt) return;
+  const key = firestoreTimeToIso(assignedProgram.assignedAt);
+  if (!key || localStorage.getItem(LOCAL_KEYS.lastAppliedAssignment) === key || processingAssignmentKey === key) return;
+  processingAssignmentKey = key;
+  try {
+    let days = null;
+    if (assignedProgram.kind === "custom" && assignedProgram.customProgramId) {
+      const data = await getCustomProgram(assignedProgram.customProgramId);
+      if (data && Array.isArray(data.days)) days = data.days;
+    } else if (assignedProgram.kind === "template" && assignedProgram.templateId) {
+      const template = PROGRAM_TEMPLATES.find((t) => t.id === assignedProgram.templateId);
+      if (template) days = parseWorkoutSheets(template.sheetText);
+    }
+    if (!days) return; // couldn't fetch -- stays unmarked so the next sync retries
+    Store.createProgram(assignedProgram.name || "New Program", days);
+    localStorage.setItem(LOCAL_KEYS.lastAppliedAssignment, key);
+    toast(`Your coach assigned a new program: "${assignedProgram.name || "New Program"}"`);
+    if (["program", "history", "settings"].includes(state.screen)) render();
+  } finally {
+    processingAssignmentKey = null;
+  }
+}
+
 function bootstrapClientSync() {
   const clientId = getLocalClientId();
   if (!clientId || !isSyncConfigured()) return;
@@ -2088,7 +2203,9 @@ function bootstrapClientSync() {
       localStorage.removeItem(LOCAL_KEYS.clientId);
       localStorage.removeItem(LOCAL_KEYS.clientName);
       toast("Your coach ended this connection. Your workouts are still saved on this device.");
+      return;
     }
+    if (data && data.assignedProgram) applyAssignedProgramIfNew(data.assignedProgram);
   });
 }
 

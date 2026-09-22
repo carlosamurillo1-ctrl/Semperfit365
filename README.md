@@ -33,6 +33,10 @@ Requires coach sync to already be set up (above). Like everything else in that s
 
 **Starting from a built-in template instead of from scratch?** Skip the manual save-then-publish steps above with **Copy, rename & assign to a client**, on any template under Settings → Program templates, or as a "Copy..." option right inside the Starting program dropdown when adding a client. Either way it asks what to name your copy on the spot, publishes it, and (from Add Client) uses it for that client immediately -- no detour through Saved programs needed.
 
+**Building one completely from scratch?** Settings → Program templates → **+ Create new program** makes a brand-new, empty program and switches to it, then drops you straight into the normal "Import a workout day" screen -- pick **Start with a blank day**, name it, and use **+ Add exercise** on the day screen (search or the muscle-group diagram) to build it up one exercise at a time.
+
+**Changing an *existing* client's program** (not just what a new client starts with): open that client from your coach dashboard and tap **Assign new program**. Pick from the same list (built-in templates, your own published programs, or copy-and-customize one on the spot) and it applies automatically the next time their app syncs -- they don't have to do anything, though a fresh reopen of the app is the fastest way. It's added as a new program on their device alongside whatever they already had; nothing already there is touched or deleted. If they end up with programs they no longer need, they (or you, walking them through it) can remove any of them from their own Settings → Saved programs → **Delete**.
+
 ## Charging clients — Zelle paywall + real sign-in
 
 When you set a **Price** while adding a client (Coach dashboard → Add client), that specific client's link works differently from a free one: they have to verify a real email and you have to confirm payment before their program unlocks. Everything below is optional — leave the price field blank and a client's link works exactly as described above, no sign-in, no payment step.

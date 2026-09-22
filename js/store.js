@@ -124,7 +124,7 @@ export const Store = {
   listPrograms() {
     const state = readState();
     if (!state) return [];
-    return state.programs.map((p) => ({ id: p.id, name: p.name, dayCount: p.days.length, active: p.id === state.activeId, publishedId: p.publishedId || null }));
+    return state.programs.map((p) => ({ id: p.id, name: p.name, dayCount: p.days.length, active: p.id === state.activeId, publishedId: p.publishedId || null, importedAt: p.importedAt || null }));
   },
   /** A saved program's days by id (any program, not just the active one) -- used to publish a program for clients without first switching to it. */
   getProgramDaysById(id) {
