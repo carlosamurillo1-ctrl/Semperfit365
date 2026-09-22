@@ -41,6 +41,10 @@
 
   * { box-sizing: border-box; }
 
+  /* A class-level `display` beats the user-agent's [hidden] rule, so buttons
+     and other styled elements would stay visible when hidden. */
+  [hidden] { display: none !important; }
+
   html { scroll-behavior: smooth; }
   @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }
@@ -555,6 +559,64 @@
 
   /* ---------- questionnaire ---------- */
 
+  /* ---------- lead form ---------- */
+
+  #lead-form label, .flabel {
+    display: block;
+    font-size: 14px;
+    color: var(--dim);
+    margin: 18px 0 7px;
+  }
+  #lead-form .fstep > label:first-child, .fstep > .flabel:first-child { margin-top: 0; }
+  #lead-form .opt { color: var(--olive); font-size: 12.5px; }
+  #lead-form input[type="text"],
+  #lead-form input[type="email"],
+  #lead-form input[type="tel"],
+  #lead-form textarea {
+    width: 100%;
+    background: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 14px;
+    color: var(--text);
+    font: inherit;
+    font-size: 16px; /* under 16px iOS zooms the page on focus */
+  }
+  #lead-form input:focus, #lead-form textarea:focus {
+    outline: none;
+    border-color: var(--accent-deep);
+  }
+  #lead-form textarea { resize: vertical; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 9px; }
+  .chip { margin: 0 !important; }
+  .chip input { position: absolute; opacity: 0; pointer-events: none; }
+  .chip span {
+    display: inline-block;
+    padding: 10px 16px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    font-size: 15px;
+    color: var(--text);
+    cursor: pointer;
+    transition: border-color .15s ease, background .15s ease;
+  }
+  .chip input:checked + span {
+    border-color: var(--accent);
+    background: rgba(94, 230, 168, .12);
+    color: var(--accent);
+  }
+  .chip input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .botcheck { position: absolute !important; left: -9999px; }
+
+  .fbar { height: 3px; background: var(--line); border-radius: 2px; margin-bottom: 26px; }
+  .fbar span { display: block; height: 100%; width: 33%; background: var(--accent); border-radius: 2px; transition: width .25s ease; }
+
+  .fnav { display: flex; gap: 10px; margin-top: 26px; }
+  .fnav .btn { flex: 1; }
+  .ferror { color: var(--danger); font-size: 14px; margin: 16px 0 0; }
+
   .form-shell {
     background: var(--panel);
     border: 1px solid var(--line);
@@ -1020,30 +1082,75 @@
   <div class="wrap">
     <div class="sec-head reveal">
       <div class="kicker">Start Here</div>
-      <h2>New client questionnaire</h2>
-      <p>This is step one. Answer honestly — the more I know about your history and your schedule, the better the program I can write for you.</p>
+      <h2>Tell me about you</h2>
+      <p>Takes under a minute. I'll reach out within 48 hours to talk through your goals — the longer intake comes later, once we've spoken.</p>
     </div>
 
     <div class="form-shell reveal">
-      <!-- ============================================================
-           EDIT ME — paste your Google Form's real EMBED url below.
-           Get it from: open your Form -> Send -> the < > (embed) tab
-           -> copy the address inside src="...". It looks like:
-             https://docs.google.com/forms/d/e/1FAIpQLSc..../viewform?embedded=true
-           Until that's swapped in, the short link still loads for most
-           people but may show Google's own header -- and the button
-           underneath always works either way, so nobody hits a dead end.
-           ============================================================ -->
-      <iframe
-        class="form-frame"
-        src="https://forms.gle/QtvKQBU7fx9sGaFp9"
-        title="SemperFit365 new client questionnaire"
-        loading="lazy">Loading the questionnaire&hellip;</iframe>
-    </div>
+      <form id="lead-form" novalidate>
+        <div class="fbar"><span id="fbar-fill"></span></div>
 
-    <p class="form-fallback">
-      Form not loading? <a href="https://forms.gle/QtvKQBU7fx9sGaFp9" target="_blank" rel="noopener">Open the questionnaire in a new tab &rarr;</a>
-    </p>
+        <div class="fstep" data-step="1">
+          <label for="f-name">Your name *</label>
+          <input type="text" id="f-name" name="name" autocomplete="name" required />
+          <label for="f-email">Email *</label>
+          <input type="email" id="f-email" name="email" autocomplete="email" inputmode="email" required />
+          <label for="f-phone">Phone *</label>
+          <input type="tel" id="f-phone" name="phone" autocomplete="tel" inputmode="tel" required />
+        </div>
+
+        <div class="fstep" data-step="2" hidden>
+          <span class="flabel">What are you after? *</span>
+          <div class="chips" id="f-goals">
+            <label class="chip"><input type="checkbox" name="goal" value="Lose body fat" /><span>Lose body fat</span></label>
+            <label class="chip"><input type="checkbox" name="goal" value="Gain muscle" /><span>Gain muscle</span></label>
+            <label class="chip"><input type="checkbox" name="goal" value="A better relationship with food &amp; exercise" /><span>Food &amp; exercise habits</span></label>
+            <label class="chip"><input type="checkbox" name="goal" value="Feel and look better" /><span>Feel &amp; look better</span></label>
+            <label class="chip"><input type="checkbox" name="goal" value="Something else" /><span>Something else</span></label>
+          </div>
+
+          <span class="flabel" style="margin-top:22px;">How do you want to train? *</span>
+          <div class="chips" id="f-format">
+            <label class="chip"><input type="radio" name="format" value="1-on-1 in person" /><span>1-on-1 in person</span></label>
+            <label class="chip"><input type="radio" name="format" value="Small group" /><span>Small group</span></label>
+            <label class="chip"><input type="radio" name="format" value="Online coaching" /><span>Online</span></label>
+            <label class="chip"><input type="radio" name="format" value="Not sure yet" /><span>Not sure yet</span></label>
+          </div>
+        </div>
+
+        <div class="fstep" data-step="3" hidden>
+          <label for="f-obstacle">What's been getting in the way? <span class="opt">optional</span></label>
+          <textarea id="f-obstacle" name="obstacle" rows="4" placeholder="Shift work, an old injury, never know what to do at the gym&hellip;"></textarea>
+          <label for="f-heard">How did you hear about me? <span class="opt">optional</span></label>
+          <input type="text" id="f-heard" name="heard" placeholder="Instagram, a friend, Google&hellip;" />
+          <!-- spam trap: real people never fill this in -->
+          <input type="checkbox" name="botcheck" class="botcheck" tabindex="-1" autocomplete="off" />
+        </div>
+
+        <p class="ferror" id="f-error" hidden></p>
+
+        <div class="fnav">
+          <button type="button" class="btn btn-ghost" id="f-back" hidden>Back</button>
+          <button type="button" class="btn btn-primary" id="f-next">Continue</button>
+          <button type="submit" class="btn btn-primary" id="f-send" hidden>Send it</button>
+        </div>
+      </form>
+
+      <div id="lead-done" hidden>
+        <h3 style="font-size:24px;margin-bottom:10px;">Got it.</h3>
+        <p style="color:var(--dim);margin:0;">I'll be in touch within 48 hours. If it's urgent, text me at
+          <a href="sms:+19145759554">(914) 575-9554</a>.</p>
+      </div>
+
+      <div id="lead-fail" hidden>
+        <h3 style="font-size:22px;margin-bottom:10px;">That didn't send.</h3>
+        <p style="color:var(--dim);margin:0 0 14px;">Rather than lose you to a bug — reach me directly and I'll pick it up from there.</p>
+        <div class="btn-row">
+          <a class="btn btn-primary" href="sms:+19145759554">Text me</a>
+          <a class="btn btn-ghost" href="mailto:Semperfit365@gmail.com">Email me</a>
+        </div>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -1110,6 +1217,120 @@
   document.addEventListener("keydown", function (e) {
     if (e.key === "Escape") setMenu(false);
   });
+
+  /* ============================================================
+     EDIT ME — your Web3Forms access key goes here.
+     Get one free at web3forms.com: enter Semperfit365@gmail.com,
+     they email you a key, paste it between the quotes below.
+     Until then the form shows the "text/email me" fallback rather
+     than pretending to send, so no enquiry is ever lost silently.
+     ============================================================ */
+  var WEB3FORMS_KEY = "REPLACE_WITH_YOUR_ACCESS_KEY";
+
+  (function () {
+    var form = document.getElementById("lead-form");
+    if (!form) return;
+    var steps = form.querySelectorAll(".fstep");
+    var fill = document.getElementById("fbar-fill");
+    var back = document.getElementById("f-back");
+    var next = document.getElementById("f-next");
+    var send = document.getElementById("f-send");
+    var err = document.getElementById("f-error");
+    // NB: form.name resolves to the form element's own name property, not the
+    // input, so every field is looked up explicitly.
+    var fName = document.getElementById("f-name");
+    var fEmail = document.getElementById("f-email");
+    var fPhone = document.getElementById("f-phone");
+    var fObstacle = document.getElementById("f-obstacle");
+    var fHeard = document.getElementById("f-heard");
+    var done = document.getElementById("lead-done");
+    var fail = document.getElementById("lead-fail");
+    var step = 1;
+
+    function show(msg) { err.textContent = msg; err.hidden = !msg; }
+
+    function render() {
+      steps.forEach(function (el) { el.hidden = Number(el.dataset.step) !== step; });
+      fill.style.width = Math.round((step / steps.length) * 100) + "%";
+      back.hidden = step === 1;
+      next.hidden = step === steps.length;
+      send.hidden = step !== steps.length;
+      show("");
+    }
+
+    function valid() {
+      if (step === 1) {
+        var name = fName.value.trim();
+        var email = fEmail.value.trim();
+        var phone = fPhone.value.trim();
+        if (!name) return "What should I call you?";
+        if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return "That email doesn't look right.";
+        if (phone.replace(/\D/g, "").length < 10) return "Need a phone number I can reach you on.";
+      }
+      if (step === 2) {
+        if (!form.querySelector('input[name="goal"]:checked')) return "Pick at least one goal.";
+        if (!form.querySelector('input[name="format"]:checked')) return "How would you like to train?";
+      }
+      return "";
+    }
+
+    next.addEventListener("click", function () {
+      var msg = valid();
+      if (msg) return show(msg);
+      step++;
+      render();
+    });
+    back.addEventListener("click", function () { step--; render(); });
+
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      var msg = valid();
+      if (msg) return show(msg);
+
+      var goals = Array.prototype.map.call(
+        form.querySelectorAll('input[name="goal"]:checked'), function (i) { return i.value; }
+      ).join(", ");
+      var fmt = form.querySelector('input[name="format"]:checked');
+
+      var payload = {
+        access_key: WEB3FORMS_KEY,
+        subject: "New enquiry from " + fName.value.trim() + " — SemperFit365",
+        from_name: "trainsemperfit365.com",
+        Name: fName.value.trim(),
+        Email: fEmail.value.trim(),
+        Phone: fPhone.value.trim(),
+        Goals: goals,
+        "Training format": fmt ? fmt.value : "",
+        "Getting in the way": fObstacle.value.trim() || "—",
+        "Heard about you via": fHeard.value.trim() || "—",
+        botcheck: form.querySelector(".botcheck").checked
+      };
+
+      send.disabled = true;
+      send.textContent = "Sending…";
+
+      var settled = false;
+      function finish(ok) {
+        if (settled) return;
+        settled = true;
+        form.hidden = true;
+        (ok ? done : fail).hidden = false;
+      }
+      // A hung request must not leave someone staring at "Sending…" forever.
+      var timer = setTimeout(function () { finish(false); }, 12000);
+
+      fetch("https://api.web3forms.com/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify(payload)
+      })
+        .then(function (r) { return r.json(); })
+        .then(function (d) { clearTimeout(timer); finish(!!d.success); })
+        .catch(function () { clearTimeout(timer); finish(false); });
+    });
+
+    render();
+  })();
 
   // Fade sections in as they scroll into view (skipped if the OS asks for reduced motion).
   var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
