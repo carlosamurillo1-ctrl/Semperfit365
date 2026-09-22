@@ -226,7 +226,8 @@
 
   /* ---------- sections ---------- */
 
-  section { padding: 84px 0; }
+  /* the sticky header would otherwise cover the top of a section jumped to from the nav */
+  section { padding: 84px 0; scroll-margin-top: 76px; }
   section.alt { background: var(--ink-2); border-block: 1px solid var(--line); }
 
   .sec-head { margin-bottom: 44px; max-width: 62ch; }
@@ -382,30 +383,56 @@
   /* ---------- reviews ---------- */
 
   .rating-wrap { text-align: center; }
-  .stars { display: inline-flex; gap: 5px; margin-bottom: 14px; }
-  .stars svg { width: 27px; height: 27px; fill: var(--accent); }
+  .rating-line {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+  }
+  .stars { display: inline-flex; gap: 4px; }
+  .stars svg { width: 20px; height: 20px; fill: var(--accent); }
   .rating-num {
     font-family: Oswald, sans-serif;
     font-weight: 700;
-    font-size: clamp(52px, 12vw, 78px);
+    font-size: 32px;
     line-height: 1;
     color: var(--text);
   }
-  .rating-sub { color: var(--dim); margin: 10px 0 26px; font-size: 17px; }
+  .rating-lab { color: var(--dim); font-size: 16px; }
 
   /* Quotes are reproduced verbatim from the Google Business profile,
      typos and all - cleaning them up makes them read as invented. */
-  .quotes { display: grid; gap: 16px; margin: 40px 0 34px; text-align: left; }
-  @media (min-width: 700px) { .quotes { grid-template-columns: repeat(2, 1fr); } }
-  @media (min-width: 1000px) { .quotes { grid-template-columns: repeat(3, 1fr); } }
+  .quotes {
+    display: flex;
+    gap: 16px;
+    margin: 34px -20px 10px;
+    padding: 4px 20px 18px;
+    text-align: left;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+  }
+  .quotes::-webkit-scrollbar { height: 6px; }
+  .quotes::-webkit-scrollbar-thumb { background: var(--olive); border-radius: 3px; }
   .quote {
+    flex: 0 0 340px;
+    scroll-snap-align: center;
     display: flex;
     flex-direction: column;
     background: var(--panel);
     border: 1px solid var(--line);
     border-radius: var(--radius);
-    padding: 24px;
+    padding: 22px;
   }
+  .swipe-hint {
+    font-size: 13px;
+    color: var(--dim);
+    letter-spacing: .03em;
+    margin: 0;
+  }
+  /* the review row is deliberately shorter than the other sections */
+  #reviews { padding: 58px 0; }
   .quote .qs { color: var(--accent); font-size: 13px; letter-spacing: 3px; margin-bottom: 12px; }
   .quote p { color: var(--dim); margin: 0 0 18px; font-size: 15.5px; flex: 1; }
   .quote .who {
@@ -605,15 +632,17 @@
 <!-- ================= REVIEWS ================= -->
 <section id="reviews">
   <div class="wrap rating-wrap reveal">
-    <div class="stars" aria-hidden="true">
-      <svg viewBox="0 0 24 24"><path d="m12 17.3 6.2 3.7-1.6-7 5.4-4.7-7.1-.6L12 2 9.1 8.7 2 9.3l5.4 4.7-1.6 7z"/></svg>
-      <svg viewBox="0 0 24 24"><path d="m12 17.3 6.2 3.7-1.6-7 5.4-4.7-7.1-.6L12 2 9.1 8.7 2 9.3l5.4 4.7-1.6 7z"/></svg>
-      <svg viewBox="0 0 24 24"><path d="m12 17.3 6.2 3.7-1.6-7 5.4-4.7-7.1-.6L12 2 9.1 8.7 2 9.3l5.4 4.7-1.6 7z"/></svg>
-      <svg viewBox="0 0 24 24"><path d="m12 17.3 6.2 3.7-1.6-7 5.4-4.7-7.1-.6L12 2 9.1 8.7 2 9.3l5.4 4.7-1.6 7z"/></svg>
-      <svg viewBox="0 0 24 24"><path d="m12 17.3 6.2 3.7-1.6-7 5.4-4.7-7.1-.6L12 2 9.1 8.7 2 9.3l5.4 4.7-1.6 7z"/></svg>
+    <div class="rating-line">
+      <span class="stars" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="m12 17.3 6.2 3.7-1.6-7 5.4-4.7-7.1-.6L12 2 9.1 8.7 2 9.3l5.4 4.7-1.6 7z"/></svg>
+        <svg viewBox="0 0 24 24"><path d="m12 17.3 6.2 3.7-1.6-7 5.4-4.7-7.1-.6L12 2 9.1 8.7 2 9.3l5.4 4.7-1.6 7z"/></svg>
+        <svg viewBox="0 0 24 24"><path d="m12 17.3 6.2 3.7-1.6-7 5.4-4.7-7.1-.6L12 2 9.1 8.7 2 9.3l5.4 4.7-1.6 7z"/></svg>
+        <svg viewBox="0 0 24 24"><path d="m12 17.3 6.2 3.7-1.6-7 5.4-4.7-7.1-.6L12 2 9.1 8.7 2 9.3l5.4 4.7-1.6 7z"/></svg>
+        <svg viewBox="0 0 24 24"><path d="m12 17.3 6.2 3.7-1.6-7 5.4-4.7-7.1-.6L12 2 9.1 8.7 2 9.3l5.4 4.7-1.6 7z"/></svg>
+      </span>
+      <span class="rating-num">5.0</span>
+      <span class="rating-lab">from every client who's reviewed on Google</span>
     </div>
-    <div class="rating-num">5.0</div>
-    <p class="rating-sub">Rated five stars by every client who's left a review on Google</p>
 
     <div class="quotes">
       <div class="quote">
@@ -648,7 +677,10 @@
       </div>
     </div>
     <!-- EDIT ME: replace this link if your Google Business profile URL ever changes. -->
-    <a class="btn btn-ghost" href="https://maps.app.goo.gl/WKQVh84n5Ra7U4bK6" target="_blank" rel="noopener">Read the reviews &rarr;</a>
+    <p class="swipe-hint">
+      Swipe for more &nbsp;&middot;&nbsp;
+      <a href="https://maps.app.goo.gl/WKQVh84n5Ra7U4bK6" target="_blank" rel="noopener">Read them all on Google &rarr;</a>
+    </p>
   </div>
 </section>
 
