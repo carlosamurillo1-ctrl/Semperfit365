@@ -1218,14 +1218,11 @@
     if (e.key === "Escape") setMenu(false);
   });
 
-  /* ============================================================
-     EDIT ME — your Web3Forms access key goes here.
-     Get one free at web3forms.com: enter Semperfit365@gmail.com,
-     they email you a key, paste it between the quotes below.
-     Until then the form shows the "text/email me" fallback rather
-     than pretending to send, so no enquiry is ever lost silently.
-     ============================================================ */
-  var WEB3FORMS_KEY = "REPLACE_WITH_YOUR_ACCESS_KEY";
+  /* Web3Forms access key. Public by design: it is only permitted to deliver
+     to the address it was registered against (Semperfit365@gmail.com), so it
+     grants nothing beyond sending Carlos an email. Replace it from
+     web3forms.com if the destination address ever changes. */
+  var WEB3FORMS_KEY = "bf035049-f85c-421b-8702-726910e8b805";
 
   (function () {
     var form = document.getElementById("lead-form");
