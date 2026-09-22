@@ -4,14 +4,14 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>SemperFit365 — Personal Training</title>
-<meta name="description" content="1-on-1 personal training built around your goals, your schedule and your equipment — plus SemperFitGo, the app that puts your program, your numbers and your nutrition in your pocket." />
+<meta name="description" content="1-on-1 personal training built around your goals, your schedule and your equipment — plus SemperfitGO, the app that puts your program, your numbers and your nutrition in your pocket." />
 <meta name="theme-color" content="#0d0f09" />
 <link rel="icon" href="../icons/favicon.png" type="image/png" />
 
 <!-- Social preview (what shows when the link is shared in a DM or story) -->
 <meta property="og:type" content="website" />
 <meta property="og:title" content="SemperFit365 — Personal Training" />
-<meta property="og:description" content="Discipline builds the body. I build the plan. 1-on-1 coaching plus the SemperFitGo training app." />
+<meta property="og:description" content="Discipline builds the body. I build the plan. 1-on-1 coaching plus the SemperfitGO training app." />
 <meta property="og:image" content="../icons/icon-512.png" />
 <meta name="twitter:card" content="summary_large_image" />
 
@@ -279,7 +279,17 @@
   .shots::-webkit-scrollbar { height: 6px; }
   .shots::-webkit-scrollbar-thumb { background: var(--olive); border-radius: 3px; }
   @media (min-width: 900px) {
-    .shots { justify-content: center; overflow: visible; margin: 0; padding: 8px 0 0; }
+    /* Wrap into rows of three rather than one long scroller. The width cap is
+       what forces three per row instead of four. */
+    .shots {
+      flex-wrap: wrap;
+      justify-content: center;
+      overflow: visible;
+      margin: 0 auto;
+      padding: 8px 0 0;
+      max-width: 790px;
+      gap: 28px;
+    }
   }
 
   .phone {
@@ -324,7 +334,6 @@
     margin-top: 14px;
   }
   .phone-wrap { flex: 0 0 auto; scroll-snap-align: center; }
-  @media (min-width: 900px) { .phone-wrap:nth-child(2) .phone { transform: translateY(-18px); } }
 
   .feat-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 14px; }
   .feat-list li { display: flex; gap: 13px; align-items: flex-start; color: var(--dim); }
@@ -447,7 +456,7 @@
       <h1>Discipline builds the body.<br /><span class="hl">I build the plan.</span></h1>
       <p class="lede">
         One-on-one coaching built around your goals, your schedule and the equipment you actually have —
-        then delivered straight to your phone in <b>SemperFitGo</b>, so you always know exactly what to do,
+        then delivered straight to your phone in <b>SemperfitGO</b>, so you always know exactly what to do,
         how much to lift, and whether you're moving forward.
       </p>
       <div class="hero-cta">
@@ -457,7 +466,7 @@
     </div>
     <div class="hero-art">
       <div class="phone">
-        <img src="img/app-exercise.png" alt="The SemperFitGo app showing logged sets and a rest timer" />
+        <img src="img/app-exercise.png" alt="The SemperfitGO app showing logged sets and a rest timer" />
       </div>
     </div>
   </div>
@@ -524,18 +533,26 @@
   <div class="wrap">
     <div class="sec-head reveal">
       <div class="kicker">Included With Coaching</div>
-      <h2>SemperFitGo</h2>
+      <h2>SemperfitGO</h2>
       <p>The training app I built for my own clients. Your program, your numbers and your nutrition in one place — free with coaching, and yours on day one.</p>
     </div>
 
     <div class="shots reveal">
       <div class="phone-wrap">
-        <div class="phone"><img src="img/app-program.png" alt="The SemperFitGo program screen listing four workout days" loading="lazy" /></div>
+        <div class="phone"><img src="img/app-program.png" alt="The SemperfitGO program screen listing four workout days" loading="lazy" /></div>
         <div class="phone-cap">Your week, laid out</div>
+      </div>
+      <div class="phone-wrap">
+        <div class="phone"><img src="img/app-day.png" alt="A training day listing each exercise with its rep range, rest time and set count" loading="lazy" /></div>
+        <div class="phone-cap">Every exercise, spelled out</div>
       </div>
       <div class="phone-wrap">
         <div class="phone"><img src="img/app-exercise.png" alt="Logging sets, reps and notes for an exercise, with a rest timer" loading="lazy" /></div>
         <div class="phone-cap">Log every set</div>
+      </div>
+      <div class="phone-wrap">
+        <div class="phone"><img src="img/app-cardio.png" alt="The cardio and steps calendar with logged training days highlighted" loading="lazy" /></div>
+        <div class="phone-cap">Cardio &amp; steps</div>
       </div>
       <div class="phone-wrap">
         <div class="phone"><img src="img/app-nutrition.png" alt="The nutrition diary showing calories and macros against daily goals" loading="lazy" /></div>
@@ -550,6 +567,7 @@
           <li><svg viewBox="0 0 24 24"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg><span><b>Last week's numbers</b> sit in every box as you train, so you always know what to beat.</span></li>
           <li><svg viewBox="0 0 24 24"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg><span><b>Built-in rest timer</b> with a buzz when it's time for your next set.</span></li>
           <li><svg viewBox="0 0 24 24"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg><span><b>Swap an exercise</b> if a machine is taken, straight from the exercise library.</span></li>
+          <li><svg viewBox="0 0 24 24"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg><span><b>Cardio &amp; step log</b> on a rolling calendar, so your conditioning counts too — not just what you lifted.</span></li>
           <li><svg viewBox="0 0 24 24"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg><span><b>Works with no signal.</b> The whole app runs offline in a basement gym.</span></li>
         </ul>
       </div>
@@ -588,7 +606,7 @@
       </div>
       <div class="step reveal">
         <h3>Your program lands</h3>
-        <p>I build it and push it to SemperFitGo. You open the app, and your first training day is already there waiting. Then we get to work.</p>
+        <p>I build it and push it to SemperfitGO. You open the app, and your first training day is already there waiting. Then we get to work.</p>
       </div>
     </div>
   </div>
