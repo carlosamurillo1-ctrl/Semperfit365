@@ -340,6 +340,61 @@
   .feat-list svg { flex: 0 0 auto; width: 20px; height: 20px; fill: var(--accent); margin-top: 3px; }
   .feat-list b { color: var(--text); font-weight: 600; }
 
+  /* ---------- reviews ---------- */
+
+  .rating-wrap { text-align: center; }
+  .stars { display: inline-flex; gap: 5px; margin-bottom: 14px; }
+  .stars svg { width: 27px; height: 27px; fill: var(--accent); }
+  .rating-num {
+    font-family: Oswald, sans-serif;
+    font-weight: 700;
+    font-size: clamp(52px, 12vw, 78px);
+    line-height: 1;
+    color: var(--text);
+  }
+  .rating-sub { color: var(--dim); margin: 10px 0 26px; font-size: 17px; }
+
+  /* ---------- programs ---------- */
+
+  .prog {
+    position: relative;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 28px 26px;
+    display: flex;
+    flex-direction: column;
+    transition: transform .18s ease, border-color .18s ease;
+  }
+  .prog:hover { transform: translateY(-3px); border-color: var(--accent-deep); }
+  .prog.feature { border-color: var(--accent-deep); background: var(--panel-2); }
+  .prog .term {
+    font-family: Oswald, sans-serif;
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 15px;
+    letter-spacing: .1em;
+    color: var(--accent);
+  }
+  .prog h3 { font-size: 30px; margin: 6px 0 12px; }
+  .prog p { color: var(--dim); margin: 0 0 18px; font-size: 16px; }
+  .prog ul { list-style: none; padding: 0; margin: 0 0 4px; display: grid; gap: 10px; }
+  .prog li { display: flex; gap: 10px; color: var(--dim); font-size: 15.5px; }
+  .prog li svg { flex: 0 0 auto; width: 17px; height: 17px; fill: var(--accent); margin-top: 3px; }
+  .prog .tag {
+    position: absolute;
+    top: -12px; right: 20px;
+    background: var(--accent);
+    color: #07130d;
+    font-family: Oswald, sans-serif;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 999px;
+  }
+
   /* ---------- steps ---------- */
 
   .steps { counter-reset: step; display: grid; gap: 18px; }
@@ -441,6 +496,7 @@
     </a>
     <nav class="nav-links">
       <a href="#ways">Train With Me</a>
+      <a href="#programs">Programs</a>
       <a href="#app">The App</a>
       <a href="#how">How It Works</a>
     </nav>
@@ -477,16 +533,33 @@
 <div class="strip">
   <div class="wrap">
     <div class="strip-grid">
+      <div class="stat"><div class="n">5.0 &#9733;</div><div class="l">46 Google Reviews</div></div>
       <div class="stat"><div class="n">3 Ways</div><div class="l">To Train</div></div>
-      <div class="stat"><div class="n">365</div><div class="l">Days A Year</div></div>
       <div class="stat"><div class="n">Custom</div><div class="l">Programming</div></div>
       <div class="stat"><div class="n">Free</div><div class="l">App Included</div></div>
     </div>
   </div>
 </div>
 
+<!-- ================= REVIEWS ================= -->
+<section id="reviews">
+  <div class="wrap rating-wrap reveal">
+    <div class="stars" aria-hidden="true">
+      <svg viewBox="0 0 24 24"><path d="m12 17.3 6.2 3.7-1.6-7 5.4-4.7-7.1-.6L12 2 9.1 8.7 2 9.3l5.4 4.7-1.6 7z"/></svg>
+      <svg viewBox="0 0 24 24"><path d="m12 17.3 6.2 3.7-1.6-7 5.4-4.7-7.1-.6L12 2 9.1 8.7 2 9.3l5.4 4.7-1.6 7z"/></svg>
+      <svg viewBox="0 0 24 24"><path d="m12 17.3 6.2 3.7-1.6-7 5.4-4.7-7.1-.6L12 2 9.1 8.7 2 9.3l5.4 4.7-1.6 7z"/></svg>
+      <svg viewBox="0 0 24 24"><path d="m12 17.3 6.2 3.7-1.6-7 5.4-4.7-7.1-.6L12 2 9.1 8.7 2 9.3l5.4 4.7-1.6 7z"/></svg>
+      <svg viewBox="0 0 24 24"><path d="m12 17.3 6.2 3.7-1.6-7 5.4-4.7-7.1-.6L12 2 9.1 8.7 2 9.3l5.4 4.7-1.6 7z"/></svg>
+    </div>
+    <div class="rating-num">5.0</div>
+    <p class="rating-sub">46 reviews on Google &middot; every one of them five stars</p>
+    <!-- EDIT ME: replace this link if your Google Business profile URL ever changes. -->
+    <a class="btn btn-ghost" href="https://maps.app.goo.gl/WKQVh84n5Ra7U4bK6" target="_blank" rel="noopener">Read the reviews &rarr;</a>
+  </div>
+</section>
+
 <!-- ================= WAYS TO TRAIN ================= -->
-<section id="ways">
+<section class="alt" id="ways">
   <div class="wrap">
     <div class="sec-head reveal">
       <div class="kicker">Train With Me</div>
@@ -517,6 +590,62 @@
          client looks for, and leaving them out costs you inquiries. -->
     <p class="reveal" style="text-align:center;color:var(--dim);margin:34px 0 0;font-size:15.5px;">
       Not sure which fits? <a href="#start">Start with the questionnaire</a> and we'll figure it out on the call — plenty of people mix formats, like in person once a week and online the rest.
+    </p>
+  </div>
+</section>
+
+<!-- ================= PROGRAMS ================= -->
+<section id="programs">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="kicker">Programs</div>
+      <h2>Commit to a block, not a single session</h2>
+      <p>Real change takes months, not weeks — so coaching is sold in blocks. The longer the block, the more the programming can build on itself, and the better the rate.</p>
+    </div>
+
+    <div class="grid three">
+      <div class="prog reveal">
+        <div class="term">3 Month</div>
+        <h3>Foundation</h3>
+        <p>Long enough to clean up technique, build the habit, and put real numbers on the board.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg><span>Custom program, rebuilt each training block</span></li>
+          <li><svg viewBox="0 0 24 24"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg><span>SemperfitGO access included</span></li>
+          <li><svg viewBox="0 0 24 24"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg><span>Nutrition targets set up with you</span></li>
+        </ul>
+      </div>
+
+      <div class="prog reveal">
+        <div class="term">6 Month</div>
+        <h3>Momentum</h3>
+        <p>Where the changes get obvious — to you and to everyone else. Progression is planned across multiple blocks instead of one.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg><span>Everything in the 3 month block</span></li>
+          <li><svg viewBox="0 0 24 24"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg><span>Progression planned block to block</span></li>
+          <li><svg viewBox="0 0 24 24"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg><span>Better per-month rate than 3 month</span></li>
+        </ul>
+      </div>
+
+      <div class="prog feature reveal">
+        <span class="tag">Best Value</span>
+        <div class="term">12 Month</div>
+        <h3>Transformation</h3>
+        <p>The full arc — build a strength base, then specialize. The lowest per-month rate and the biggest change.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg><span>Everything in the shorter blocks</span></li>
+          <li><svg viewBox="0 0 24 24"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg><span>Programming periodized across the full year</span></li>
+          <li><svg viewBox="0 0 24 24"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg><span>Deload and recovery blocks planned in</span></li>
+          <li><svg viewBox="0 0 24 24"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg><span>Priority scheduling for in-person sessions</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- EDIT ME: add real prices. Even a single "from $X/month" anchors the value
+         and filters out people who were never going to book. Leaving price off
+         entirely makes people assume the worst and close the tab. -->
+    <p class="reveal" style="text-align:center;color:var(--dim);margin:34px 0 0;font-size:15.5px;">
+      <b style="color:var(--text);">Package deals available</b> on in-person and small group sessions — buy a block of sessions up front at a better per-session rate.
+      <a href="#start">Start with the questionnaire</a> and we'll match a program to your goals and budget on the call.
     </p>
   </div>
 </section>
