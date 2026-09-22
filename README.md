@@ -4,13 +4,22 @@ Turns a Google Sheet workout program into a simple, mobile-friendly workout app:
 
 No build step, no backend required to run it, no account required for a client to use it. It's a static site that reads your program from Google Sheets (or a pasted/uploaded CSV) and keeps everything you log in your browser — with an optional coach sync layer (see below) if you want to see what a client logs.
 
+## Layout
+
+Two things are served from this one repo:
+
+- **`/`** — the public marketing site for the training business (`index.html` plus `img/`). This is what a custom domain should land on.
+- **`/app/`** — SemperfitGO, the workout app itself. Everything it needs lives under that folder, including its own service worker, so its cache scope stays `/app/` and never touches the marketing pages.
+
+Client links generated from the coach dashboard build off `window.location.pathname`, so they automatically point at `/app/` — nothing to update by hand if the app ever moves again.
+
 ## Coach sync — seeing what a client logs, live
 
 By default nothing leaves a device: all data lives in that browser's local storage only. If you want to actually see a client's logged sets as they train, wire up the free (no-cost-tier) cloud sync:
 
 1. Create a Firebase project at [console.firebase.google.com](https://console.firebase.google.com) → **Build → Firestore Database → Create database** (production mode, any location).
 2. In **Firestore Database → Rules**, paste the contents of `firestore.rules` from this repo and publish. This is what keeps client data private — access requires knowing the exact random client/coach id, and neither collection can be listed/enumerated without one.
-3. **Project settings → Your apps → add a Web app**, and copy the `firebaseConfig` object it gives you into `js/firebaseConfig.js`, replacing the `"REPLACE_ME"` placeholders.
+3. **Project settings → Your apps → add a Web app**, and copy the `firebaseConfig` object it gives you into `app/js/firebaseConfig.js`, replacing the `"REPLACE_ME"` placeholders.
 4. Deploy. Coach sync is otherwise a no-op — nothing changes for anyone until this file has real values.
 
 Once configured:
@@ -72,13 +81,13 @@ When you set a **Price** while adding a client (Coach dashboard → Add client),
 
 From then on, every time you tap **Mark as paid**, `functions/index.js` fires automatically and emails a receipt to whatever address the client signed in with. If you ever change the sender address, update `FROM_EMAIL` at the top of that file and redeploy.
 
-**Contact info shown to clients.** The "Email coach" / "Text coach" buttons on the paywall and Settings screens, and the Zelle address shown on the payment screen, come from `COACH_EMAIL` / `COACH_PHONE_DISPLAY` / `COACH_PHONE_HREF` near the top of `js/app.js` — update those three constants if either ever changes.
+**Contact info shown to clients.** The "Email coach" / "Text coach" buttons on the paywall and Settings screens, and the Zelle address shown on the payment screen, come from `COACH_EMAIL` / `COACH_PHONE_DISPLAY` / `COACH_PHONE_HREF` near the top of `app/js/app.js` — update those three constants if either ever changes.
 
 ## Sending this to someone (e.g. a client)
 
-The app ships with a default program baked in (`js/seedProgram.js`) — anyone who opens the link for the first time sees it immediately, no import step required. It only applies on a device's very first visit: once a program exists in that browser (seeded or imported), it's never overwritten automatically, even if every day is later deleted.
+The app ships with a default program baked in (`app/js/seedProgram.js`) — anyone who opens the link for the first time sees it immediately, no import step required. It only applies on a device's very first visit: once a program exists in that browser (seeded or imported), it's never overwritten automatically, even if every day is later deleted.
 
-To change the bundled program, replace the text inside the template literal in `js/seedProgram.js` with your own sheet data (same paste/export format as the in-app importer — see below), or edit `SEED_SHEET_TEXT` to an empty string (`""`) to ship the app with no default program, so every visitor lands on the normal Import screen instead.
+To change the bundled program, replace the text inside the template literal in `app/js/seedProgram.js` with your own sheet data (same paste/export format as the in-app importer — see below), or edit `SEED_SHEET_TEXT` to an empty string (`""`) to ship the app with no default program, so every visitor lands on the normal Import screen instead.
 
 ## How it works
 
