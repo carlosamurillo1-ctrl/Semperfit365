@@ -133,6 +133,44 @@
   .nav .btn { padding: 10px 20px; font-size: 14px; }
   @media (min-width: 860px) { .nav-links { display: flex; } }
 
+  .nav-right { display: flex; align-items: center; gap: 10px; }
+
+  /* Below 860px the inline links are hidden, so the menu button is the only
+     way to reach a section without scrolling the whole page. */
+  .nav-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    padding: 0;
+    background: rgba(255, 255, 255, .04);
+    border: 1px solid var(--line);
+    border-radius: 11px;
+    cursor: pointer;
+  }
+  .nav-toggle svg { width: 20px; height: 20px; fill: var(--text); }
+  .nav-toggle .ic-close { display: none; }
+  .nav-toggle[aria-expanded="true"] .ic-open { display: none; }
+  .nav-toggle[aria-expanded="true"] .ic-close { display: block; }
+  @media (min-width: 860px) { .nav-toggle { display: none; } }
+
+  .nav-panel { display: none; border-top: 1px solid var(--line); }
+  .nav-panel.open { display: block; }
+  @media (min-width: 860px) { .nav-panel { display: none !important; } }
+  .nav-panel a {
+    display: block;
+    padding: 15px 2px;
+    font-family: Oswald, sans-serif;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    font-size: 15px;
+    color: var(--text);
+    text-decoration: none;
+    border-bottom: 1px solid var(--line);
+  }
+  .nav-panel a:last-child { border-bottom: none; }
+
   /* ---------- hero ---------- */
 
   .hero {
@@ -586,12 +624,33 @@
       <img src="app/icons/logo.jpg" alt="SemperFit365" />
     </a>
     <nav class="nav-links">
+      <a href="#about">About</a>
       <a href="#ways">Train With Me</a>
       <a href="#programs">Programs</a>
       <a href="#app">The App</a>
       <a href="#how">How It Works</a>
     </nav>
-    <a class="btn btn-primary" href="#start">Start Here</a>
+    <div class="nav-right">
+      <a class="btn btn-primary" href="#start">Start Here</a>
+      <button class="nav-toggle" id="nav-toggle" type="button"
+              aria-label="Menu" aria-expanded="false" aria-controls="nav-panel">
+        <svg class="ic-open" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+        <svg class="ic-close" viewBox="0 0 24 24"><path d="M19 6.4 17.6 5 12 10.6 6.4 5 5 6.4l5.6 5.6L5 17.6 6.4 19l5.6-5.6 5.6 5.6 1.4-1.4-5.6-5.6z"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="nav-panel" id="nav-panel">
+    <div class="wrap">
+      <a href="#about">About</a>
+      <a href="#reviews">Reviews</a>
+      <a href="#ways">Train With Me</a>
+      <a href="#programs">Programs</a>
+      <a href="#app">The App</a>
+      <a href="#how">How It Works</a>
+      <a href="#start">Start Here</a>
+      <a href="#contact">Contact</a>
+    </div>
   </div>
 </header>
 
@@ -687,8 +746,57 @@
   </div>
 </section>
 
+<!-- ================= ABOUT ================= -->
+<section class="alt" id="about">
+  <div class="wrap">
+    <div class="about-body reveal">
+      <div class="kicker" style="font-family:Oswald,sans-serif;text-transform:uppercase;letter-spacing:.18em;font-size:12px;color:var(--accent);margin-bottom:12px;">Your Coach</div>
+      <h2>Marine veteran. Firefighter. Your coach.</h2>
+      <div class="creds">
+        <span class="cred">Marine Veteran</span>
+        <span class="cred">Firefighter</span>
+        <span class="cred">NASM Certified</span>
+        <span class="cred">PTA Global</span>
+      </div>
+      <p>
+        I'm Carlos — a Marine veteran, and today a firefighter. So when I say I understand
+        training around shift work, bad sleep and a job that doesn't care how your week is
+        going, I'm not guessing.
+      </p>
+      <p>
+        I've been training people for over ten years — men and women through every stage of
+        their lives, and for the last several years, police officers and firefighters.
+      </p>
+      <p>
+        That range matters, because the person rebuilding after an injury and the person
+        prepping for a job that might save someone's life need the same thing from a coach:
+        an honest plan, real numbers, and someone who notices when they go quiet.
+      </p>
+      <p>Everything I build rests on three pillars.</p>
+
+      <div class="pillars">
+        <div class="pillar">
+          <div class="n">01</div>
+          <h3>Mindset</h3>
+          <p>It won't be easy. It starts and ends with how you decide to show up.</p>
+        </div>
+        <div class="pillar">
+          <div class="n">02</div>
+          <h3>Training &amp; Recovery</h3>
+          <p>Work hard enough to change, and recover well enough to keep going.</p>
+        </div>
+        <div class="pillar">
+          <div class="n">03</div>
+          <h3>Nutrition</h3>
+          <p>Targets you can hit on a real schedule, not a plan that needs a perfect week.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- ================= WAYS TO TRAIN ================= -->
-<section class="alt" id="ways">
+<section id="ways">
   <div class="wrap">
     <div class="sec-head reveal">
       <div class="kicker">Train With Me</div>
@@ -724,7 +832,7 @@
 </section>
 
 <!-- ================= PROGRAMS ================= -->
-<section id="programs">
+<section class="alt" id="programs">
   <div class="wrap">
     <div class="sec-head reveal">
       <div class="kicker">Programs</div>
@@ -780,7 +888,7 @@
 </section>
 
 <!-- ================= TRAINING ================= -->
-<section class="alt" id="training">
+<section id="training">
   <div class="wrap">
     <div class="sec-head reveal">
       <div class="kicker">What You Get</div>
@@ -824,7 +932,7 @@
 </section>
 
 <!-- ================= APP ================= -->
-<section id="app">
+<section class="alt" id="app">
   <div class="wrap">
     <div class="sec-head reveal">
       <div class="kicker">Included With Coaching</div>
@@ -880,55 +988,6 @@
     <p class="reveal" style="text-align:center;color:var(--dim);margin:42px 0 0;font-size:15.5px;">
       No app store, no download, no extra subscription. I send you a link, you add it to your home screen, and it behaves like any other app on your phone.
     </p>
-  </div>
-</section>
-
-<!-- ================= ABOUT ================= -->
-<section class="alt" id="about">
-  <div class="wrap">
-    <div class="about-body reveal">
-      <div class="kicker" style="font-family:Oswald,sans-serif;text-transform:uppercase;letter-spacing:.18em;font-size:12px;color:var(--accent);margin-bottom:12px;">Your Coach</div>
-      <h2>Marine veteran. Firefighter. Your coach.</h2>
-      <div class="creds">
-        <span class="cred">Marine Corps &middot; 2010&ndash;2017</span>
-        <span class="cred">Firefighter</span>
-        <span class="cred">NASM Certified</span>
-        <span class="cred">PTA Global</span>
-      </div>
-      <p>
-        I'm Carlos. I served in the Marine Corps from 2010 to 2017. Today I'm a firefighter — so when I
-        say I understand training around shift work, bad sleep and a job that doesn't care
-        how your week is going, I'm not guessing.
-      </p>
-      <p>
-        I've been training people for over ten years — men and women through every stage of
-        their lives, and for the last several years, police officers and firefighters.
-      </p>
-      <p>
-        That range matters, because the person rebuilding after an injury and the person
-        prepping for a job that might save someone's life need the same thing from a coach:
-        an honest plan, real numbers, and someone who notices when they go quiet.
-      </p>
-      <p>Everything I build rests on three pillars.</p>
-
-      <div class="pillars">
-        <div class="pillar">
-          <div class="n">01</div>
-          <h3>Mindset</h3>
-          <p>It won't be easy. It starts and ends with how you decide to show up.</p>
-        </div>
-        <div class="pillar">
-          <div class="n">02</div>
-          <h3>Training &amp; Recovery</h3>
-          <p>Work hard enough to change, and recover well enough to keep going.</p>
-        </div>
-        <div class="pillar">
-          <div class="n">03</div>
-          <h3>Nutrition</h3>
-          <p>Targets you can hit on a real schedule, not a plan that needs a perfect week.</p>
-        </div>
-      </div>
-    </div>
   </div>
 </section>
 
@@ -1034,6 +1093,23 @@
 
 <script>
   document.getElementById("yr").textContent = new Date().getFullYear();
+
+  // Mobile menu
+  var navToggle = document.getElementById("nav-toggle");
+  var navPanel = document.getElementById("nav-panel");
+  function setMenu(open) {
+    navPanel.classList.toggle("open", open);
+    navToggle.setAttribute("aria-expanded", open ? "true" : "false");
+  }
+  navToggle.addEventListener("click", function () {
+    setMenu(!navPanel.classList.contains("open"));
+  });
+  navPanel.addEventListener("click", function (e) {
+    if (e.target.tagName === "A") setMenu(false);
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") setMenu(false);
+  });
 
   // Fade sections in as they scroll into view (skipped if the OS asks for reduced motion).
   var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
