@@ -349,10 +349,41 @@
     width: 100%;
     height: auto;
     display: block;
-    border-radius: 50%;
-    border: 2px solid var(--accent-deep);
+    border-radius: 18px;
+    border: 1px solid var(--accent-deep);
     background: var(--panel);
   }
+
+  .creds { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 22px; }
+  .cred {
+    font-family: Oswald, sans-serif;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    font-size: 12px;
+    color: var(--accent);
+    border: 1px solid var(--accent-deep);
+    background: rgba(94,230,168,.07);
+    padding: 5px 12px;
+    border-radius: 999px;
+  }
+
+  .pillars { display: grid; gap: 16px; margin-top: 26px; }
+  @media (min-width: 640px) { .pillars { grid-template-columns: repeat(3, 1fr); } }
+  .pillar {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 18px;
+  }
+  .pillar .n {
+    font-family: Oswald, sans-serif;
+    font-size: 12px;
+    letter-spacing: .14em;
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+  .pillar h3 { font-size: 18px; margin: 5px 0 6px; }
+  .pillar p { color: var(--dim); font-size: 15px; margin: 0; }
   .about-body h2 { font-size: clamp(30px, 6vw, 46px); margin-bottom: 18px; }
   .about-body p { color: var(--dim); margin: 0 0 16px; }
   .about-body p:last-child { margin-bottom: 0; }
@@ -524,7 +555,7 @@
 <section class="hero" id="top">
   <div class="wrap hero-inner">
     <div>
-      <span class="eyebrow">Semper Fit 365 &middot; Personal Training</span>
+      <span class="eyebrow">Marine Veteran &middot; NASM Certified Trainer</span>
       <h1>Discipline builds the body.<br /><span class="hl">I build the plan.</span></h1>
       <p class="lede">
         In-person, small group or online coaching — built around your goals, your schedule and the
@@ -549,9 +580,9 @@
 <div class="strip">
   <div class="wrap">
     <div class="strip-grid">
-      <div class="stat"><div class="n">5.0 &#9733;</div><div class="l">46 Google Reviews</div></div>
+      <div class="stat"><div class="n">5.0 &#9733;</div><div class="l">On Google</div></div>
       <div class="stat"><div class="n">3 Ways</div><div class="l">To Train</div></div>
-      <div class="stat"><div class="n">Custom</div><div class="l">Programming</div></div>
+      <div class="stat"><div class="n">20 Yrs</div><div class="l">Experience</div></div>
       <div class="stat"><div class="n">Free</div><div class="l">App Included</div></div>
     </div>
   </div>
@@ -568,7 +599,7 @@
       <svg viewBox="0 0 24 24"><path d="m12 17.3 6.2 3.7-1.6-7 5.4-4.7-7.1-.6L12 2 9.1 8.7 2 9.3l5.4 4.7-1.6 7z"/></svg>
     </div>
     <div class="rating-num">5.0</div>
-    <p class="rating-sub">46 reviews on Google &middot; every one of them five stars</p>
+    <p class="rating-sub">Rated five stars by every client who's left a review on Google</p>
     <!-- EDIT ME: replace this link if your Google Business profile URL ever changes. -->
     <a class="btn btn-ghost" href="https://maps.app.goo.gl/WKQVh84n5Ra7U4bK6" target="_blank" rel="noopener">Read the reviews &rarr;</a>
   </div>
@@ -778,22 +809,43 @@
     </div>
     <div class="about-body reveal">
       <div class="kicker" style="font-family:Oswald,sans-serif;text-transform:uppercase;letter-spacing:.18em;font-size:12px;color:var(--accent);margin-bottom:12px;">Your Coach</div>
-      <!-- EDIT ME: replace the two paragraphs below with your own words.
-           Add your name, how long you've been training people, any
-           certifications, and why you started SemperFit365. I've written
-           nothing here that claims anything specific about you, because I
-           don't know it - but a real story converts far better than this. -->
-      <h2>Training isn't complicated. Staying consistent is.</h2>
+      <h2>Marine veteran. Certified trainer. Twenty years under the bar.</h2>
+      <!-- CHECK THESE NUMBERS: taken from your Instagram bio and advanced by the
+           six years since you wrote it (14+6, 8+6, 4+6). Correct any that drifted. -->
+      <div class="creds">
+        <span class="cred">NASM Certified</span>
+        <span class="cred">PTA Global</span>
+        <span class="cred">Marine Veteran</span>
+      </div>
       <p>
-        Most people don't fail because the program was wrong. They fail because nobody
-        noticed when they stopped showing up, or because they were never sure whether the
-        work was actually doing anything.
+        I've spent about twenty years training — fourteen of them coaching men and women
+        through every stage of their lives, and the last ten working with military service
+        members, police officers and firefighters.
       </p>
       <p>
-        That's the part I handle. You get a plan built around your body and your week,
-        numbers that tell you the truth about whether you're progressing, and someone who
-        notices when you go quiet — and follows up.
+        That range matters, because the person rebuilding after an injury and the person
+        prepping for a job that might save someone's life need the same thing from a coach:
+        an honest plan, real numbers, and someone who notices when they go quiet.
       </p>
+      <p>Everything I build rests on three pillars.</p>
+
+      <div class="pillars">
+        <div class="pillar">
+          <div class="n">01</div>
+          <h3>Mindset</h3>
+          <p>It won't be easy. It starts and ends with how you decide to show up.</p>
+        </div>
+        <div class="pillar">
+          <div class="n">02</div>
+          <h3>Training &amp; Recovery</h3>
+          <p>Work hard enough to change, and recover well enough to keep going.</p>
+        </div>
+        <div class="pillar">
+          <div class="n">03</div>
+          <h3>Nutrition</h3>
+          <p>Targets you can hit on a real schedule, not a plan that needs a perfect week.</p>
+        </div>
+      </div>
     </div>
   </div>
 </section>
