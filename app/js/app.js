@@ -156,6 +156,7 @@ function navigate(screen, params = {}) {
   state.screen = screen;
   state.params = params;
   if (["program", "history", "nutrition", "settings"].includes(screen)) state.tab = screen;
+  if (screen !== "nutrition-scan") stopBarcodeScan();
 
   if (screen === "coach") {
     teardownCoachClientListener();
@@ -2029,6 +2030,7 @@ function onClick(e) {
     case "go-nutrition-manual": navigate("nutrition-manual", { dateStr: el.dataset.date, mealType: el.dataset.meal }); break;
     case "go-nutrition-search": navigate("nutrition-search", { dateStr: el.dataset.date, mealType: el.dataset.meal }); break;
     case "go-nutrition-scan": navigate("nutrition-scan", { dateStr: el.dataset.date, mealType: el.dataset.meal }); break;
+    case "retry-barcode-scan": startBarcodeScan(el.dataset.date, el.dataset.meal); break;
     case "go-nutrition-weight": navigate("nutrition-weight"); break;
     case "go-nutrition-goals": navigate("nutrition-goals"); break;
     case "go-nutrition-recipes": navigate("nutrition-recipes"); break;
@@ -2397,20 +2399,69 @@ function stopBarcodeScan() {
   }
 }
 
+// getUserMedia rejects with a handful of named errors, and each one needs a
+// different thing from the person holding the phone.
+function cameraErrorMessage(err) {
+  const name = (err && err.name) || "";
+  if (name === "NotAllowedError" || name === "SecurityError") {
+    return "Camera permission was blocked. Tap the lock or ⋮ icon next to the web address, allow Camera, then reload and try again.";
+  }
+  if (name === "NotFoundError" || name === "OverconstrainedError" || name === "DevicesNotFoundError") {
+    return "No camera found on this device. Use search or manual entry instead.";
+  }
+  if (name === "NotReadableError" || name === "TrackStartError") {
+    return "Another app is using the camera. Close it (or your camera app) and try again.";
+  }
+  return `Couldn't start the camera${name ? ` (${name})` : ""}. Try again, or use search / manual entry instead.`;
+}
+
 async function startBarcodeScan(dateStr, mealType) {
   const statusEl = document.getElementById("scan-status");
+  const retryEl = document.getElementById("scan-retry");
+  const say = (msg, canRetry) => {
+    if (statusEl) statusEl.textContent = msg;
+    if (retryEl) retryEl.hidden = !canRetry;
+  };
+
+  stopBarcodeScan();
+  say("Starting the camera…", false);
+
+  // The camera API is only exposed on https (or localhost). Served over plain
+  // http it isn't merely blocked — navigator.mediaDevices is undefined.
+  if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    say("The camera needs a secure (https) connection. Open the app at https://trainsemperfit365.com/app/ and try again, or use search / manual entry.", false);
+    return;
+  }
+
   try {
     await ensureZXingLoaded();
-    stopBarcodeScan();
+  } catch {
+    say("Couldn't load the scanner. Check your connection and try again, or use search / manual entry.", true);
+    return;
+  }
+
+  // Open the camera ourselves rather than letting the reader pick a device by
+  // name: until permission has actually been granted the device list comes back
+  // unlabelled, so "find the one called back" matches nothing and we end up
+  // guessing — usually at the selfie camera, sometimes at no camera at all.
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } } });
+  } catch (err) {
+    say(cameraErrorMessage(err), true);
+    return;
+  }
+
+  try {
     zxingReader = new window.ZXing.BrowserMultiFormatReader();
-    const devices = await zxingReader.listVideoInputDevices();
-    if (!devices.length) throw new Error("no camera");
-    const backCam = devices.find((d) => /back|rear|environment/i.test(d.label)) || devices[devices.length - 1];
-    zxingReader.decodeFromVideoDevice(backCam.deviceId, "scan-video", (result) => {
+    await zxingReader.decodeFromStream(stream, "scan-video", (result) => {
       if (result) handleBarcodeDetected(result.getText(), dateStr, mealType);
     });
-  } catch {
-    if (statusEl) statusEl.textContent = "Couldn't access the camera -- check that this browser has camera permission, or use search / manual entry instead.";
+    say("Point the camera at a barcode.", false);
+  } catch (err) {
+    stream.getTracks().forEach((t) => t.stop());
+    stopBarcodeScan();
+    say(cameraErrorMessage(err), true);
   }
 }
 
@@ -2433,9 +2484,10 @@ function renderNutritionScan() {
   return `
     ${topbar("Scan barcode", { back: true })}
     <div class="scan-video-wrap">
-      <video id="scan-video"></video>
+      <video id="scan-video" autoplay muted playsinline></video>
     </div>
-    <p id="scan-status" class="hint" style="text-align:center;margin-top:10px;">Point the camera at a barcode.</p>
+    <p id="scan-status" class="hint" style="text-align:center;margin-top:10px;">Starting the camera…</p>
+    <button class="btn" id="scan-retry" data-action="retry-barcode-scan" data-date="${esc(dateStr)}" data-meal="${esc(mealType)}" hidden>Try the camera again</button>
     <button class="btn" data-action="go-nutrition-manual" data-date="${esc(dateStr)}" data-meal="${esc(mealType)}">Enter manually instead</button>
   `;
 }

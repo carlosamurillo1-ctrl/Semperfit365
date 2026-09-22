@@ -195,6 +195,10 @@ p { color: var(--text-dim); margin: 4px 0 0; font-size: 14px; }
 .btn.ghost { background: transparent; }
 .btn.small { width: auto; padding: 8px 12px; font-size: 13px; }
 .btn-row { display: flex; gap: 10px; }
+
+/* An author rule that sets display would otherwise beat the browser's own
+   [hidden] rule, so state this once and stop worrying about it. */
+[hidden] { display: none !important; }
 .btn-row .btn { flex: 1; }
 
 label { display: block; font-size: 13px; color: var(--text-dim); margin: 12px 0 6px; }
