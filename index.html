@@ -393,6 +393,29 @@
   }
   .rating-sub { color: var(--dim); margin: 10px 0 26px; font-size: 17px; }
 
+  /* Quotes are reproduced verbatim from the Google Business profile,
+     typos and all - cleaning them up makes them read as invented. */
+  .quotes { display: grid; gap: 16px; margin: 40px 0 34px; text-align: left; }
+  @media (min-width: 700px) { .quotes { grid-template-columns: repeat(2, 1fr); } }
+  @media (min-width: 1000px) { .quotes { grid-template-columns: repeat(3, 1fr); } }
+  .quote {
+    display: flex;
+    flex-direction: column;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 24px;
+  }
+  .quote .qs { color: var(--accent); font-size: 13px; letter-spacing: 3px; margin-bottom: 12px; }
+  .quote p { color: var(--dim); margin: 0 0 18px; font-size: 15.5px; flex: 1; }
+  .quote .who {
+    font-family: Oswald, sans-serif;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    font-size: 13px;
+    color: var(--text);
+  }
+
   /* ---------- programs ---------- */
 
   .prog {
@@ -591,6 +614,39 @@
     </div>
     <div class="rating-num">5.0</div>
     <p class="rating-sub">Rated five stars by every client who's left a review on Google</p>
+
+    <div class="quotes">
+      <div class="quote">
+        <div class="qs">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+        <p>"If there's a coach that cares more about your progress more than anything it's Carlos. Till this day, not only has Carlos helped me reach my fitness goal originally, but had taught me enough to change my career in become a personal trainer so I can have the same impact to others health as he did for mine!"</p>
+        <div class="who">Brian R.</div>
+      </div>
+      <div class="quote">
+        <div class="qs">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+        <p>"Carlos has helped me significantly over the past year, after I lost all motivation and desire to work out during covid pandemic. I became very sedentary and needed help to get to where I want to be, and I could not have done it without Carlos"</p>
+        <div class="who">Brian L.</div>
+      </div>
+      <div class="quote">
+        <div class="qs">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+        <p>"With the perfect balance of compassion and discipline Carlos motivates you to reach your goals. Very personable and understanding. He works around injuries and will get u where u want to be!"</p>
+        <div class="who">Shantal A.</div>
+      </div>
+      <div class="quote">
+        <div class="qs">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+        <p>"achieved amazing results because of personalized training and consistent support! i reached my goals quicker than i thought i would and i was so much stronger physically and mentally. 100% recommend for you to start ASAP with coach carlos, you will not regret it !! :)"</p>
+        <div class="who">Gabriella M.</div>
+      </div>
+      <div class="quote">
+        <div class="qs">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+        <p>"Semperfit365 really knows how to target your goals and makes it fun and rewarding when you're in a session. I have seen so much growth and results since starting with Carlos in 2020."</p>
+        <div class="who">Krystal R.</div>
+      </div>
+      <div class="quote">
+        <div class="qs">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+        <p>"Had the pleasure of working with Carlos on my health journey. He is patient, kind, and understanding. He was always welcoming and provided a comfortable workout environment!"</p>
+        <div class="who">Kassandra B.</div>
+      </div>
+    </div>
     <!-- EDIT ME: replace this link if your Google Business profile URL ever changes. -->
     <a class="btn btn-ghost" href="https://maps.app.goo.gl/WKQVh84n5Ra7U4bK6" target="_blank" rel="noopener">Read the reviews &rarr;</a>
   </div>
@@ -805,7 +861,7 @@
         <span class="cred">PTA Global</span>
       </div>
       <p>
-        I served in the Marine Corps from 2010 to 2017. Today I'm a firefighter — so when I
+        I'm Carlos. I served in the Marine Corps from 2010 to 2017. Today I'm a firefighter — so when I
         say I understand training around shift work, bad sleep and a job that doesn't care
         how your week is going, I'm not guessing.
       </p>
