@@ -264,7 +264,7 @@ function render() {
 function topbar(title, opts = {}) {
   const backBtn = opts.back
     ? `<button class="btn ghost small" data-action="${opts.backAction || "back"}" style="width:auto;padding:6px 10px;">&larr; Back</button>`
-    : `<div class="brand"><span class="logo-crop"><img src="icons/logo.jpg" alt="SemperFit365"/></span></div>`;
+    : `<div class="brand"><span class="lockup" aria-label="SemperFit365"><svg class="ring" viewBox="0 0 100 100" aria-hidden="true"><path d="M 61.29 18.99 A 33 33 0 1 1 38.71 18.99" fill="none" stroke="currentColor" stroke-width="10"/><circle cx="50" cy="17" r="6.5" fill="#5ee6a8"/></svg><span class="wordmark">SemperFit<span class="yr">365</span></span></span></div>`;
   const right = opts.right || `<div style="width:${opts.back ? "70px" : "0"}"></div>`;
   return `<div class="topbar">${backBtn}<h1 style="margin:0;font-size:17px;">${esc(title)}</h1>${right}</div>`;
 }
@@ -281,7 +281,7 @@ function renderPaywallSignin() {
   const greetName = paywallClientLabel ? `, ${esc(paywallClientLabel)}` : "";
   return `
     <div style="text-align:center;padding:24px 0 8px;">
-      <span class="logo-crop" style="width:140px;height:58px;margin:0 auto;"><img src="icons/logo.jpg" alt="SemperFit365"/></span>
+      <span class="lockup lockup-lg" aria-label="SemperFit365"><svg class="ring" viewBox="0 0 100 100" aria-hidden="true"><path d="M 61.29 18.99 A 33 33 0 1 1 38.71 18.99" fill="none" stroke="currentColor" stroke-width="10"/><circle cx="50" cy="17" r="6.5" fill="#5ee6a8"/></svg><span class="wordmark">SemperFit<span class="yr">365</span></span></span>
     </div>
     <div class="card">
       ${sent ? `
@@ -326,7 +326,7 @@ function renderPaywallPayment() {
   const greetName = paywallClientLabel ? `, ${esc(paywallClientLabel)}` : "";
   return `
     <div style="text-align:center;padding:24px 0 8px;">
-      <span class="logo-crop" style="width:140px;height:58px;margin:0 auto;"><img src="icons/logo.jpg" alt="SemperFit365"/></span>
+      <span class="lockup lockup-lg" aria-label="SemperFit365"><svg class="ring" viewBox="0 0 100 100" aria-hidden="true"><path d="M 61.29 18.99 A 33 33 0 1 1 38.71 18.99" fill="none" stroke="currentColor" stroke-width="10"/><circle cx="50" cy="17" r="6.5" fill="#5ee6a8"/></svg><span class="wordmark">SemperFit<span class="yr">365</span></span></span>
     </div>
     <div class="card">
       <h2>You're verified${greetName} -- almost there</h2>

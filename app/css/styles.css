@@ -99,22 +99,25 @@ p { color: var(--text-dim); margin: 4px 0 0; font-size: 14px; }
   gap: 10px;
 }
 
-.logo-crop {
-  display: block;
-  width: 100px;
-  height: 41px;
-  overflow: hidden;
-  position: relative;
-  border-radius: 6px;
+.lockup {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--text);
 }
-.logo-crop img {
-  position: absolute;
-  top: -24px;
-  left: 0;
-  width: 100px;
-  height: 100px;
-  max-width: none;
+.lockup .ring { width: 22px; height: 22px; display: block; flex: none; }
+.lockup .wordmark {
+  font-weight: 800;
+  font-size: 15px;
+  letter-spacing: .01em;
+  text-transform: uppercase;
+  line-height: 1;
+  white-space: nowrap;
 }
+.lockup .wordmark .yr { color: var(--accent); }
+.lockup-lg { gap: 11px; }
+.lockup-lg .ring { width: 40px; height: 40px; }
+.lockup-lg .wordmark { font-size: 26px; }
 
 .card {
   background: var(--bg-elev);
