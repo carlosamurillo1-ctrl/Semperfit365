@@ -260,6 +260,7 @@ function render() {
     case "cardio-day": html = renderCardioDay(); break;
     case "coach": html = renderCoach(); break;
     case "coach-add-client": html = renderCoachAddClient(); break;
+    case "coach-draft-day": html = renderCoachDraftDay(); break;
     case "coach-client-link": html = renderCoachClientLink(); break;
     case "coach-client": html = renderCoachClient(); break;
     case "coach-client-assign-program": html = renderCoachClientAssignProgram(); break;
@@ -1563,11 +1564,11 @@ async function unpublishSavedProgram(programId, publishedId) {
  * templates, the coach's own published programs, and (if sync is set up) a
  * "copy & customize" option per template. Used by both Add Client and
  * Assign Program (existing client). */
-function programPickerOptgroups(preselect, copyLabel) {
+function programPickerOptgroups(preselect, copyLabel, includeCopy = true) {
   const builtInOptions = PROGRAM_TEMPLATES.map((t) => `<option value="${esc(t.id)}" ${preselect === t.id ? "selected" : ""}>${esc(t.name)}</option>`).join("");
   const myPrograms = Store.listPrograms().filter((p) => p.publishedId);
   const myOptions = myPrograms.map((p) => `<option value="custom:${esc(p.publishedId)}" ${preselect === `custom:${p.publishedId}` ? "selected" : ""}>${esc(p.name)}</option>`).join("");
-  const copyOptions = isSyncConfigured() ? PROGRAM_TEMPLATES.map((t) => `<option value="copy:${esc(t.id)}">Copy "${esc(t.name)}"...</option>`).join("") : "";
+  const copyOptions = includeCopy && isSyncConfigured() ? PROGRAM_TEMPLATES.map((t) => `<option value="copy:${esc(t.id)}">Copy "${esc(t.name)}"...</option>`).join("") : "";
   return `
     ${myOptions ? `<optgroup label="My programs">${myOptions}</optgroup>` : ""}
     <optgroup label="Built-in templates">${builtInOptions}</optgroup>
@@ -1649,75 +1650,157 @@ function draftToDays() {
   }));
 }
 
+/** Turns a real program's days into the draft's lighter shape, so a coach can
+ * start from one of their programs and edit it rather than retyping it. The
+ * per-exercise week rows collapse into one week count for the whole program,
+ * which is how a coach thinks about it anyway. */
+function draftFromProgramDays(days) {
+  let weeks = 0;
+  const draftDays = (days || []).map((day) => ({
+    id: draftUid(),
+    name: day.dayTitle || day.name || "Workout",
+    exercises: (day.exercises || []).map((ex) => {
+      weeks = Math.max(weeks, (ex.weeks || []).length);
+      return {
+        id: draftUid(),
+        name: ex.name || "",
+        sets: String((ex.setLabels || []).length || 3),
+        repGoal: ex.repGoal || "",
+        restTime: ex.restTime || "",
+      };
+    }),
+  }));
+  return { days: draftDays, weeks: weeks || 8 };
+}
+
+/** The picker's current value as real program days, or null. */
+function startingProgramDays(selected) {
+  if (!selected) return null;
+  if (selected.startsWith("custom:")) {
+    const publishedId = selected.slice("custom:".length);
+    const local = Store.listPrograms().find((p) => p.publishedId === publishedId);
+    return local ? Store.getProgramDaysById(local.id) : null;
+  }
+  const template = PROGRAM_TEMPLATES.find((t) => t.id === selected);
+  return template ? parseWorkoutSheets(template.sheetText) : null;
+}
+
+function customizeStartingProgram() {
+  const select = document.getElementById("coach-client-template");
+  if (!select) return;
+  const days = startingProgramDays(select.value);
+  if (!days || !days.length) {
+    toast("Couldn't load that program");
+    return;
+  }
+  const draft = ensureClientProgramDraft();
+  if (draft.days.length && !confirm("Replace what you've built so far with this program?")) return;
+  const loaded = draftFromProgramDays(days);
+  draft.days = loaded.days;
+  draft.weeks = loaded.weeks;
+  draft.startedFrom = select.options[select.selectedIndex]?.text || "";
+  render();
+}
+
 function draftExerciseCount() {
   return ensureClientProgramDraft().days.reduce((n, d) => n + d.exercises.length, 0);
 }
 
 function renderDraftBuilder() {
   const draft = ensureClientProgramDraft();
+  if (!draft.days.length) return "";
+
+  const dayCards = draft.days.map((day, i) => `
+    <div class="card tappable" data-action="open-draft-day" data-day="${esc(day.id)}">
+      <div class="row">
+        <div style="min-width:0;">
+          <h3 style="font-size:15px;margin:0;">${esc(day.name.trim() || `Day ${i + 1}`)}</h3>
+          <p style="margin:3px 0 0;">${day.exercises.length} exercise${day.exercises.length === 1 ? "" : "s"}${day.exercises.length ? ` &middot; ${esc(day.exercises.slice(0, 3).map((e) => e.name).join(", "))}${day.exercises.length > 3 ? "…" : ""}` : ""}</p>
+        </div>
+        <span class="pill" style="flex:none;">Edit</span>
+      </div>
+    </div>
+  `).join("");
+
+  return `
+    <div class="card">
+      <div class="row" style="align-items:baseline;">
+        <h3 style="margin:0;">Their program</h3>
+        <span class="source-chip">${draft.days.length} day${draft.days.length === 1 ? "" : "s"} &middot; ${draftExerciseCount()} exercise${draftExerciseCount() === 1 ? "" : "s"}</span>
+      </div>
+      <p class="hint" style="margin:6px 0 0;">Tap a day to change it. This becomes the only program on their app &mdash; they log against it but can't edit it or see anything else.</p>
+      <div style="height:10px"></div>
+      <label for="draft-weeks">How many weeks</label>
+      <input type="text" id="draft-weeks" inputmode="numeric" value="${esc(String(draft.weeks))}" style="max-width:110px;" />
+    </div>
+    ${dayCards}
+    <div class="btn-row">
+      <button class="btn" data-action="draft-add-day">+ Add day</button>
+      <button class="btn ghost danger" data-action="clear-draft">Start over</button>
+    </div>
+    <div style="height:14px"></div>
+  `;
+}
+
+// ---------- One day of the draft, on its own screen ----------
+
+function renderCoachDraftDay() {
+  const day = draftFindDay(state.params.draftDayId);
+  if (!day) return `${topbar("Day", { back: true })}<div class="empty"><p>That day is gone.</p></div>`;
   const libraryOptions = Store.getExerciseLibrary()
     .slice(0, 400)
     .map((e) => `<option value="${esc(e.name)}"></option>`)
     .join("");
 
-  const dayCards = draft.days.map((day, dayIdx) => {
-    const exRows = day.exercises.map((ex, i) => `
-      <div class="row" style="padding:7px 0;border-top:1px solid var(--border);">
-        <div style="min-width:0;">
-          <h3 style="font-size:14px;margin:0;">${esc(ex.name)}</h3>
-          <p style="margin:2px 0 0;">${esc(ex.sets)} sets${ex.repGoal ? ` &middot; ${esc(ex.repGoal)}` : ""}${ex.restTime ? ` &middot; ${esc(ex.restTime)} rest` : ""}</p>
-        </div>
-        <div style="display:flex;align-items:center;gap:6px;">
+  const exRows = day.exercises.map((ex, i) => `
+    <div class="card">
+      <div class="row" style="margin-bottom:8px;">
+        <input type="text" data-draft-ex-name="${esc(ex.id)}" data-day="${esc(day.id)}" value="${esc(ex.name)}" aria-label="Exercise name" style="flex:1;margin:0;font-weight:600;" />
+        <div style="display:flex;align-items:center;gap:6px;margin-left:8px;">
           <div class="reorder-btns">
             <button data-action="draft-move-exercise" data-dir="-1" data-day="${esc(day.id)}" data-exercise="${esc(ex.id)}" ${i === 0 ? "disabled" : ""} aria-label="Move up">&#9650;</button>
             <button data-action="draft-move-exercise" data-dir="1" data-day="${esc(day.id)}" data-exercise="${esc(ex.id)}" ${i === day.exercises.length - 1 ? "disabled" : ""} aria-label="Move down">&#9660;</button>
           </div>
-          <button class="btn ghost small danger" data-action="draft-remove-exercise" data-day="${esc(day.id)}" data-exercise="${esc(ex.id)}" style="width:auto;padding:4px 9px;" aria-label="Remove ${esc(ex.name)}">&times;</button>
+          <button class="btn ghost small danger" data-action="draft-remove-exercise" data-day="${esc(day.id)}" data-exercise="${esc(ex.id)}" style="width:auto;padding:5px 10px;" aria-label="Remove ${esc(ex.name)}">&times;</button>
         </div>
-      </div>`).join("");
+      </div>
+      <div class="row" style="gap:8px;">
+        <div style="flex:1;"><label>Sets</label><input type="text" inputmode="numeric" data-draft-ex-sets="${esc(ex.id)}" data-day="${esc(day.id)}" value="${esc(ex.sets)}" /></div>
+        <div style="flex:1;"><label>Reps</label><input type="text" data-draft-ex-reps="${esc(ex.id)}" data-day="${esc(day.id)}" value="${esc(ex.repGoal)}" placeholder="8-10" /></div>
+        <div style="flex:1;"><label>Rest</label><input type="text" data-draft-ex-rest="${esc(ex.id)}" data-day="${esc(day.id)}" value="${esc(ex.restTime)}" placeholder="90s" /></div>
+      </div>
+    </div>
+  `).join("");
 
-    const addForm = draftAddingToDayId === day.id ? `
-      <div style="border-top:1px solid var(--border);padding-top:10px;margin-top:8px;">
-        <label for="draft-ex-name">Exercise</label>
-        <input type="text" id="draft-ex-name" list="draft-ex-library" placeholder="Start typing, or pick from your library" autocomplete="off" />
-        <div class="row" style="gap:8px;margin-top:8px;">
-          <div style="flex:1;"><label for="draft-ex-sets">Sets</label><input type="text" id="draft-ex-sets" inputmode="numeric" value="3" /></div>
-          <div style="flex:1;"><label for="draft-ex-reps">Reps</label><input type="text" id="draft-ex-reps" placeholder="8-10" /></div>
-          <div style="flex:1;"><label for="draft-ex-rest">Rest</label><input type="text" id="draft-ex-rest" placeholder="90s" /></div>
-        </div>
-        <div style="height:10px"></div>
-        <div class="btn-row">
-          <button class="btn primary small" data-action="draft-add-exercise" data-day="${esc(day.id)}">Add to ${esc(day.name.trim() || "day")}</button>
-          <button class="btn ghost small" data-action="draft-cancel-add-exercise">Cancel</button>
-        </div>
-      </div>` : `
-      <div style="margin-top:8px;">
-        <button class="btn small" data-action="draft-open-add-exercise" data-day="${esc(day.id)}">+ Add exercise</button>
-      </div>`;
-
-    return `
-      <div class="card">
-        <div class="row" style="margin-bottom:6px;">
-          <input type="text" data-draft-day-name="${esc(day.id)}" value="${esc(day.name)}" placeholder="Day ${dayIdx + 1}" aria-label="Day name" style="flex:1;margin:0;" />
-          <button class="btn ghost small danger" data-action="draft-remove-day" data-day="${esc(day.id)}" style="width:auto;padding:6px 10px;margin-left:8px;" aria-label="Remove day">&times;</button>
-        </div>
-        ${exRows || `<p class="hint" style="margin:6px 0 0;">No exercises yet.</p>`}
-        ${addForm}
-      </div>`;
-  }).join("");
+  const addForm = draftAddingToDayId === day.id ? `
+    <div class="card">
+      <label for="draft-ex-name">New exercise</label>
+      <input type="text" id="draft-ex-name" list="draft-ex-library" placeholder="Start typing, or pick from your library" autocomplete="off" />
+      <div class="row" style="gap:8px;margin-top:8px;">
+        <div style="flex:1;"><label for="draft-ex-sets">Sets</label><input type="text" id="draft-ex-sets" inputmode="numeric" value="3" /></div>
+        <div style="flex:1;"><label for="draft-ex-reps">Reps</label><input type="text" id="draft-ex-reps" placeholder="8-10" /></div>
+        <div style="flex:1;"><label for="draft-ex-rest">Rest</label><input type="text" id="draft-ex-rest" placeholder="90s" /></div>
+      </div>
+      <div style="height:10px"></div>
+      <div class="btn-row">
+        <button class="btn primary small" data-action="draft-add-exercise" data-day="${esc(day.id)}">Add</button>
+        <button class="btn ghost small" data-action="draft-cancel-add-exercise">Cancel</button>
+      </div>
+    </div>` : `<button class="btn" data-action="draft-open-add-exercise" data-day="${esc(day.id)}">+ Add exercise</button>`;
 
   return `
+    ${topbar("Edit day", { back: true })}
     <datalist id="draft-ex-library">${libraryOptions}</datalist>
     <div class="card">
-      <h3>Their program</h3>
-      <p class="hint" style="margin-top:2px;">Build it here and it becomes the only program on their app &mdash; they can log against it, but can't change it or see anything else. Leave this empty to start them on an existing program instead (option below).</p>
-      <div style="height:10px"></div>
-      <label for="draft-weeks">How many weeks</label>
-      <input type="text" id="draft-weeks" inputmode="numeric" value="${esc(String(clientProgramDraft.weeks))}" style="max-width:110px;" />
+      <label for="draft-day-name">Day name</label>
+      <input type="text" id="draft-day-name" data-draft-day-name="${esc(day.id)}" value="${esc(day.name)}" placeholder="e.g. Push" />
     </div>
-    ${dayCards}
-    <button class="btn" data-action="draft-add-day">+ Add day</button>
-    <div style="height:14px"></div>
+    ${exRows || `<div class="empty"><p>No exercises in this day yet.</p></div>`}
+    ${addForm}
+    <div style="height:10px"></div>
+    <button class="btn primary" data-action="save-draft-day">Save day</button>
+    <div style="height:8px"></div>
+    <button class="btn danger" data-action="draft-remove-day" data-day="${esc(day.id)}">Delete this day</button>
   `;
 }
 
@@ -1727,15 +1810,18 @@ function draftFindDay(dayId) {
 
 function draftAddDay() {
   const draft = ensureClientProgramDraft();
-  draft.days.push({ id: draftUid(), name: `Day ${draft.days.length + 1}`, exercises: [] });
-  render();
+  const day = { id: draftUid(), name: `Day ${draft.days.length + 1}`, exercises: [] };
+  draft.days.push(day);
+  // Straight into the new day -- nobody adds a day in order to look at it.
+  navigate("coach-draft-day", { draftDayId: day.id });
 }
 
 function draftRemoveDay(dayId) {
   const draft = ensureClientProgramDraft();
   draft.days = draft.days.filter((d) => d.id !== dayId);
   if (draftAddingToDayId === dayId) draftAddingToDayId = null;
-  render();
+  if (state.screen === "coach-draft-day") navigate("coach-add-client");
+  else render();
 }
 
 function draftAddExercise(dayId) {
@@ -1779,21 +1865,31 @@ function draftMoveExercise(dayId, exerciseId, direction) {
 function renderCoachAddClient() {
   ensureClientProgramDraft();
   const preselect = state.params.preselectProgram || "";
+  const draft = clientProgramDraft;
   return `
     ${topbar("Add client", { back: true })}
     <div class="card">
       <label for="coach-client-label">Client name</label>
-      <input type="text" id="coach-client-label" value="${esc(clientProgramDraft.label || "")}" placeholder="e.g. Jordan" />
-      <label for="coach-client-price">Price (optional)</label>
-      <input type="text" id="coach-client-price" inputmode="decimal" value="${esc(clientProgramDraft.price || "")}" placeholder="e.g. 50" />
-      <p class="hint">Leave blank for free, instant access (how client links have always worked). Set a price and they'll have to verify their email and pay before the program unlocks -- you confirm payment yourself and their access unlocks automatically the moment you do.</p>
-    </div>
-    ${renderDraftBuilder()}
-    <div class="card">
-      <h3>Or start them on an existing program</h3>
-      <p class="hint" style="margin-top:2px;">Only used if you haven't built anything above. A program picked here is a starting point they can then edit themselves, the way client links have always worked.</p>
+      <input type="text" id="coach-client-label" value="${esc(draft.label || "")}" placeholder="e.g. Jordan" />
+
+      <label for="coach-client-template">Starting program</label>
+      <select id="coach-client-template">${programPickerOptgroups(preselect, "", false)}</select>
       <div style="height:10px"></div>
-      <select id="coach-client-template">${programPickerOptgroups(preselect, "Copy & customize for this client")}</select>
+      <div class="btn-row">
+        <button class="btn" data-action="customize-starting-program">${draft.days.length ? "Load a different program" : "Customize this program"}</button>
+        ${draft.days.length ? "" : `<button class="btn ghost" data-action="draft-add-day">Build from scratch</button>`}
+      </div>
+      <p class="hint" style="margin-top:8px;">${draft.days.length
+        ? "Loading another program replaces what's below."
+        : "<strong>Customize</strong> pulls this program in so you can edit it day by day before you send the link. <strong>Build from scratch</strong> starts empty. Do neither and they get the program as-is, which they can then edit themselves."}</p>
+    </div>
+
+    ${renderDraftBuilder()}
+
+    <div class="card">
+      <label for="coach-client-price">Price (optional)</label>
+      <input type="text" id="coach-client-price" inputmode="decimal" value="${esc(draft.price || "")}" placeholder="e.g. 50" />
+      <p class="hint">Leave blank for free, instant access. Set a price and they'll have to verify their email and pay before the program unlocks -- you confirm payment yourself and their access unlocks automatically the moment you do.</p>
     </div>
     <button class="btn primary" data-action="confirm-add-coach-client">Generate client link</button>
   `;
@@ -2244,6 +2340,7 @@ function onClick(e) {
       else if (state.screen === "cardio-day") navigate("cardio");
       else if (state.screen === "cardio") navigate("program");
       else if (state.screen === "coach-add-client") navigate("coach");
+      else if (state.screen === "coach-draft-day") navigate("coach-add-client");
       else if (state.screen === "coach-client-link") navigate("coach");
       else if (state.screen === "coach-client") navigate("coach");
       else if (state.screen === "coach-client-assign-program") navigate("coach-client", { clientId: state.params.clientId, clientLabel: state.params.clientLabel });
@@ -2457,6 +2554,25 @@ function onClick(e) {
     }
     case "go-coach": navigate("coach"); break;
     case "go-coach-add-client": resetClientProgramDraft(); navigate("coach-add-client"); break;
+    case "go-coach-add-client-keep": navigate("coach-add-client"); break;
+    case "customize-starting-program": customizeStartingProgram(); break;
+    case "open-draft-day": navigate("coach-draft-day", { draftDayId: el.dataset.day }); break;
+    case "save-draft-day": {
+      draftAddingToDayId = null;
+      toast("Day saved");
+      navigate("coach-add-client");
+      break;
+    }
+    case "clear-draft": {
+      if (confirm("Clear the program you've built for this client?")) {
+        const keep = { label: clientProgramDraft.label, price: clientProgramDraft.price };
+        resetClientProgramDraft();
+        clientProgramDraft.label = keep.label;
+        clientProgramDraft.price = keep.price;
+        render();
+      }
+      break;
+    }
     case "draft-add-day": draftAddDay(); break;
     case "draft-remove-day": draftRemoveDay(el.dataset.day); break;
     case "draft-open-add-exercise": draftAddingToDayId = el.dataset.day; render(); break;
@@ -2610,6 +2726,28 @@ function onInput(e) {
   }
   // Draft program builder on Add Client: these live in memory, not the Store,
   // so they need writing back on every keystroke or a re-render loses them.
+  if (state.screen === "coach-draft-day" && clientProgramDraft) {
+    const d = el.dataset;
+    const dayId = d.day;
+    const exId = d.draftExName || d.draftExSets || d.draftExReps || d.draftExRest;
+    if (exId && dayId) {
+      const day = draftFindDay(dayId);
+      const ex = day && day.exercises.find((e) => e.id === exId);
+      if (ex) {
+        if (d.draftExName !== undefined) ex.name = el.value;
+        else if (d.draftExSets !== undefined) ex.sets = el.value;
+        else if (d.draftExReps !== undefined) ex.repGoal = el.value;
+        else if (d.draftExRest !== undefined) ex.restTime = el.value;
+      }
+      return;
+    }
+    const draftDayId = d.draftDayName;
+    if (draftDayId) {
+      const day = draftFindDay(draftDayId);
+      if (day) day.name = el.value;
+      return;
+    }
+  }
   if (state.screen === "coach-add-client") {
     if (el.id === "draft-weeks" && clientProgramDraft) {
       clientProgramDraft.weeks = el.value;
