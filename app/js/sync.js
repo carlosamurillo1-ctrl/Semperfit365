@@ -143,6 +143,39 @@ export function pushClientProgram(clientId, displayName, program) {
   }, 800);
 }
 
+/** Pushes a client's check-in history (weight, sleep, energy, hunger, note) up
+ * alongside their program, so the coach sees why a number moved and not just
+ * that it did. Debounced with its own timer -- check-ins are saved one at a
+ * time, not on every keystroke like the program. */
+let checkInPushTimer = null;
+export function pushClientCheckIns(clientId, checkIns) {
+  if (!isSyncConfigured() || !clientId) return;
+  clearTimeout(checkInPushTimer);
+  checkInPushTimer = setTimeout(async () => {
+    try {
+      const database = ensureDb();
+      // Newest 30 is plenty for a coach and keeps the doc small.
+      await database.collection("clients").doc(clientId).set(
+        { checkIns: checkIns.slice(-30) },
+        { merge: true }
+      );
+    } catch (e) {
+      console.warn("check-in push failed", e);
+    }
+  }, 600);
+}
+
+/** Per-client reminder settings the coach controls (see the client screen).
+ * Stored on the roster entry so the dashboard can show it without opening
+ * each client, and on the client doc so their own app can read it. */
+export async function setClientReminders(coachId, clientId, reminders) {
+  const database = ensureDb();
+  await Promise.all([
+    database.collection("coaches").doc(coachId).collection("roster").doc(clientId).set({ reminders }, { merge: true }),
+    database.collection("clients").doc(clientId).set({ reminders }, { merge: true }),
+  ]);
+}
+
 // ---------- coach side ----------
 
 /** priceCents: 0/undefined means free -- the client's link works exactly as

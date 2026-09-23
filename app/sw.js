@@ -1,4 +1,4 @@
-const CACHE = "semperfit365-v53";
+const CACHE = "semperfit365-v54";
 const ASSETS = [
   "./",
   "./index.html",
@@ -14,6 +14,7 @@ const ASSETS = [
   "./js/firebaseConfig.js",
   "./js/nutrition.js",
   "./js/foodApi.js",
+  "./js/recipeLibrary.js",
   "./vendor/zxing/zxing-library.min.js",
   "./vendor/firebase/firebase-app-compat.js",
   "./vendor/firebase/firebase-firestore-compat.js",

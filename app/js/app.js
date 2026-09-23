@@ -6,10 +6,13 @@ import { PROGRAM_TEMPLATES } from "./programTemplates.js";
 import { EXERCISE_CATALOG, MUSCLE_GROUPS } from "./exerciseCatalog.js";
 import { Nutrition } from "./nutrition.js";
 import { lookupBarcode, searchFoodByName } from "./foodApi.js";
+import { RECIPE_LIBRARY, DIET_TAGS, MEAL_SLOTS, filterRecipes } from "./recipeLibrary.js";
 import {
   isSyncConfigured,
   newId,
   pushClientProgram,
+  pushClientCheckIns,
+  setClientReminders,
   addClientToRoster,
   removeClientFromRoster,
   listenRoster,
@@ -43,6 +46,8 @@ const LOCAL_KEYS = {
   // device shows that one program, read-only, and re-reads it on every load.
   managed: "sf365.managed",
   managedProgramLocalId: "sf365.managedProgramLocalId",
+  checkInPromptedOn: "sf365.checkInPromptedOn",
+  remindersOff: "sf365.remindersOff",
 };
 
 /** True on a device whose program is owned by the coach: no editing, no other
@@ -110,6 +115,9 @@ const state = {
   pendingImport: null, // { days: [{ dayTitle, exercises }], source }
   toast: null,
   libraryFilter: { query: "", group: "All" },
+  // Survives navigating into a recipe and back, so a filtered list isn't lost
+  // every time someone opens one to look at it.
+  recipeFilter: { tags: [], slot: "All", query: "" },
 };
 
 function toast(msg) {
@@ -266,6 +274,8 @@ function render() {
     case "nutrition-weight": html = renderNutritionWeight(); break;
     case "nutrition-goals": html = renderNutritionGoals(); break;
     case "nutrition-recipes": html = renderNutritionRecipes(); break;
+    case "recipe-library": html = renderRecipeLibrary(); break;
+    case "recipe-library-item": html = renderLibraryRecipe(); break;
     case "nutrition-recipe-new": html = renderNutritionRecipeNew(); break;
     default: html = renderProgram();
   }
@@ -398,6 +408,41 @@ function programSwitcherTopbarOpts() {
   };
 }
 
+/** The one reminder that works with no server and no permission prompt: show
+ * it when they open the app. A browser can only push to a closed phone with a
+ * push service behind it (see README), so this is the reliable half -- and in
+ * practice the half that gets the weigh-in done, because they are already
+ * holding the phone and already in the app.
+ *
+ * Shows after 7 days (or never having checked in), once per day, and only
+ * while the coach has reminders on for them. */
+function renderCheckInPrompt() {
+  if (remindersDisabled()) return "";
+  const since = Nutrition.daysSinceLastCheckIn();
+  const overdue = since === null || since >= 7;
+  if (!overdue) return "";
+  if (localStorage.getItem(LOCAL_KEYS.checkInPromptedOn) === Nutrition.todayStr()) return "";
+  return `
+    <div class="card" style="border-color:var(--accent);">
+      <div class="row" style="align-items:flex-start;">
+        <div style="min-width:0;">
+          <h3 style="margin:0;">${since === null ? "Log your starting weight" : "Time to check in"}</h3>
+          <p style="margin:4px 0 0;">${since === null
+            ? "Your first weigh-in is what everything after it gets measured against — it takes ten seconds."
+            : `It's been ${since} days. Weight, sleep and how you're feeling — ten seconds.`}</p>
+        </div>
+        <button class="btn ghost small" data-action="dismiss-check-in-prompt" style="width:auto;padding:4px 9px;flex:none;" aria-label="Not now">&#10005;</button>
+      </div>
+      <div style="height:10px"></div>
+      <button class="btn primary" data-action="go-check-in">Check in now</button>
+    </div>`;
+}
+
+/** The coach can switch a client's nudges off from their dashboard. */
+function remindersDisabled() {
+  return localStorage.getItem(LOCAL_KEYS.remindersOff) === "true";
+}
+
 function renderProgram() {
   const program = Store.getProgram();
   if (!program || program.days.length === 0) {
@@ -439,6 +484,7 @@ function renderProgram() {
 
   return `
     ${topbar("", programSwitcherTopbarOpts())}
+    ${renderCheckInPrompt()}
     <div class="row" style="margin-bottom:14px;">
       <span class="source-chip">${program.days.length} workout day${program.days.length === 1 ? "" : "s"}</span>
       ${isManagedClient() ? "" : `<button class="btn ghost small" data-action="go-import">+ Add day</button>`}
@@ -1892,9 +1938,94 @@ function renderCoachClient() {
   return `
     ${topbar(coachClientData.displayName || clientLabel || "Client", { back: true })}
     <p style="margin-bottom:12px;">Last synced ${coachClientData.updatedAt ? relativeTime(firestoreTimeToIso(coachClientData.updatedAt)) : "never"}</p>
+    ${renderCoachCheckIns(coachClientData.checkIns || [])}
+    ${renderCoachReminders(clientId, clientLabel, coachClientData.reminders)}
     ${assignBtn}
     ${items || `<div class="empty"><p>No workout days yet.</p></div>`}
   `;
+}
+
+/** The client's own words and numbers, newest first. The week-to-week change
+ * is the thing a coach actually scans for, so it leads. */
+function renderCoachCheckIns(checkIns) {
+  if (!checkIns.length) {
+    return `<div class="card"><h3>Check-ins</h3><p class="hint">Nothing yet. They check in from Nutrition &gt; Check in.</p></div>`;
+  }
+  const sorted = checkIns.slice().sort((a, b) => b.date.localeCompare(a.date));
+  const first = sorted[sorted.length - 1];
+  const latest = sorted[0];
+  const total = Math.round((latest.weight - first.weight) * 10) / 10;
+  const rows = sorted.slice(0, 8).map((w, i) => {
+    const previous = sorted[i + 1];
+    const delta = previous ? Math.round((w.weight - previous.weight) * 10) / 10 : null;
+    const summary = checkInSummaryLine(w);
+    const flags = [];
+    if (w.sleepHours !== null && w.sleepHours !== undefined && w.sleepHours < 6) flags.push("low sleep");
+    if (w.energy && w.energy <= 2) flags.push("low energy");
+    if (w.hunger && w.hunger <= 2) flags.push("very hungry");
+    return `
+      <div class="row" style="border-top:1px solid var(--border);padding-top:9px;margin-top:9px;">
+        <div style="min-width:0;">
+          <h3 style="font-size:14px;margin:0;">${w.weight}${delta !== null && delta !== 0 ? ` <span class="hint" style="font-weight:400;">${delta > 0 ? "+" : ""}${delta}</span>` : ""}</h3>
+          <p style="margin:2px 0 0;">${esc(w.date)}</p>
+          ${summary ? `<p style="margin:2px 0 0;">${summary}</p>` : ""}
+          ${w.note ? `<p style="margin:3px 0 0;">&ldquo;${esc(w.note)}&rdquo;</p>` : ""}
+        </div>
+        ${flags.length ? `<span class="pill" style="flex:none;">${esc(flags[0])}</span>` : ""}
+      </div>`;
+  }).join("");
+  return `
+    <div class="card">
+      <div class="row" style="align-items:baseline;">
+        <h3 style="margin:0;">Check-ins</h3>
+        ${sorted.length > 1 ? `<span class="source-chip">${total > 0 ? "+" : ""}${total} overall</span>` : ""}
+      </div>
+      ${rows}
+      ${sorted.length > 8 ? `<p class="hint" style="margin-top:9px;">Showing the last 8 of ${sorted.length}.</p>` : ""}
+    </div>`;
+}
+
+/** Reminder settings for one client. The in-app nudge works today; the
+ * contact fields are stored ready for whichever sending channel gets wired
+ * up (see README -- it needs a server, not just an app change). */
+function renderCoachReminders(clientId, clientLabel, reminders) {
+  const r = reminders || {};
+  const on = r.enabled !== false; // default on for a new client
+  return `
+    <div class="card">
+      <h3>Check-in reminders</h3>
+      <p class="hint" style="margin-top:2px;">When this is on, their app nudges them to check in once a week and after a missed workout day. Turn it off for a client who finds it nagging.</p>
+      <div style="height:10px"></div>
+      <div class="btn-row">
+        <button class="btn ${on ? "primary" : ""}" data-action="set-client-reminders" data-client="${esc(clientId)}" data-label="${esc(clientLabel || "")}" data-enabled="true">On</button>
+        <button class="btn ${on ? "" : "primary"}" data-action="set-client-reminders" data-client="${esc(clientId)}" data-label="${esc(clientLabel || "")}" data-enabled="false">Off</button>
+      </div>
+      <div style="height:12px"></div>
+      <label for="reminder-phone">Their mobile (optional)</label>
+      <input type="tel" id="reminder-phone" value="${esc(r.phone || "")}" placeholder="e.g. 914 555 0134" />
+      <label for="reminder-email">Their email (optional)</label>
+      <input type="email" id="reminder-email" value="${esc(r.email || "")}" placeholder="e.g. jordan@example.com" />
+      <div style="height:10px"></div>
+      <button class="btn small" data-action="save-client-reminder-contact" data-client="${esc(clientId)}" data-label="${esc(clientLabel || "")}">Save contact details</button>
+      <p class="hint" style="margin-top:8px;">Texts and emails aren't being sent yet &mdash; that needs a sending service wired up. Saving these now means nothing has to be re-entered when it is.</p>
+    </div>`;
+}
+
+/** Merges a change into this client's reminder settings (the buttons send one
+ * field, the contact form sends two) and writes it in both places. */
+async function saveClientReminders(clientId, clientLabel, patch) {
+  const current = (coachClientData && coachClientData.reminders) || {};
+  const next = { enabled: current.enabled !== false, phone: current.phone || "", email: current.email || "", ...patch };
+  try {
+    await setClientReminders(getOrCreateCoachId(), clientId, next);
+    // The live client listener echoes this back, but updating locally first
+    // keeps the buttons from lagging a round-trip behind the tap.
+    if (coachClientData) coachClientData.reminders = next;
+    toast(patch.enabled === undefined ? "Contact details saved" : patch.enabled ? "Reminders on" : "Reminders off");
+    render();
+  } catch {
+    toast("Couldn't save that — check your connection");
+  }
 }
 
 function renderCoachClientAssignProgram() {
@@ -2109,7 +2240,8 @@ function onClick(e) {
         stopBarcodeScan();
         navigate("nutrition-add", { dateStr: state.params.dateStr, mealType: state.params.mealType });
       }
-      else if (["nutrition-weight", "nutrition-goals", "nutrition-recipes"].includes(state.screen)) navigate("nutrition");
+      else if (["nutrition-weight", "nutrition-goals", "nutrition-recipes", "recipe-library"].includes(state.screen)) navigate("nutrition");
+      else if (state.screen === "recipe-library-item") navigate("recipe-library");
       else if (state.screen === "nutrition-recipe-new") navigate("nutrition-recipes");
       else if (state.screen === "nutrition") navigate("program");
       else navigate("program");
@@ -2229,6 +2361,20 @@ function onClick(e) {
       break;
     }
     case "refresh-managed-program": refreshManagedProgram(); break;
+    case "set-checkin-scale": {
+      const draft = ensureCheckInDraft();
+      const field = el.dataset.field;
+      const value = Number(el.dataset.value);
+      draft[field] = draft[field] === value ? null : value; // tap again to clear
+      render();
+      break;
+    }
+    case "go-check-in": navigate("nutrition-weight"); break;
+    case "dismiss-check-in-prompt": {
+      localStorage.setItem(LOCAL_KEYS.checkInPromptedOn, Nutrition.todayStr());
+      render();
+      break;
+    }
     case "go-templates": navigate("templates"); break;
     case "go-exercise-library": navigate("exercise-library"); break;
     case "filter-library-group": {
@@ -2331,6 +2477,11 @@ function onClick(e) {
       break;
     }
     case "open-coach-client-day": navigate("coach-client-day", { clientId: el.dataset.client, clientLabel: el.dataset.label, dayId: el.dataset.day }); break;
+    case "set-client-reminders": saveClientReminders(el.dataset.client, el.dataset.label, { enabled: el.dataset.enabled === "true" }); break;
+    case "save-client-reminder-contact": saveClientReminders(el.dataset.client, el.dataset.label, {
+      phone: document.getElementById("reminder-phone").value.trim(),
+      email: document.getElementById("reminder-email").value.trim(),
+    }); break;
     case "go-assign-program": navigate("coach-client-assign-program", { clientId: el.dataset.client, clientLabel: el.dataset.label }); break;
     case "confirm-assign-program": confirmAssignProgram(el.dataset.client, el.dataset.label); break;
     case "open-coach-client-exercise": navigate("coach-client-exercise", { clientId: el.dataset.client, clientLabel: el.dataset.label, dayId: el.dataset.day, exerciseId: el.dataset.exercise }); break;
@@ -2345,6 +2496,27 @@ function onClick(e) {
     case "go-nutrition-weight": navigate("nutrition-weight"); break;
     case "go-nutrition-goals": navigate("nutrition-goals"); break;
     case "go-nutrition-recipes": navigate("nutrition-recipes"); break;
+    case "go-recipe-library": navigate("recipe-library"); break;
+    case "open-library-recipe": navigate("recipe-library-item", { recipeId: el.dataset.recipe }); break;
+    case "toggle-recipe-tag": {
+      const tag = el.dataset.tag;
+      const tags = state.recipeFilter.tags;
+      state.recipeFilter.tags = tags.includes(tag) ? tags.filter((t) => t !== tag) : [...tags, tag];
+      render();
+      break;
+    }
+    case "set-recipe-slot": {
+      state.recipeFilter.slot = el.dataset.slot;
+      render();
+      break;
+    }
+    case "clear-recipe-filters": {
+      state.recipeFilter = { tags: [], slot: "All", query: "" };
+      render();
+      break;
+    }
+    case "log-library-recipe": logLibraryRecipe(el.dataset.recipe); break;
+    case "save-library-recipe": saveLibraryRecipe(el.dataset.recipe); break;
     case "confirm-manual-food": confirmManualFood(el.dataset.date); break;
     case "do-food-search": doFoodSearch(el.dataset.date, el.dataset.meal); break;
     case "pick-search-food": {
@@ -2439,6 +2611,28 @@ function onInput(e) {
       if (day) day.name = el.value;
       return;
     }
+  }
+  if (state.screen === "nutrition-weight" && checkInDraft) {
+    if (el.id === "weight-input") { checkInDraft.weight = el.value; return; }
+    if (el.id === "checkin-sleep") { checkInDraft.sleep = el.value; return; }
+    if (el.id === "weight-note") { checkInDraft.note = el.value; return; }
+  }
+  if (el.id === "recipe-lib-search" && state.screen === "recipe-library") {
+    state.recipeFilter.query = el.value;
+    const matches = filterRecipes(RECIPE_LIBRARY, state.recipeFilter);
+    document.getElementById("recipe-lib-count").textContent = `${matches.length} recipe${matches.length === 1 ? "" : "s"}`;
+    document.getElementById("recipe-lib-results").innerHTML = matches.map((r) => `
+      <div class="card tappable" data-action="open-library-recipe" data-recipe="${esc(r.id)}">
+        <div class="row">
+          <div style="min-width:0;">
+            <h3 style="font-size:15px;margin:0;">${esc(r.name)}</h3>
+            <p style="margin:3px 0 0;">${r.calories} cal &middot; P${r.protein} C${r.carbs} F${r.fat} &middot; ${r.minutes} min</p>
+            <p style="margin:3px 0 0;">${r.tags.map((t) => esc(t)).join(" &middot; ")}</p>
+          </div>
+          <span class="pill" style="flex:none;">Open</span>
+        </div>
+      </div>`).join("") || `<div class="empty"><p>Nothing matches all of those at once. Try removing a filter.</p></div>`;
+    return;
   }
   if (el.id === "library-search" && state.screen === "exercise-library") {
     state.libraryFilter.query = el.value;
@@ -2587,9 +2781,11 @@ function renderNutrition() {
       ${hasGoals ? "" : `<p class="hint" style="margin-top:10px;">No goals set yet. <a href="#" data-action="go-nutrition-goals">Set calorie &amp; macro goals</a> to track progress here.</p>`}
     </div>
     ${mealSections}
+    <button class="btn primary" data-action="go-recipe-library">Meal ideas</button>
+    <div style="height:8px"></div>
     <div class="btn-row">
-      <button class="btn" data-action="go-nutrition-weight">Weight</button>
-      <button class="btn" data-action="go-nutrition-recipes">Recipes</button>
+      <button class="btn" data-action="go-nutrition-weight">Check in</button>
+      <button class="btn" data-action="go-nutrition-recipes">My recipes</button>
       <button class="btn" data-action="go-nutrition-goals">Goals</button>
     </div>
   `;
@@ -2903,35 +3099,100 @@ function confirmReviewFood(dateStr) {
   navigate("nutrition", { dateStr });
 }
 
+// The four things that explain a scale that isn't moving. Kept deliberately
+// short and tap-only (bar the weight itself): a check-in nobody fills in is
+// worth nothing, and every extra field costs completion.
+const ENERGY_SCALE = [
+  { v: 1, label: "Drained" },
+  { v: 2, label: "Low" },
+  { v: 3, label: "OK" },
+  { v: 4, label: "Good" },
+  { v: 5, label: "Great" },
+];
+const HUNGER_SCALE = [
+  { v: 1, label: "Starving" },
+  { v: 2, label: "Hungry" },
+  { v: 3, label: "Fine" },
+  { v: 4, label: "Satisfied" },
+  { v: 5, label: "Stuffed" },
+];
+
+// Tapping a chip re-renders the whole screen, so every field has to live here
+// and be written back as a value -- otherwise picking an energy level silently
+// clears the weight they just typed.
+let checkInDraft = null;
+function ensureCheckInDraft() {
+  if (!checkInDraft) checkInDraft = { weight: "", sleep: "", note: "", energy: null, hunger: null };
+  return checkInDraft;
+}
+
+function scaleChips(name, scale, selected) {
+  return `<div class="chip-row">${scale.map((s) => `
+    <button class="chip${selected === s.v ? " on" : ""}" data-action="set-checkin-scale" data-field="${esc(name)}" data-value="${s.v}">${esc(s.label)}</button>
+  `).join("")}</div>`;
+}
+
+function checkInSummaryLine(w) {
+  const bits = [];
+  if (w.sleepHours) bits.push(`${esc(String(w.sleepHours))}h sleep`);
+  const e = ENERGY_SCALE.find((s) => s.v === w.energy);
+  if (e) bits.push(`energy ${esc(e.label.toLowerCase())}`);
+  const h = HUNGER_SCALE.find((s) => s.v === w.hunger);
+  if (h) bits.push(`hunger ${esc(h.label.toLowerCase())}`);
+  return bits.join(" &middot; ");
+}
+
 function renderNutritionWeight() {
   const log = Nutrition.getWeightLog();
   const goals = Nutrition.getGoals();
   const unit = goals.weightUnit || "lb";
-  const rows = log.slice().reverse().map((w) => `
+  const draft = ensureCheckInDraft();
+  const rows = log.slice().reverse().map((w, i, arr) => {
+    const previous = arr[i + 1];
+    const delta = previous ? Math.round((w.weight - previous.weight) * 10) / 10 : null;
+    const summary = checkInSummaryLine(w);
+    return `
     <div class="row">
-      <div>
-        <h3 style="font-size:14px;">${w.weight} ${esc(unit)}</h3>
-        <p>${esc(w.date)}${w.note ? ` &middot; ${esc(w.note)}` : ""}</p>
+      <div style="min-width:0;">
+        <h3 style="font-size:14px;">${w.weight} ${esc(unit)}${delta !== null && delta !== 0 ? ` <span class="hint" style="font-weight:400;">${delta > 0 ? "+" : ""}${delta}</span>` : ""}</h3>
+        <p>${esc(w.date)}</p>
+        ${summary ? `<p>${summary}</p>` : ""}
+        ${w.note ? `<p>&ldquo;${esc(w.note)}&rdquo;</p>` : ""}
       </div>
       <button class="btn ghost small" data-action="delete-weight-entry" data-id="${esc(w.id)}" aria-label="Delete">&#10005;</button>
-    </div>
-  `).join("");
+    </div>`;
+  }).join("");
   const latest = log.length ? log[log.length - 1] : null;
+  const since = Nutrition.daysSinceLastCheckIn();
   return `
-    ${topbar("Weight", { back: true })}
+    ${topbar("Check in", { back: true })}
     <div class="card">
-      ${latest ? `<p>Latest: <strong>${latest.weight} ${esc(unit)}</strong> (${esc(latest.date)})</p>` : `<p class="hint">No weigh-ins logged yet.</p>`}
+      ${latest ? `<p>Last check-in: <strong>${latest.weight} ${esc(unit)}</strong> &middot; ${since === 0 ? "today" : since === 1 ? "yesterday" : `${since} days ago`}</p>` : `<p class="hint">No check-ins yet &mdash; this is the one that everything else gets measured against.</p>`}
       ${goals.weightGoal ? `<p>Goal: <strong>${esc(goals.weightGoal)} ${esc(unit)}</strong></p>` : `<p class="hint">No weight goal set -- <a href="#" data-action="go-nutrition-goals">set one</a>.</p>`}
     </div>
     <div class="card">
       <label for="weight-date">Date</label>
       <input type="date" id="weight-date" value="${Nutrition.todayStr()}" />
       <label for="weight-input">Weight (${esc(unit)})</label>
-      <input type="text" id="weight-input" inputmode="decimal" placeholder="e.g. 165" />
-      <label for="weight-note">Note (optional)</label>
-      <input type="text" id="weight-note" placeholder="e.g. after workout" />
+      <input type="text" id="weight-input" inputmode="decimal" value="${esc(draft.weight || "")}" placeholder="e.g. 165" />
+
+      <label for="checkin-sleep">Hours of sleep last night</label>
+      <input type="text" id="checkin-sleep" inputmode="decimal" value="${esc(draft.sleep || "")}" placeholder="e.g. 7" />
+      <p class="hint" style="margin:4px 0 0;">Short sleep drives hunger up and training quality down &mdash; it is usually the first thing to look at when the scale stalls.</p>
+
+      <div style="height:12px"></div>
+      <label>Energy this week</label>
+      ${scaleChips("energy", ENERGY_SCALE, draft.energy)}
+
+      <div style="height:6px"></div>
+      <label>Hunger this week</label>
+      ${scaleChips("hunger", HUNGER_SCALE, draft.hunger)}
+
+      <div style="height:6px"></div>
+      <label for="weight-note">Anything your coach should know (optional)</label>
+      <input type="text" id="weight-note" value="${esc(draft.note || "")}" placeholder="e.g. travelled all week, knee felt off" />
       <div style="height:10px"></div>
-      <button class="btn primary" data-action="confirm-log-weight">Log weight</button>
+      <button class="btn primary" data-action="confirm-log-weight">Save check-in</button>
     </div>
     ${rows || ""}
   `;
@@ -2942,8 +3203,18 @@ function confirmLogWeight() {
   const weight = parseFloat(document.getElementById("weight-input").value);
   if (!weight || weight <= 0) { toast("Enter a valid weight"); return; }
   const note = document.getElementById("weight-note").value.trim();
-  Nutrition.logWeight(dateStr, weight, note);
-  toast("Weight logged");
+  const sleepRaw = document.getElementById("checkin-sleep").value.trim();
+  const sleepHours = sleepRaw ? parseFloat(sleepRaw) : null;
+  const draft = ensureCheckInDraft();
+  Nutrition.logWeight(dateStr, weight, note, {
+    sleepHours: sleepHours && sleepHours > 0 && sleepHours <= 24 ? Math.round(sleepHours * 10) / 10 : null,
+    energy: draft.energy,
+    hunger: draft.hunger,
+  });
+  checkInDraft = null;
+  localStorage.setItem(LOCAL_KEYS.checkInPromptedOn, Nutrition.todayStr());
+  pushCheckInsToCoach();
+  toast("Check-in saved");
   render();
 }
 
@@ -2998,6 +3269,125 @@ function confirmSaveGoals() {
   });
   toast("Goals saved");
   navigate("nutrition");
+}
+
+// ---------- RECIPE LIBRARY (bundled meal ideas, filterable by how you eat) ----------
+
+function renderRecipeLibrary() {
+  const f = state.recipeFilter;
+  const matches = filterRecipes(RECIPE_LIBRARY, f);
+
+  const tagChips = DIET_TAGS.map((t) => `
+    <button class="chip${f.tags.includes(t) ? " on" : ""}" data-action="toggle-recipe-tag" data-tag="${esc(t)}">${esc(t)}</button>
+  `).join("");
+
+  const slotChips = ["All", ...MEAL_SLOTS].map((sl) => `
+    <button class="chip${f.slot === sl ? " on" : ""}" data-action="set-recipe-slot" data-slot="${esc(sl)}">${esc(sl)}</button>
+  `).join("");
+
+  const rows = matches.map((r) => `
+    <div class="card tappable" data-action="open-library-recipe" data-recipe="${esc(r.id)}">
+      <div class="row">
+        <div style="min-width:0;">
+          <h3 style="font-size:15px;margin:0;">${esc(r.name)}</h3>
+          <p style="margin:3px 0 0;">${r.calories} cal &middot; P${r.protein} C${r.carbs} F${r.fat} &middot; ${r.minutes} min</p>
+          <p style="margin:3px 0 0;">${r.tags.map((t) => esc(t)).join(" &middot; ")}</p>
+        </div>
+        <span class="pill" style="flex:none;">Open</span>
+      </div>
+    </div>
+  `).join("");
+
+  return `
+    ${topbar("Meal ideas", { back: true })}
+    <div class="card">
+      <input type="text" id="recipe-lib-search" value="${esc(f.query)}" placeholder="Search by name or ingredient" autocomplete="off" />
+      <div style="height:10px"></div>
+      <label>Meal</label>
+      <div class="chip-row">${slotChips}</div>
+      <div style="height:10px"></div>
+      <label>How you eat</label>
+      <div class="chip-row">${tagChips}</div>
+      ${f.tags.length || f.slot !== "All" || f.query ? `<div style="height:10px"></div><button class="btn ghost small" data-action="clear-recipe-filters">Clear filters</button>` : ""}
+    </div>
+    <p class="hint" id="recipe-lib-count" style="margin:0 0 10px 2px;">${matches.length} recipe${matches.length === 1 ? "" : "s"}</p>
+    <div id="recipe-lib-results">${rows || `<div class="empty"><p>Nothing matches all of those at once. Try removing a filter.</p></div>`}</div>
+  `;
+}
+
+function renderLibraryRecipe() {
+  const recipe = RECIPE_LIBRARY.find((r) => r.id === state.params.recipeId);
+  if (!recipe) return `${topbar("Recipe", { back: true })}<div class="empty"><p>Recipe not found.</p></div>`;
+  return `
+    ${topbar(recipe.name, { back: true })}
+    <div class="card">
+      <div class="row" style="align-items:baseline;">
+        <h3 style="margin:0;">${esc(recipe.name)}</h3>
+        <span class="source-chip">${recipe.minutes} min</span>
+      </div>
+      <p style="margin:6px 0 0;">${recipe.tags.map((t) => esc(t)).join(" &middot; ")}</p>
+      <div style="height:10px"></div>
+      ${macroRow({ calories: recipe.calories, protein: recipe.protein, carbs: recipe.carbs, fat: recipe.fat }, {})}
+      <p class="hint" style="margin:8px 0 0;">Per serving &middot; makes ${recipe.servings}. Estimated from standard portions &mdash; weigh your own and adjust if you're tracking tightly.</p>
+    </div>
+    <div class="card">
+      <h3>Ingredients</h3>
+      <ul style="margin:8px 0 0;padding-left:20px;line-height:1.7;">
+        ${recipe.ingredients.map((i) => `<li>${esc(i)}</li>`).join("")}
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Method</h3>
+      <ol style="margin:8px 0 0;padding-left:20px;line-height:1.7;">
+        ${recipe.steps.map((st) => `<li>${esc(st)}</li>`).join("")}
+      </ol>
+    </div>
+    ${recipe.tip ? `<div class="card"><h3>Coach's note</h3><p style="margin:6px 0 0;">${esc(recipe.tip)}</p></div>` : ""}
+    <div class="card">
+      <label for="lib-recipe-meal">Log one serving to</label>
+      <select id="lib-recipe-meal">${Nutrition.MEAL_TYPES.map((m) => `<option value="${esc(m)}">${esc(m)}</option>`).join("")}</select>
+      <div style="height:10px"></div>
+      <button class="btn primary" data-action="log-library-recipe" data-recipe="${esc(recipe.id)}">Log it</button>
+      <div style="height:8px"></div>
+      <button class="btn" data-action="save-library-recipe" data-recipe="${esc(recipe.id)}">Save to my recipes</button>
+    </div>
+  `;
+}
+
+function logLibraryRecipe(recipeId) {
+  const recipe = RECIPE_LIBRARY.find((r) => r.id === recipeId);
+  if (!recipe) return;
+  const mealType = document.getElementById("lib-recipe-meal").value;
+  Nutrition.addDiaryEntry(Nutrition.todayStr(), {
+    mealType,
+    name: recipe.name,
+    brand: "",
+    qty: "1",
+    unit: "serving",
+    calories: recipe.calories,
+    protein: recipe.protein,
+    carbs: recipe.carbs,
+    fat: recipe.fat,
+    source: "library",
+  });
+  toast(`Logged to ${mealType}`);
+  navigate("nutrition", { dateStr: Nutrition.todayStr() });
+}
+
+/** Copies a library recipe into the client's own saved recipes as a single
+ * combined ingredient, so it shows up beside the ones they built themselves
+ * and can be quick-logged the same way. */
+function saveLibraryRecipe(recipeId) {
+  const recipe = RECIPE_LIBRARY.find((r) => r.id === recipeId);
+  if (!recipe) return;
+  Nutrition.saveRecipe(recipe.name, String(recipe.servings), [{
+    name: `${recipe.name} (whole batch)`,
+    calories: recipe.calories * recipe.servings,
+    protein: recipe.protein * recipe.servings,
+    carbs: recipe.carbs * recipe.servings,
+    fat: recipe.fat * recipe.servings,
+  }]);
+  toast(`"${recipe.name}" saved to your recipes`);
 }
 
 function renderNutritionRecipes() {
@@ -3285,6 +3675,14 @@ async function refreshManagedProgram() {
   }
 }
 
+/** Sends this device's check-in history up to the coach. Called after each
+ * save and once at boot, so a client who logged offline still lands. */
+function pushCheckInsToCoach() {
+  const clientId = getLocalClientId();
+  if (!clientId || !isSyncConfigured()) return;
+  pushClientCheckIns(clientId, Nutrition.getWeightLog());
+}
+
 function bootstrapClientSync() {
   const clientId = getLocalClientId();
   if (!clientId || !isSyncConfigured()) return;
@@ -3294,6 +3692,7 @@ function bootstrapClientSync() {
   });
   const current = Store.getProgram();
   if (current) pushClientProgram(clientId, getClientName(), current);
+  pushCheckInsToCoach();
 
   const unsubscribeRevokeCheck = listenClient(clientId, (data) => {
     if (data && data.revoked) {
@@ -3303,6 +3702,9 @@ function bootstrapClientSync() {
       localStorage.removeItem(LOCAL_KEYS.clientName);
       toast("Your coach ended this connection. Your workouts are still saved on this device.");
       return;
+    }
+    if (data && data.reminders) {
+      localStorage.setItem(LOCAL_KEYS.remindersOff, data.reminders.enabled === false ? "true" : "false");
     }
     if (data && data.managed && data.managedProgram) {
       localStorage.setItem(LOCAL_KEYS.managed, "true");

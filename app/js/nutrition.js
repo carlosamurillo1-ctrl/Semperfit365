@@ -86,14 +86,34 @@ export const Nutrition = {
   getWeightLog() {
     return read(KEYS.weightLog, []).slice().sort((a, b) => a.date.localeCompare(b.date));
   },
-  logWeight(dateStr, weight, note) {
+  /** `extras` carries the rest of a check-in -- sleepHours, energy, hunger --
+   * alongside the weight. Old entries predate those fields and simply don't
+   * have them, which every reader treats as "not answered". */
+  logWeight(dateStr, weight, note, extras) {
     const log = read(KEYS.weightLog, []);
     const idx = log.findIndex((w) => w.date === dateStr);
-    const entry = { id: idx >= 0 ? log[idx].id : uid(), date: dateStr, weight: round1(weight), note: note || "" };
+    const entry = {
+      id: idx >= 0 ? log[idx].id : uid(),
+      date: dateStr,
+      weight: round1(weight),
+      note: note || "",
+      ...(extras || {}),
+      loggedAt: new Date().toISOString(),
+    };
     if (idx >= 0) log[idx] = entry;
     else log.push(entry);
     write(KEYS.weightLog, log);
     return entry.id;
+  },
+
+  /** Days since the last check-in, or null if there has never been one. Drives
+   * the "time to weigh in" prompt. */
+  daysSinceLastCheckIn() {
+    const latest = this.getLatestWeight();
+    if (!latest) return null;
+    const then = new Date(`${latest.date}T00:00:00`);
+    const now = new Date(`${this.todayStr()}T00:00:00`);
+    return Math.round((now - then) / 86400000);
   },
   deleteWeightEntry(id) {
     write(KEYS.weightLog, read(KEYS.weightLog, []).filter((w) => w.id !== id));

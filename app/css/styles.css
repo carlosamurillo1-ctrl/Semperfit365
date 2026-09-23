@@ -199,6 +199,33 @@ p { color: var(--text-dim); margin: 4px 0 0; font-size: 14px; }
 /* An author rule that sets display would otherwise beat the browser's own
    [hidden] rule, so state this once and stop worrying about it. */
 [hidden] { display: none !important; }
+
+/* ---- Check-in scale chips ---- */
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+.chip {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: var(--bg-elev-2);
+  color: var(--text-dim);
+  border-radius: 999px;
+  padding: 8px 13px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.chip.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #06120c;
+}
+.chip:active { transform: scale(0.97); }
 .btn-row .btn { flex: 1; }
 
 label { display: block; font-size: 13px; color: var(--text-dim); margin: 12px 0 6px; }
