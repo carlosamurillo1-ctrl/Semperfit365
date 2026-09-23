@@ -1985,16 +1985,34 @@ function renderCoachCheckIns(checkIns) {
     </div>`;
 }
 
+/** Days since this client's most recent check-in, or null if they've never
+ * made one and we can't tell. Read from the live client doc the coach screen
+ * is already subscribed to. */
+function daysSinceClientCheckIn() {
+  const checkIns = (coachClientData && coachClientData.checkIns) || [];
+  const dates = checkIns.map((c) => c.date).filter(Boolean).sort();
+  if (!dates.length) return null;
+  const last = new Date(`${dates[dates.length - 1]}T00:00:00`);
+  const now = new Date(`${Nutrition.todayStr()}T00:00:00`);
+  return Math.round((now - last) / 86400000);
+}
+
 /** Reminder settings for one client. The in-app nudge works today; the
  * contact fields are stored ready for whichever sending channel gets wired
  * up (see README -- it needs a server, not just an app change). */
 function renderCoachReminders(clientId, clientLabel, reminders) {
   const r = reminders || {};
   const on = r.enabled !== false; // default on for a new client
+  const silent = daysSinceClientCheckIn();
+  // Mirrors GIVE_UP_DAYS in functions/reminders.js: past this the automated
+  // emails stop on purpose, so the dashboard has to say so or the coach will
+  // assume the system is still chasing them.
+  const givenUp = silent !== null && silent > 32;
   return `
     <div class="card">
       <h3>Check-in reminders</h3>
-      <p class="hint" style="margin-top:2px;">When this is on, their app nudges them to check in once a week and after a missed workout day. Turn it off for a client who finds it nagging.</p>
+      ${givenUp ? `<p style="color:var(--danger);margin-top:2px;"><strong>${esc(clientLabel || "This client")} has been quiet for ${silent} days.</strong> Automated reminders have stopped &mdash; past a month it's a phone call, not another email.</p>` : ""}
+      <p class="hint" style="margin-top:2px;">When this is on, their app nudges them to check in once a week, and &mdash; once the reminder function is deployed &mdash; emails them if they go quiet. At most one email every six days, and none at all after a month of silence.</p>
       <div style="height:10px"></div>
       <div class="btn-row">
         <button class="btn ${on ? "primary" : ""}" data-action="set-client-reminders" data-client="${esc(clientId)}" data-label="${esc(clientLabel || "")}" data-enabled="true">On</button>
@@ -2007,7 +2025,7 @@ function renderCoachReminders(clientId, clientLabel, reminders) {
       <input type="email" id="reminder-email" value="${esc(r.email || "")}" placeholder="e.g. jordan@example.com" />
       <div style="height:10px"></div>
       <button class="btn small" data-action="save-client-reminder-contact" data-client="${esc(clientId)}" data-label="${esc(clientLabel || "")}">Save contact details</button>
-      <p class="hint" style="margin-top:8px;">Texts and emails aren't being sent yet &mdash; that needs a sending service wired up. Saving these now means nothing has to be re-entered when it is.</p>
+      <p class="hint" style="margin-top:8px;">Email reminders go out once the Cloud Function is deployed (see the README). Texts still need a sending service &mdash; the number is stored ready for it.</p>
     </div>`;
 }
 

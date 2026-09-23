@@ -81,6 +81,24 @@ When you set a **Price** while adding a client (Coach dashboard → Add client),
 
 From then on, every time you tap **Mark as paid**, `functions/index.js` fires automatically and emails a receipt to whatever address the client signed in with. If you ever change the sender address, update `FROM_EMAIL` at the top of that file and redeploy.
 
+**Check-in reminder emails.** The same deploy also installs `sendCheckInReminders`, a scheduled function that runs once a day at 9am New York time and emails clients who have gone quiet. It needs nothing beyond the steps above — the first `firebase deploy --only functions` sets up Cloud Scheduler for it automatically (accept the prompt to enable the Cloud Scheduler API if asked).
+
+Who gets one is decided in `functions/reminders.js`, which is a plain function with no Firebase in it so the rules can be read and tested on their own (`node reminder_test.js`). A client is emailed only if **all** of these hold:
+
+- their coach has reminders switched **on** for them (Coach dashboard → the client → Check-in reminders), and
+- their coach has saved an **email address** for them on that same screen, and
+- they aren't revoked, and aren't sitting behind an unpaid paywall, and
+- they haven't been emailed in the last **6 days**, and
+- either their last check-in was **7+ days** ago, or they've never checked in and were added **3+ days** ago.
+
+The email also mentions training if nothing has been logged against their program in 10+ days.
+
+After **32 days** of silence the emails stop by themselves, and the client's page in the coach dashboard says so in red. That is deliberate: someone a month past their last check-in hasn't missed a notification, they've stopped, and that's a phone call. It also keeps the sending address clear of spam complaints, which protects the receipt and sign-in emails going from the same domain.
+
+To change any of those thresholds, edit the constants at the top of `functions/reminders.js` and redeploy. To stop the reminders entirely without touching the receipts: `firebase functions:delete sendCheckInReminders`.
+
+**Text message reminders** are not wired up — they need a paid sending service (Twilio or similar) plus a small amount of extra function code. The coach dashboard already stores each client's mobile number, so nothing would need re-entering if you add it later.
+
 **Contact info shown to clients.** The "Email coach" / "Text coach" buttons on the paywall and Settings screens, and the Zelle address shown on the payment screen, come from `COACH_EMAIL` / `COACH_PHONE_DISPLAY` / `COACH_PHONE_HREF` near the top of `app/js/app.js` — update those three constants if either ever changes.
 
 ## Sending this to someone (e.g. a client)

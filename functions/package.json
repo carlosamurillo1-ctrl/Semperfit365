@@ -1,6 +1,6 @@
 {
   "name": "functions",
-  "description": "Cloud Functions for SemperFit365 -- sends a receipt email when a coach marks a client paid",
+  "description": "Cloud Functions for SemperFit365 -- payment receipts and daily check-in reminders",
   "engines": { "node": "20" },
   "main": "index.js",
   "dependencies": {

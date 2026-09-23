@@ -196,6 +196,10 @@ export async function addClientToRoster(coachId, clientId, label, priceCents) {
         label: label || "",
         priceCents: priceCents || 0,
         paid: !priceCents,
+        // Mirrored onto the client doc (not just the roster entry) so the
+        // reminder function can tell a brand-new client from a lapsed one
+        // without reading the coach's roster it has no id for.
+        addedAt: window.firebase.firestore.FieldValue.serverTimestamp(),
       },
       { merge: true }
     ),
