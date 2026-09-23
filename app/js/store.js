@@ -153,6 +153,122 @@ export const Store = {
     changeListeners.forEach((fn) => fn(this.getProgram()));
     return id;
   },
+  /** Replaces a managed client's program with the coach's latest version,
+   * *keeping every number they have already logged*.
+   *
+   * The coach's published copy is deliberately blank (see blankDaysForPublish),
+   * so a plain overwrite would erase the client's history -- which is exactly
+   * what "refresh it without deleting your data" has to avoid. Instead we walk
+   * the incoming shape and, for each exercise that still exists, copy the
+   * client's logged week back onto it.
+   *
+   * Matching is by id first, then by name (case-insensitively): published
+   * programs carry ids now, but ones published before this existed don't, and
+   * a coach renaming a day shouldn't orphan a month of logged weights.
+   *
+   * Days and exercises the coach deleted disappear; ones they added show up
+   * empty. Re-running with the same input is a no-op, so it is safe to call on
+   * every load.
+   *
+   * Returns { programId, changed }.
+   */
+  syncManagedProgram(programId, name, incomingDays) {
+    const state = readState();
+    const existing = programId && state ? state.programs.find((p) => p.id === programId) : null;
+    const oldDays = existing ? existing.days : [];
+
+    const byName = (list) => {
+      const map = new Map();
+      list.forEach((item) => {
+        const key = (item.name || "").trim().toLowerCase();
+        if (key && !map.has(key)) map.set(key, item);
+      });
+      return map;
+    };
+    const oldDaysByName = byName(oldDays);
+
+    const mergedDays = (incomingDays || []).map((incomingDay) => {
+      const oldDay =
+        (incomingDay.id && oldDays.find((d) => d.id === incomingDay.id)) ||
+        oldDaysByName.get((incomingDay.name || "").trim().toLowerCase()) ||
+        null;
+      const oldExercises = oldDay ? oldDay.exercises : [];
+      const oldExByName = byName(oldExercises);
+
+      return {
+        // Keep the client's own day id where we can, so anything holding a
+        // day id (an open screen, a back-stack entry) still resolves.
+        id: (oldDay && oldDay.id) || incomingDay.id || uid(),
+        name: incomingDay.name || "Workout",
+        source: null,
+        exercises: (incomingDay.exercises || []).map((incomingEx) => {
+          const oldEx =
+            (incomingEx.id && oldExercises.find((e) => e.id === incomingEx.id)) ||
+            oldExByName.get((incomingEx.name || "").trim().toLowerCase()) ||
+            null;
+          const setLabels = incomingEx.setLabels && incomingEx.setLabels.length
+            ? incomingEx.setLabels
+            : ["Set 1", "Set 2", "Set 3"];
+          return {
+            id: (oldEx && oldEx.id) || incomingEx.id || uid(),
+            name: incomingEx.name || "",
+            repGoal: incomingEx.repGoal || "",
+            restTime: incomingEx.restTime || "",
+            setupNote: incomingEx.setupNote || "",
+            videoUrl: incomingEx.videoUrl || "",
+            setLabels,
+            weeks: (incomingEx.weeks || []).map((incomingWeek) => {
+              const logged = oldEx && oldEx.weeks.find((w) => w.week === incomingWeek.week);
+              // Only a week the client actually filled in is worth carrying
+              // over; an untouched one takes the coach's (blank) version so a
+              // changed set count is picked up.
+              if (logged && logged.updatedAt) {
+                return {
+                  week: incomingWeek.week,
+                  values: setLabels.map((_, i) => logged.values[i] || ""),
+                  reps: setLabels.map((_, i) => (logged.reps ? logged.reps[i] : "") || ""),
+                  notes: logged.notes || "",
+                  updatedAt: logged.updatedAt,
+                };
+              }
+              return {
+                week: incomingWeek.week,
+                values: setLabels.map(() => ""),
+                reps: setLabels.map(() => ""),
+                notes: "",
+                updatedAt: null,
+              };
+            }),
+          };
+        }),
+      };
+    });
+
+    const changed = JSON.stringify(oldDays) !== JSON.stringify(mergedDays);
+    let nextState = state;
+    if (existing) {
+      existing.days = mergedDays;
+      existing.name = name || existing.name;
+      if (changed) existing.importedAt = new Date().toISOString();
+    } else {
+      const id = programId || uid();
+      const program = { id, name: name || "My Program", days: mergedDays, importedAt: new Date().toISOString() };
+      nextState = state
+        ? { activeId: id, programs: [...state.programs, program] }
+        : { activeId: id, programs: [program] };
+      programId = id;
+    }
+    nextState.activeId = existing ? existing.id : programId;
+    writeState(nextState);
+    mergedDays.forEach((day) =>
+      day.exercises.forEach((ex) =>
+        this.saveToLibrary({ name: ex.name, repGoal: ex.repGoal, restTime: ex.restTime, videoUrl: ex.videoUrl })
+      )
+    );
+    changeListeners.forEach((fn) => fn(this.getProgram()));
+    return { programId: existing ? existing.id : programId, changed };
+  },
+
   switchProgram(id) {
     const state = readState();
     if (!state || !state.programs.some((p) => p.id === id)) return;

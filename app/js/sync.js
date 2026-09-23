@@ -265,6 +265,38 @@ export async function assignProgramToClient(clientId, assignment) {
   );
 }
 
+/** Marks a client as *managed*: their app shows exactly the program the coach
+ * published at `customProgramId` and nothing else, and re-reads it on every
+ * load so the coach's later edits reach them. Distinct from assignedProgram,
+ * which adds a program alongside whatever the client already has and leaves
+ * them free to edit it. */
+export async function setClientManagedProgram(clientId, managedProgram) {
+  const database = ensureDb();
+  await database.collection("clients").doc(clientId).set(
+    {
+      managed: true,
+      managedProgram: {
+        ...managedProgram,
+        setAt: window.firebase.firestore.FieldValue.serverTimestamp(),
+      },
+    },
+    { merge: true }
+  );
+}
+
+/** One-off read of a managed client's current program pointer, for the
+ * client's own "refresh" button (the live listener may not be up yet). */
+export async function getClientManagedProgram(clientId) {
+  try {
+    const database = ensureDb();
+    const doc = await database.collection("clients").doc(clientId).get();
+    const data = doc.exists ? doc.data() : null;
+    return data && data.managedProgram ? data.managedProgram : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Live-subscribe to a coach's client roster. Returns an unsubscribe function. */
 export function listenRoster(coachId, callback) {
   const database = ensureDb();

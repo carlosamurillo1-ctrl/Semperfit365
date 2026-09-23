@@ -18,6 +18,8 @@ import {
   onSyncStatusChange,
   getClientLabel,
   publishCustomProgram,
+  setClientManagedProgram,
+  getClientManagedProgram,
   getCustomProgram,
   unpublishCustomProgram,
   assignProgramToClient,
@@ -37,7 +39,18 @@ const LOCAL_KEYS = {
   clientEmail: "sf365.clientEmail",
   theme: "sf365.theme",
   lastAppliedAssignment: "sf365.lastAppliedAssignment",
+  // Set from the client link when the coach built their program. A managed
+  // device shows that one program, read-only, and re-reads it on every load.
+  managed: "sf365.managed",
+  managedProgramLocalId: "sf365.managedProgramLocalId",
 };
+
+/** True on a device whose program is owned by the coach: no editing, no other
+ * programs, no templates. Checked before rendering any editing control *and*
+ * again in the action handler, so nothing is reachable by firing the action. */
+function isManagedClient() {
+  return localStorage.getItem(LOCAL_KEYS.managed) === "true";
+}
 
 /** "auto" (default, follows system) | "light" | "dark" -- a per-device display preference, not synced. */
 function getTheme() {
@@ -372,7 +385,8 @@ function dayProgress(day) {
 
 function programSwitcherTopbarOpts() {
   const programs = Store.listPrograms();
-  const switcher = programs.length > 1
+  // A managed client has exactly one program and may not reach another.
+  const switcher = programs.length > 1 && !isManagedClient()
     ? `<select id="program-switcher" data-change-action="switch-program" aria-label="Switch program" style="width:auto;max-width:110px;padding:6px 8px;font-size:12px;background:var(--bg-elev-2);border:1px solid var(--border);border-radius:10px;color:var(--text);">${programs.map((p) => `<option value="${esc(p.id)}" ${p.active ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</select>`
     : "";
   const calendarBtn = `
@@ -392,9 +406,13 @@ function renderProgram() {
       <div class="empty">
         <svg viewBox="0 0 24 24"><path fill="currentColor" d="M20.5 3.5 21 4a1 1 0 0 1 0 1.4L6.9 19.5l-4.4 1 1-4.4L17.6 2.1a1 1 0 0 1 1.4 0l1.5 1.4Z"/></svg>
         <h2>No workout days yet</h2>
-        <p>Connect your Google Sheet, paste your workout data, or upload a CSV to get started.</p>
-        <div style="height:16px"></div>
-        <button class="btn primary" data-action="go-import">Import a workout day</button>
+        ${isManagedClient()
+          ? `<p>Your coach hasn't finished setting up your program yet. Pull down to refresh, or tap below to check again.</p>
+             <div style="height:16px"></div>
+             <button class="btn primary" data-action="refresh-managed-program">Check for my program</button>`
+          : `<p>Connect your Google Sheet, paste your workout data, or upload a CSV to get started.</p>
+             <div style="height:16px"></div>
+             <button class="btn primary" data-action="go-import">Import a workout day</button>`}
       </div>`;
   }
 
@@ -411,7 +429,7 @@ function renderProgram() {
             <p>${exCount} exercise${exCount === 1 ? "" : "s"}${weekLabel ? ` &middot; ${weekLabel}` : ""}</p>
           </div>
           <div style="display:flex;align-items:center;gap:8px;">
-            <button class="btn ghost small" data-action="rename-day" data-day="${esc(day.id)}" style="width:auto;padding:4px 8px;font-size:15px;" aria-label="Rename day">&#9998;</button>
+            ${isManagedClient() ? "" : `<button class="btn ghost small" data-action="rename-day" data-day="${esc(day.id)}" style="width:auto;padding:4px 8px;font-size:15px;" aria-label="Rename day">&#9998;</button>`}
             <span class="pill">Open</span>
           </div>
         </div>
@@ -423,7 +441,7 @@ function renderProgram() {
     ${topbar("", programSwitcherTopbarOpts())}
     <div class="row" style="margin-bottom:14px;">
       <span class="source-chip">${program.days.length} workout day${program.days.length === 1 ? "" : "s"}</span>
-      <button class="btn ghost small" data-action="go-import">+ Add day</button>
+      ${isManagedClient() ? "" : `<button class="btn ghost small" data-action="go-import">+ Add day</button>`}
     </div>
     ${items}
   `;
@@ -695,11 +713,12 @@ function renderDay() {
             <p>${target || `${ex.weeks.length} weeks`}${filled ? ` &middot; ${filled} logged` : ""}</p>
           </div>
           <div style="display:flex;align-items:center;gap:8px;">
+            ${isManagedClient() ? "" : `
             <button class="btn ghost small" data-action="go-swap-exercise" data-day="${esc(day.id)}" data-exercise="${esc(ex.id)}" style="width:auto;padding:4px 8px;font-size:12px;" aria-label="Swap exercise">Swap</button>
             <div class="reorder-btns">
               <button data-action="move-exercise" data-dir="-1" data-day="${esc(day.id)}" data-exercise="${esc(ex.id)}" ${idx === 0 ? "disabled" : ""} aria-label="Move up">&#9650;</button>
               <button data-action="move-exercise" data-dir="1" data-day="${esc(day.id)}" data-exercise="${esc(ex.id)}" ${idx === day.exercises.length - 1 ? "disabled" : ""} aria-label="Move down">&#9660;</button>
-            </div>
+            </div>`}
             <span class="pill">${ex.setLabels.length || 0} sets</span>
           </div>
         </div>
@@ -714,12 +733,13 @@ function renderDay() {
       </div>
     ` : ""}
     ${items || `<div class="empty"><p>No exercises in this day.</p></div>`}
+    ${isManagedClient() ? "" : `
     <button class="btn" data-action="go-add-exercise" data-day="${esc(day.id)}">+ Add exercise</button>
     <div style="height:8px"></div>
     <div class="btn-row">
       <button class="btn" data-action="rename-day" data-day="${esc(day.id)}">Rename day</button>
       <button class="btn danger" data-action="delete-day" data-day="${esc(day.id)}">Delete day</button>
-    </div>
+    </div>`}
   `;
 }
 
@@ -1033,6 +1053,7 @@ function renderExercise() {
     ${ex.setupNote ? `<div class="card"><p>${esc(ex.setupNote)}</p></div>` : ""}
     <p class="hint" style="margin:2px 0 10px;">Grayed-out numbers show what you logged last time -- type over them to log this week.</p>
     ${weekCards}
+    ${isManagedClient() ? "" : `
     <button class="btn" data-action="add-week" data-day="${esc(day.id)}" data-exercise="${esc(ex.id)}">+ Add week</button>
     <div style="height:8px"></div>
     <div class="btn-row">
@@ -1040,7 +1061,7 @@ function renderExercise() {
       <button class="btn" data-action="set-exercise-video" data-day="${esc(day.id)}" data-exercise="${esc(ex.id)}">${ex.videoUrl ? "Edit video" : "Add video"}</button>
       <button class="btn danger" data-action="delete-exercise" data-day="${esc(day.id)}" data-exercise="${esc(ex.id)}">Delete</button>
     </div>
-    <div style="height:8px"></div>
+    <div style="height:8px"></div>`}
     <a class="btn ghost" href="${youtubeSearchUrl(ex.name)}" target="_blank" rel="noopener noreferrer" style="display:block;text-align:center;text-decoration:none;">Find "${esc(ex.name)}" on YouTube</a>
   `;
 }
@@ -1106,7 +1127,8 @@ function renderSettings() {
         <button class="btn small" data-action="rename-program" data-program="${esc(p.id)}">Rename</button>
         ${canPublish ? (
           p.publishedId
-            ? `<button class="btn small" data-action="unpublish-program" data-program="${esc(p.id)}" data-published="${esc(p.publishedId)}">Unpublish</button>`
+            ? `<button class="btn small primary" data-action="publish-program" data-program="${esc(p.id)}">Update for clients</button>
+               <button class="btn small" data-action="unpublish-program" data-program="${esc(p.id)}" data-published="${esc(p.publishedId)}">Unpublish</button>`
             : `<button class="btn small" data-action="publish-program" data-program="${esc(p.id)}">Publish for clients</button>`
         ) : ""}
         ${programs.length > 1 ? `<button class="btn small danger" data-action="delete-program" data-program="${esc(p.id)}">Delete</button>` : ""}
@@ -1145,11 +1167,20 @@ function renderSettings() {
       </div>
       <p class="hint" style="margin-top:8px;">"Auto" follows your phone's system setting -- handy in bright gym lighting.</p>
     </div>
+    ${isManagedClient() ? `
+    <div class="card">
+      <h3>Your program</h3>
+      <p>${esc(programs.find((p) => p.active)?.name || "Your program")} &mdash; built for you by your coach.</p>
+      <p class="hint">If they change it, tap below to pull the new version down. Everything you've already logged stays exactly where it is.</p>
+      <div style="height:10px"></div>
+      <button class="btn" data-action="refresh-managed-program">Refresh my program</button>
+    </div>` : `
     <div class="card">
       <h3>Saved programs</h3>
       ${programs.length > 1 ? `<p class="hint">Switch between these any time, or tap Delete to remove one you no longer need (never the last one).</p>` : ""}
       ${programRows || "<p>None yet.</p>"}
-    </div>
+    </div>`}
+    ${isManagedClient() ? "" : `
     <div class="card">
       <h3>Workout days</h3>
       <p class="hint">Days in the currently active program (${esc(programs.find((p) => p.active)?.name || "My Program")}).</p>
@@ -1162,7 +1193,7 @@ function renderSettings() {
       <p>Swap this device's whole program for a different prebuilt one (e.g. give a client a leg-focused plan instead of the default).</p>
       <div style="height:10px"></div>
       <button class="btn" data-action="go-templates">Browse templates</button>
-    </div>
+    </div>`}
     <div class="card">
       <h3>Exercise library</h3>
       <p>Search or browse by body part (chest, back, legs, calves, biceps, triceps, shoulders, abs, forearms) -- ${Store.getExerciseLibrary().length} exercises so far. Used to autofill the Add/Swap exercise form.</p>
@@ -1172,7 +1203,7 @@ function renderSettings() {
     ${renderSyncSettingsCard()}
     <div class="card">
       <h3>Reset</h3>
-      <p>Clears every saved program, every logged value, and your cardio &amp; steps calendar from this device.</p>
+      <p>Clears every saved program, every logged value, and your cardio &amp; steps calendar from this device.${isManagedClient() ? " Your coach's program will download again next time you open the app, but the numbers you logged against it are gone for good." : ""}</p>
       <div style="height:10px"></div>
       <button class="btn danger" data-action="reset-all">Erase all data</button>
     </div>
@@ -1424,10 +1455,17 @@ function renderCoach() {
  * it -- a new client should start with a blank slate, not the coach's own
  * test weights/notes. Structure (exercises, rep goals, set columns, week
  * count) is kept as-is. */
+/** The coach's program as published for clients: the structure, with every
+ * logged number stripped out. Ids are carried through deliberately -- a
+ * managed client merges an update onto their own copy by id (see
+ * Store.syncManagedProgram), so without them a coach renaming a day would
+ * orphan everything the client had logged under it. */
 function blankDaysForPublish(days) {
   return days.map((day) => ({
+    id: day.id,
     name: day.name,
     exercises: day.exercises.map((ex) => ({
+      id: ex.id,
       name: ex.name,
       repGoal: ex.repGoal,
       restTime: ex.restTime,
@@ -1510,19 +1548,206 @@ async function resolveProgramSelection(selected, onPending) {
   return { templateId: selected, customProgramId: null, programName: PROGRAM_TEMPLATES.find((t) => t.id === selected)?.name };
 }
 
+// ---------- Inline "build their program" draft (Add Client screen) ----------
+
+// Held in memory only: a program the coach is assembling for one specific
+// client, before the client even exists. It becomes a published custom
+// program the moment they generate the link, and is thrown away if they
+// navigate off without doing so.
+let clientProgramDraft = null;
+// Which day currently has its "add exercise" form open, so the form doesn't
+// have to be repeated under every day at once.
+let draftAddingToDayId = null;
+
+function draftUid() {
+  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function resetClientProgramDraft() {
+  clientProgramDraft = { label: "", price: "", weeks: 8, days: [] };
+  draftAddingToDayId = null;
+}
+
+function ensureClientProgramDraft() {
+  if (!clientProgramDraft) resetClientProgramDraft();
+  return clientProgramDraft;
+}
+
+/** The draft as real program days: week rows expanded to the chosen count,
+ * blank, and one set label per set. Shape matches blankDaysForPublish's. */
+function draftToDays() {
+  const draft = ensureClientProgramDraft();
+  const weekCount = Math.max(1, Math.min(52, parseInt(draft.weeks, 10) || 8));
+  return draft.days.map((day) => ({
+    id: day.id,
+    name: day.name.trim() || "Workout",
+    exercises: day.exercises.map((ex) => {
+      const sets = Math.max(1, Math.min(12, parseInt(ex.sets, 10) || 3));
+      const setLabels = Array.from({ length: sets }, (_, i) => `Set ${i + 1}`);
+      return {
+        id: ex.id,
+        name: ex.name.trim(),
+        repGoal: ex.repGoal.trim(),
+        restTime: ex.restTime.trim(),
+        setupNote: "",
+        videoUrl: "",
+        setLabels,
+        weeks: Array.from({ length: weekCount }, (_, i) => ({
+          week: i + 1,
+          values: setLabels.map(() => ""),
+          reps: setLabels.map(() => ""),
+          notes: "",
+        })),
+      };
+    }),
+  }));
+}
+
+function draftExerciseCount() {
+  return ensureClientProgramDraft().days.reduce((n, d) => n + d.exercises.length, 0);
+}
+
+function renderDraftBuilder() {
+  const draft = ensureClientProgramDraft();
+  const libraryOptions = Store.getExerciseLibrary()
+    .slice(0, 400)
+    .map((e) => `<option value="${esc(e.name)}"></option>`)
+    .join("");
+
+  const dayCards = draft.days.map((day, dayIdx) => {
+    const exRows = day.exercises.map((ex, i) => `
+      <div class="row" style="padding:7px 0;border-top:1px solid var(--border);">
+        <div style="min-width:0;">
+          <h3 style="font-size:14px;margin:0;">${esc(ex.name)}</h3>
+          <p style="margin:2px 0 0;">${esc(ex.sets)} sets${ex.repGoal ? ` &middot; ${esc(ex.repGoal)}` : ""}${ex.restTime ? ` &middot; ${esc(ex.restTime)} rest` : ""}</p>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <div class="reorder-btns">
+            <button data-action="draft-move-exercise" data-dir="-1" data-day="${esc(day.id)}" data-exercise="${esc(ex.id)}" ${i === 0 ? "disabled" : ""} aria-label="Move up">&#9650;</button>
+            <button data-action="draft-move-exercise" data-dir="1" data-day="${esc(day.id)}" data-exercise="${esc(ex.id)}" ${i === day.exercises.length - 1 ? "disabled" : ""} aria-label="Move down">&#9660;</button>
+          </div>
+          <button class="btn ghost small danger" data-action="draft-remove-exercise" data-day="${esc(day.id)}" data-exercise="${esc(ex.id)}" style="width:auto;padding:4px 9px;" aria-label="Remove ${esc(ex.name)}">&times;</button>
+        </div>
+      </div>`).join("");
+
+    const addForm = draftAddingToDayId === day.id ? `
+      <div style="border-top:1px solid var(--border);padding-top:10px;margin-top:8px;">
+        <label for="draft-ex-name">Exercise</label>
+        <input type="text" id="draft-ex-name" list="draft-ex-library" placeholder="Start typing, or pick from your library" autocomplete="off" />
+        <div class="row" style="gap:8px;margin-top:8px;">
+          <div style="flex:1;"><label for="draft-ex-sets">Sets</label><input type="text" id="draft-ex-sets" inputmode="numeric" value="3" /></div>
+          <div style="flex:1;"><label for="draft-ex-reps">Reps</label><input type="text" id="draft-ex-reps" placeholder="8-10" /></div>
+          <div style="flex:1;"><label for="draft-ex-rest">Rest</label><input type="text" id="draft-ex-rest" placeholder="90s" /></div>
+        </div>
+        <div style="height:10px"></div>
+        <div class="btn-row">
+          <button class="btn primary small" data-action="draft-add-exercise" data-day="${esc(day.id)}">Add to ${esc(day.name.trim() || "day")}</button>
+          <button class="btn ghost small" data-action="draft-cancel-add-exercise">Cancel</button>
+        </div>
+      </div>` : `
+      <div style="margin-top:8px;">
+        <button class="btn small" data-action="draft-open-add-exercise" data-day="${esc(day.id)}">+ Add exercise</button>
+      </div>`;
+
+    return `
+      <div class="card">
+        <div class="row" style="margin-bottom:6px;">
+          <input type="text" data-draft-day-name="${esc(day.id)}" value="${esc(day.name)}" placeholder="Day ${dayIdx + 1}" aria-label="Day name" style="flex:1;margin:0;" />
+          <button class="btn ghost small danger" data-action="draft-remove-day" data-day="${esc(day.id)}" style="width:auto;padding:6px 10px;margin-left:8px;" aria-label="Remove day">&times;</button>
+        </div>
+        ${exRows || `<p class="hint" style="margin:6px 0 0;">No exercises yet.</p>`}
+        ${addForm}
+      </div>`;
+  }).join("");
+
+  return `
+    <datalist id="draft-ex-library">${libraryOptions}</datalist>
+    <div class="card">
+      <h3>Their program</h3>
+      <p class="hint" style="margin-top:2px;">Build it here and it becomes the only program on their app &mdash; they can log against it, but can't change it or see anything else. Leave this empty to start them on an existing program instead (option below).</p>
+      <div style="height:10px"></div>
+      <label for="draft-weeks">How many weeks</label>
+      <input type="text" id="draft-weeks" inputmode="numeric" value="${esc(String(clientProgramDraft.weeks))}" style="max-width:110px;" />
+    </div>
+    ${dayCards}
+    <button class="btn" data-action="draft-add-day">+ Add day</button>
+    <div style="height:14px"></div>
+  `;
+}
+
+function draftFindDay(dayId) {
+  return ensureClientProgramDraft().days.find((d) => d.id === dayId);
+}
+
+function draftAddDay() {
+  const draft = ensureClientProgramDraft();
+  draft.days.push({ id: draftUid(), name: `Day ${draft.days.length + 1}`, exercises: [] });
+  render();
+}
+
+function draftRemoveDay(dayId) {
+  const draft = ensureClientProgramDraft();
+  draft.days = draft.days.filter((d) => d.id !== dayId);
+  if (draftAddingToDayId === dayId) draftAddingToDayId = null;
+  render();
+}
+
+function draftAddExercise(dayId) {
+  const day = draftFindDay(dayId);
+  if (!day) return;
+  const name = document.getElementById("draft-ex-name").value.trim();
+  if (!name) {
+    toast("Give the exercise a name");
+    return;
+  }
+  day.exercises.push({
+    id: draftUid(),
+    name,
+    sets: document.getElementById("draft-ex-sets").value.trim() || "3",
+    repGoal: document.getElementById("draft-ex-reps").value.trim(),
+    restTime: document.getElementById("draft-ex-rest").value.trim(),
+  });
+  // Stay open so a whole day can be typed in without re-tapping Add exercise.
+  render();
+  const next = document.getElementById("draft-ex-name");
+  if (next) next.focus();
+}
+
+function draftRemoveExercise(dayId, exerciseId) {
+  const day = draftFindDay(dayId);
+  if (!day) return;
+  day.exercises = day.exercises.filter((e) => e.id !== exerciseId);
+  render();
+}
+
+function draftMoveExercise(dayId, exerciseId, direction) {
+  const day = draftFindDay(dayId);
+  if (!day) return;
+  const i = day.exercises.findIndex((e) => e.id === exerciseId);
+  const j = i + direction;
+  if (i < 0 || j < 0 || j >= day.exercises.length) return;
+  [day.exercises[i], day.exercises[j]] = [day.exercises[j], day.exercises[i]];
+  render();
+}
+
 function renderCoachAddClient() {
+  ensureClientProgramDraft();
   const preselect = state.params.preselectProgram || "";
   return `
     ${topbar("Add client", { back: true })}
     <div class="card">
       <label for="coach-client-label">Client name</label>
-      <input type="text" id="coach-client-label" placeholder="e.g. Jordan" />
-      <label for="coach-client-template">Starting program</label>
-      <select id="coach-client-template">${programPickerOptgroups(preselect, "Copy & customize for this client")}</select>
-      <p class="hint">This is only the program they'll see the first time they open the link — it won't touch anything if they've already opened it before. Picking a "Copy..." option asks you to name it, then publishes your copy so it's ready for this (and future) clients.</p>
+      <input type="text" id="coach-client-label" value="${esc(clientProgramDraft.label || "")}" placeholder="e.g. Jordan" />
       <label for="coach-client-price">Price (optional)</label>
-      <input type="text" id="coach-client-price" inputmode="decimal" placeholder="e.g. 50" />
+      <input type="text" id="coach-client-price" inputmode="decimal" value="${esc(clientProgramDraft.price || "")}" placeholder="e.g. 50" />
       <p class="hint">Leave blank for free, instant access (how client links have always worked). Set a price and they'll have to verify their email and pay before the program unlocks -- you confirm payment yourself and their access unlocks automatically the moment you do.</p>
+    </div>
+    ${renderDraftBuilder()}
+    <div class="card">
+      <h3>Or start them on an existing program</h3>
+      <p class="hint" style="margin-top:2px;">Only used if you haven't built anything above. A program picked here is a starting point they can then edit themselves, the way client links have always worked.</p>
+      <div style="height:10px"></div>
+      <select id="coach-client-template">${programPickerOptgroups(preselect, "Copy & customize for this client")}</select>
     </div>
     <button class="btn primary" data-action="confirm-add-coach-client">Generate client link</button>
   `;
@@ -1542,6 +1767,38 @@ async function confirmAddCoachClient() {
     return;
   }
   const submitBtn = document.querySelector('[data-action="confirm-add-coach-client"]');
+  const priceCents = Math.round(priceDollars * 100);
+
+  // A program built right here takes precedence over the picker, and is what
+  // makes this a *managed* client: it becomes the only program on their
+  // device and they can't edit it or reach any other.
+  const built = draftToDays();
+  if (built.length) {
+    const emptyDay = built.find((d) => !d.exercises.length);
+    if (emptyDay) {
+      toast(`"${emptyDay.name}" has no exercises yet`);
+      return;
+    }
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = "Publishing their program…"; }
+    const result = await publishDraftForClient(label, built);
+    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = "Generate client link"; }
+    if (!result) return;
+    const clientId = newId();
+    try {
+      await addClientToRoster(getOrCreateCoachId(), clientId, label, priceCents);
+      await setClientManagedProgram(clientId, { customProgramId: result.publishedId, name: result.name });
+      resetClientProgramDraft();
+      navigate("coach-client-link", {
+        clientId, label, priceCents, managed: true,
+        customProgramId: result.publishedId, programName: result.name,
+        templateId: null,
+      });
+    } catch {
+      toast("Couldn't create the client link — check your connection");
+    }
+    return;
+  }
+
   const resolved = await resolveProgramSelection(selected, () => {
     if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = "Publishing your copy…"; }
   });
@@ -1552,7 +1809,6 @@ async function confirmAddCoachClient() {
     return;
   }
   const { templateId, customProgramId, programName } = resolved;
-  const priceCents = Math.round(priceDollars * 100);
   const clientId = newId();
   try {
     await addClientToRoster(getOrCreateCoachId(), clientId, label, priceCents);
@@ -1562,12 +1818,36 @@ async function confirmAddCoachClient() {
   }
 }
 
+/** Publishes a freshly-built draft and keeps the coach a local, editable copy
+ * of it (not switched to -- the coach stays on whatever they had open), so
+ * they can change this client's program later from Settings > Saved programs
+ * and push the edit out with "Update for clients". */
+async function publishDraftForClient(clientLabel, days) {
+  const name = `${clientLabel}'s Program`;
+  const publishedId = newId();
+  try {
+    await Promise.race([
+      publishCustomProgram(getOrCreateCoachId(), publishedId, name, days),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 8000)),
+    ]);
+  } catch (e) {
+    toast(e?.message === "timeout" ? "Taking a while — check your connection and try again" : "Couldn't publish their program — check your connection");
+    return null;
+  }
+  const previousActiveId = Store.listPrograms().find((p) => p.active)?.id || null;
+  const localId = Store.createProgram(name, days);
+  Store.setProgramPublishedId(localId, publishedId);
+  if (previousActiveId) Store.switchProgram(previousActiveId);
+  return { publishedId, name };
+}
+
 function renderCoachClientLink() {
   const { clientId, label, templateId, customProgramId, programName, priceCents } = state.params;
   const linkParams = new URLSearchParams({ client: clientId });
   if (customProgramId) linkParams.set("cp", customProgramId);
   else if (templateId && templateId !== "default") linkParams.set("template", templateId);
   if (priceCents > 0) linkParams.set("price", String(priceCents));
+  if (state.params.managed) linkParams.set("m", "1");
   const link = `${window.location.origin}${window.location.pathname}?${linkParams.toString()}`;
   return `
     ${topbar("Client link ready", { back: true })}
@@ -1577,6 +1857,7 @@ function renderCoachClientLink() {
         ? ` They'll be asked to verify their email and pay $${(priceCents / 100).toFixed(2)} before the program unlocks. Once you confirm the payment yourself (Settings &gt; Coach dashboard &gt; Mark as paid), their access unlocks automatically.`
         : " The moment they open it, their logged workouts start syncing to you — no account needed on their end."
       }${programName && (customProgramId || templateId !== "default") ? ` They'll start with the "${esc(programName)}" program.` : ""}</p>
+      ${state.params.managed ? `<p class="hint">You built this program, so it's the only one they'll see — they can log their numbers but can't add days, swap exercises or browse other programs. To change it later, edit "${esc(programName || "their program")}" under Settings &gt; Saved programs and tap <strong>Update for clients</strong>; they pick the change up next time they open the app, with everything they've already logged left alone.</p>` : ""}
       <div style="height:10px"></div>
       <input type="text" id="coach-link-output" value="${esc(link)}" readonly onclick="this.select()" />
       <div style="height:10px"></div>
@@ -1767,10 +2048,32 @@ function attachHandlers() {
   app.addEventListener("change", onChange);
 }
 
+// Everything a managed client must not be able to do. The buttons are already
+// gone from the markup; this is the second lock, so an action fired any other
+// way (a stale screen still in the DOM, the console, a bookmarklet) is refused
+// too. Logging weights, reps and notes is deliberately absent -- that is the
+// one thing they are meant to do.
+const COACH_ONLY_ACTIONS = new Set([
+  "go-import", "import-sheet", "import-paste", "import-csv", "confirm-import",
+  "go-add-exercise", "confirm-add-exercise", "go-swap-exercise", "confirm-swap-exercise",
+  "add-week", "rename-day", "delete-day", "rename-exercise", "delete-exercise",
+  "move-exercise", "set-exercise-video", "refresh-day",
+  "go-templates", "add-template", "load-template", "create-blank-program",
+  "copy-template-for-client", "copy-template-link",
+  "switch-program", "switch-program-btn", "rename-program", "delete-program",
+  "publish-program", "unpublish-program",
+  "go-coach", "go-coach-add-client", "confirm-add-coach-client",
+]);
+
 function onClick(e) {
   const el = e.target.closest("[data-action]");
   if (!el) return;
   const action = el.dataset.action;
+
+  if (isManagedClient() && COACH_ONLY_ACTIONS.has(action)) {
+    toast("Your coach manages this program — message them to change it");
+    return;
+  }
 
   switch (action) {
     case "send-signin-link": handleSendSigninLink(); break;
@@ -1925,6 +2228,7 @@ function onClick(e) {
       toast("Saved");
       break;
     }
+    case "refresh-managed-program": refreshManagedProgram(); break;
     case "go-templates": navigate("templates"); break;
     case "go-exercise-library": navigate("exercise-library"); break;
     case "filter-library-group": {
@@ -1988,7 +2292,14 @@ function onClick(e) {
       break;
     }
     case "go-coach": navigate("coach"); break;
-    case "go-coach-add-client": navigate("coach-add-client"); break;
+    case "go-coach-add-client": resetClientProgramDraft(); navigate("coach-add-client"); break;
+    case "draft-add-day": draftAddDay(); break;
+    case "draft-remove-day": draftRemoveDay(el.dataset.day); break;
+    case "draft-open-add-exercise": draftAddingToDayId = el.dataset.day; render(); break;
+    case "draft-cancel-add-exercise": draftAddingToDayId = null; render(); break;
+    case "draft-add-exercise": draftAddExercise(el.dataset.day); break;
+    case "draft-remove-exercise": draftRemoveExercise(el.dataset.day, el.dataset.exercise); break;
+    case "draft-move-exercise": draftMoveExercise(el.dataset.day, el.dataset.exercise, Number(el.dataset.dir)); break;
     case "confirm-add-coach-client": confirmAddCoachClient(); break;
     case "copy-coach-link": {
       navigator.clipboard.writeText(el.dataset.link)
@@ -2107,6 +2418,28 @@ function onInput(e) {
     recipeDraft.servings = el.value;
     return;
   }
+  // Draft program builder on Add Client: these live in memory, not the Store,
+  // so they need writing back on every keystroke or a re-render loses them.
+  if (state.screen === "coach-add-client") {
+    if (el.id === "draft-weeks" && clientProgramDraft) {
+      clientProgramDraft.weeks = el.value;
+      return;
+    }
+    if (el.id === "coach-client-label" && clientProgramDraft) {
+      clientProgramDraft.label = el.value;
+      return;
+    }
+    if (el.id === "coach-client-price" && clientProgramDraft) {
+      clientProgramDraft.price = el.value;
+      return;
+    }
+    const draftDayId = el.dataset.draftDayName;
+    if (draftDayId) {
+      const day = draftFindDay(draftDayId);
+      if (day) day.name = el.value;
+      return;
+    }
+  }
   if (el.id === "library-search" && state.screen === "exercise-library") {
     state.libraryFilter.query = el.value;
     const filtered = filterLibraryEntries(Store.getExerciseLibrary(), state.libraryFilter.query, state.libraryFilter.group);
@@ -2148,6 +2481,7 @@ function onInput(e) {
 
 function onChange(e) {
   const el = e.target;
+  if (isManagedClient()) return; // the change-driven paths are all coach-only
   if (el.id === "csv-file" && el.files[0]) {
     handleImportFile(el.files[0]);
   }
@@ -2794,7 +3128,18 @@ async function seedFromCustomProgramIfPresent() {
   urlParams.delete("cp");
   const rest = urlParams.toString();
   history.replaceState(null, "", window.location.pathname + (rest ? `?${rest}` : ""));
-  if (Store.getProgram() || !isSyncConfigured()) return; // never overwrite a visitor's own data
+  if (!isSyncConfigured()) return;
+  // A managed client's first open goes through the same merge path as every
+  // later refresh, so the local program is tracked from the start and the
+  // coach's edits land on it instead of piling up as extra programs.
+  if (isManagedClient()) {
+    await Promise.race([
+      syncManagedProgramFromCoach({ customProgramId: cpId }),
+      new Promise((resolve) => setTimeout(resolve, 8000)),
+    ]);
+    return;
+  }
+  if (Store.getProgram()) return; // never overwrite a visitor's own data
   try {
     const data = await Promise.race([
       getCustomProgram(cpId),
@@ -2808,15 +3153,17 @@ async function seedFromCustomProgramIfPresent() {
   }
 }
 
-/** Reads a one-shot param out of the current URL into localStorage and strips it, if present. */
+/** Reads a one-shot param out of the current URL into localStorage and strips
+ * it, if present. Returns true when the param was there. */
 function consumeUrlParam(name, storageKey) {
   const urlParams = new URLSearchParams(window.location.search);
   const value = urlParams.get(name);
-  if (value === null) return;
+  if (value === null) return false;
   localStorage.setItem(storageKey, value);
   urlParams.delete(name);
   const rest = urlParams.toString();
   history.replaceState(null, "", window.location.pathname + (rest ? `?${rest}` : ""));
+  return true;
 }
 
 let syncStatusIndicatorReady = false;
@@ -2888,6 +3235,56 @@ async function applyAssignedProgramIfNew(assignedProgram) {
   }
 }
 
+/** Pulls the coach's current version of a managed client's program down and
+ * merges it onto whatever is on this device, keeping every logged number
+ * (see Store.syncManagedProgram). Safe to call as often as we like -- an
+ * unchanged program is a no-op -- so it runs on every load and whenever the
+ * coach touches the client's doc. Returns true if anything actually moved. */
+async function syncManagedProgramFromCoach(managedProgram, { announce } = {}) {
+  if (!managedProgram || !managedProgram.customProgramId) return false;
+  const data = await getCustomProgram(managedProgram.customProgramId);
+  if (!data || !Array.isArray(data.days)) return false; // offline: keep what we have
+  const existingId = localStorage.getItem(LOCAL_KEYS.managedProgramLocalId) || null;
+  const { programId, changed } = Store.syncManagedProgram(
+    existingId,
+    managedProgram.name || data.name || "My Program",
+    data.days
+  );
+  localStorage.setItem(LOCAL_KEYS.managedProgramLocalId, programId);
+  if (changed && announce) {
+    toast("Your coach updated your program");
+    if (["program", "history", "settings"].includes(state.screen)) render();
+  }
+  return changed;
+}
+
+/** The client's own "my coach changed something" button. Re-reads their doc
+ * (rather than trusting a cached managedProgram) so it works even if the live
+ * listener was asleep, then merges. */
+async function refreshManagedProgram() {
+  const clientId = getLocalClientId();
+  if (!clientId || !isSyncConfigured()) {
+    toast("Not connected to a coach on this device");
+    return;
+  }
+  toast("Checking with your coach…");
+  try {
+    const managedProgram = await Promise.race([
+      getClientManagedProgram(clientId),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 8000)),
+    ]);
+    if (!managedProgram) {
+      toast("Your coach hasn't published a program for you yet");
+      return;
+    }
+    const changed = await syncManagedProgramFromCoach(managedProgram);
+    toast(changed ? "Program updated — your logged weeks are untouched" : "You're already up to date");
+    render();
+  } catch (e) {
+    toast(e?.message === "timeout" ? "Taking a while — check your connection" : "Couldn't reach your coach's program — check your connection");
+  }
+}
+
 function bootstrapClientSync() {
   const clientId = getLocalClientId();
   if (!clientId || !isSyncConfigured()) return;
@@ -2907,6 +3304,11 @@ function bootstrapClientSync() {
       toast("Your coach ended this connection. Your workouts are still saved on this device.");
       return;
     }
+    if (data && data.managed && data.managedProgram) {
+      localStorage.setItem(LOCAL_KEYS.managed, "true");
+      syncManagedProgramFromCoach(data.managedProgram, { announce: true });
+      return; // a managed client never takes assignedProgram: one program, the coach's
+    }
     if (data && data.assignedProgram) applyAssignedProgramIfNew(data.assignedProgram);
   });
 }
@@ -2914,7 +3316,9 @@ function bootstrapClientSync() {
 /** The normal, non-paywalled boot path -- unchanged from before paywalls existed. */
 async function enterApp() {
   await seedFromCustomProgramIfPresent();
-  seedIfEmpty();
+  // A managed client gets their coach's program and nothing else -- never the
+  // bundled default, which is one of the programs they're not meant to see.
+  if (!isManagedClient()) seedIfEmpty();
   Store.seedLibraryCatalog(EXERCISE_CATALOG);
   bootstrapClientSync();
   navigate("program");
@@ -2942,6 +3346,7 @@ function watchPaywallUnlock(clientId) {
 async function boot() {
   consumeUrlParam("client", LOCAL_KEYS.clientId);
   consumeUrlParam("price", LOCAL_KEYS.clientPriceCents);
+  if (consumeUrlParam("m", LOCAL_KEYS.managed)) localStorage.setItem(LOCAL_KEYS.managed, "true");
 
   if (isSyncConfigured() && isSignInLink()) {
     try {
