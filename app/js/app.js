@@ -1746,7 +1746,7 @@ function draftUid() {
 }
 
 function resetClientProgramDraft() {
-  clientProgramDraft = { label: "", price: "", weeks: 8, days: [] };
+  clientProgramDraft = { label: "", price: "", programName: "", weeks: 8, days: [] };
   draftAddingToDayId = null;
 }
 
@@ -1857,7 +1857,16 @@ function renderDraftBuilder() {
     </div>
   `).join("");
 
+  // The name goes to the client (it's what their program is called in their
+  // app) and to Settings > Saved programs, where the coach has to pick it out
+  // of a list later to push an update. Worth naming properly.
+  const defaultName = `${(draft.label || "").trim() || "Client"}'s Program`;
   return `
+    <div class="card">
+      <label for="draft-program-name">Name this program</label>
+      <input type="text" id="draft-program-name" value="${esc(draft.programName || "")}" placeholder="${esc(defaultName)}" />
+      <p class="hint" style="margin:4px 0 0;">What they'll see it called. Leave blank for &ldquo;${esc(defaultName)}&rdquo;.</p>
+    </div>
     <div class="card">
       <div class="row" style="align-items:baseline;">
         <h3 style="margin:0;">Their program</h3>
@@ -2100,7 +2109,8 @@ async function confirmAddCoachClient() {
  * they can change this client's program later from Settings > Saved programs
  * and push the edit out with "Update for clients". */
 async function publishDraftForClient(clientLabel, days) {
-  const name = `${clientLabel}'s Program`;
+  const typed = ((clientProgramDraft && clientProgramDraft.programName) || "").trim();
+  const name = typed || `${clientLabel}'s Program`;
   const publishedId = newId();
   try {
     await Promise.race([
@@ -2908,6 +2918,10 @@ function onInput(e) {
     }
     if (el.id === "coach-client-price" && clientProgramDraft) {
       clientProgramDraft.price = el.value;
+      return;
+    }
+    if (el.id === "draft-program-name" && clientProgramDraft) {
+      clientProgramDraft.programName = el.value;
       return;
     }
     const draftDayId = el.dataset.draftDayName;
