@@ -48,6 +48,8 @@ const LOCAL_KEYS = {
   managedProgramLocalId: "sf365.managedProgramLocalId",
   checkInPromptedOn: "sf365.checkInPromptedOn",
   remindersOff: "sf365.remindersOff",
+  coachPin: "sf365.coachPin",
+  coachPinOkUntil: "sf365.coachPinOkUntil",
 };
 
 /** True on a device whose program is owned by the coach: no editing, no other
@@ -103,6 +105,59 @@ function getOrCreateCoachId() {
     localStorage.setItem(LOCAL_KEYS.coachId, id);
   }
   return id;
+}
+
+/** True only on a device that is actually the coach's.
+ *
+ * A coach id is what grants access to the roster, and it only ever lands on a
+ * device two ways: this device created one by opening the dashboard before
+ * this gate existed, or it arrived in a coach link (see the Coach access card).
+ * A client device is never one, whatever else it holds.
+ *
+ * Everyone else -- anyone who simply opens the app's address -- gets no coach
+ * dashboard and no way to conjure one, rather than the blank dashboard of
+ * their own they used to get. */
+function isCoachDevice() {
+  // A managed client's device is locked out of coach screens outright.
+  if (isManagedClient()) return false;
+  // Otherwise the coach id alone decides it. Deliberately not "and isn't a
+  // client": the coach opening one of his own client links to test it would
+  // otherwise lock himself out of his own dashboard, and a real client's
+  // device never gets a coach id -- nothing creates one except opening the
+  // dashboard (which they can't) or a coach link (which they never get).
+  return !!localStorage.getItem(LOCAL_KEYS.coachId);
+}
+
+// ---------- optional PIN in front of the dashboard ----------
+
+/** SHA-256 of the pin. Worth saying plainly: this stops someone who picks up
+ * an unlocked phone, and nothing more -- a four-digit pin is brute-forceable
+ * in an instant by anyone who opens devtools, and the hash sits right there in
+ * the same storage. It is a privacy screen, not a security boundary. */
+async function hashPin(pin) {
+  const bytes = new TextEncoder().encode(`sf365:${pin}`);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function coachPinIsSet() {
+  return !!localStorage.getItem(LOCAL_KEYS.coachPin);
+}
+
+/** Unlocks for a stretch rather than per-tap, so building a client's program
+ * doesn't mean re-entering the pin on every screen. */
+const PIN_GRACE_MS = 30 * 60 * 1000;
+function coachPinSatisfied() {
+  if (!coachPinIsSet()) return true;
+  const until = parseInt(localStorage.getItem(LOCAL_KEYS.coachPinOkUntil) || "0", 10);
+  return Date.now() < until;
+}
+function markCoachPinSatisfied() {
+  localStorage.setItem(LOCAL_KEYS.coachPinOkUntil, String(Date.now() + PIN_GRACE_MS));
+}
+
+function coachAccessLink() {
+  return `${window.location.origin}${window.location.pathname}?coach=${encodeURIComponent(getOrCreateCoachId())}`;
 }
 
 const app = document.getElementById("app");
@@ -259,6 +314,7 @@ function render() {
     case "cardio": html = renderCardio(); break;
     case "cardio-day": html = renderCardioDay(); break;
     case "coach": html = renderCoach(); break;
+    case "coach-pin": html = renderCoachPin(); break;
     case "coach-add-client": html = renderCoachAddClient(); break;
     case "coach-draft-day": html = renderCoachDraftDay(); break;
     case "coach-client-link": html = renderCoachClientLink(); break;
@@ -1267,8 +1323,7 @@ function renderSyncSettingsCard() {
     `;
   }
   const clientId = getLocalClientId();
-  if (clientId) {
-    return `
+  const clientCards = clientId ? `
       <div class="card">
         <h3>Coach sync</h3>
         <p>This device is sharing its logged workouts with a coach.</p>
@@ -1282,15 +1337,93 @@ function renderSyncSettingsCard() {
         <p>Question about your program, or a payment? Reach out directly.</p>
         <div style="height:10px"></div>
         ${contactCoachButtons()}
-      </div>
-    `;
-  }
-  return `
+      </div>` : "";
+  // Nothing at all for a device that is neither -- no dashboard and no hint
+  // that one exists.
+  const coachCard = isCoachDevice() ? `
     <div class="card">
       <h3>Coach dashboard</h3>
       <p>Generate links for clients and watch their logged workouts live.</p>
+      ${clientId ? `<p class="hint">This device is also opened on a client link. That's fine — the dashboard is still yours.</p>` : ""}
       <div style="height:10px"></div>
       <button class="btn" data-action="go-coach">Open coach dashboard</button>
+    </div>` : "";
+  return clientCards + coachCard;
+}
+
+// ---------- PIN gate in front of the dashboard ----------
+
+function renderCoachPin() {
+  return `
+    ${topbar("Locked", { back: true })}
+    <div class="card">
+      <h3>Enter your PIN</h3>
+      <p class="hint" style="margin-top:2px;">Keeps the dashboard shut if someone picks up your phone.</p>
+      <div style="height:10px"></div>
+      <label for="coach-pin-input">PIN</label>
+      <input type="password" id="coach-pin-input" inputmode="numeric" autocomplete="off" placeholder="••••" />
+      <div style="height:10px"></div>
+      <button class="btn primary" data-action="submit-coach-pin">Unlock</button>
+    </div>
+  `;
+}
+
+async function submitCoachPin() {
+  const value = document.getElementById("coach-pin-input").value.trim();
+  if (!value) { toast("Enter your PIN"); return; }
+  const hash = await hashPin(value);
+  if (hash !== localStorage.getItem(LOCAL_KEYS.coachPin)) {
+    toast("That PIN doesn't match");
+    return;
+  }
+  markCoachPinSatisfied();
+  navigate("coach");
+}
+
+async function setCoachPin() {
+  const value = (prompt("Choose a PIN (4-8 digits). Leave blank to cancel.") || "").trim();
+  if (!value) return;
+  if (!/^\d{4,8}$/.test(value)) { toast("Use 4 to 8 digits"); return; }
+  const again = (prompt("Enter it once more") || "").trim();
+  if (again !== value) { toast("Those didn't match — nothing changed"); return; }
+  localStorage.setItem(LOCAL_KEYS.coachPin, await hashPin(value));
+  markCoachPinSatisfied();
+  toast("PIN set");
+  render();
+}
+
+function clearCoachPin() {
+  if (!confirm("Remove the PIN? The dashboard will open without one on this device.")) return;
+  localStorage.removeItem(LOCAL_KEYS.coachPin);
+  localStorage.removeItem(LOCAL_KEYS.coachPinOkUntil);
+  toast("PIN removed");
+  render();
+}
+
+/** Shown inside the dashboard: the link that grants coach access on another
+ * device, and the PIN controls. The link doubles as the only backup of the
+ * coach id -- without it, clearing this browser loses the roster for good. */
+function renderCoachAccessCard() {
+  const link = coachAccessLink();
+  return `
+    <div class="card">
+      <h3>Coach access</h3>
+      <p>This link is what makes a device yours. Open it on a new phone or laptop and the dashboard appears there; anyone without it just sees the normal app.</p>
+      <p class="hint"><strong>Save it somewhere you won't lose it.</strong> Your client roster lives against this link — if you clear this browser and don't have it, the roster can't be recovered. Never send it to a client.</p>
+      <div style="height:10px"></div>
+      <input type="text" id="coach-access-link" value="${esc(link)}" readonly onclick="this.select()" />
+      <div style="height:10px"></div>
+      <button class="btn primary" data-action="copy-coach-access-link" data-link="${esc(link)}">Copy my coach link</button>
+      <div style="height:14px"></div>
+      <h3 style="font-size:15px;">PIN</h3>
+      <p class="hint" style="margin-top:2px;">${coachPinIsSet()
+        ? "A PIN is set. You'll be asked for it when you open the dashboard."
+        : "No PIN. Anyone holding this unlocked phone can open the dashboard."}</p>
+      <div style="height:10px"></div>
+      <div class="btn-row">
+        <button class="btn small" data-action="set-coach-pin">${coachPinIsSet() ? "Change PIN" : "Set a PIN"}</button>
+        ${coachPinIsSet() ? `<button class="btn small danger" data-action="clear-coach-pin">Remove PIN</button>` : ""}
+      </div>
     </div>
   `;
 }
@@ -1493,6 +1626,8 @@ function renderCoach() {
   return `
     ${topbar("Coach dashboard", { back: true })}
     <button class="btn primary" data-action="go-coach-add-client">+ Add client</button>
+    <div style="height:14px"></div>
+    ${renderCoachAccessCard()}
     <div style="height:12px"></div>
     ${rows || `<div class="empty"><p>No clients yet. Add one to get a link you can send them.</p></div>`}
   `;
@@ -2339,6 +2474,7 @@ function onClick(e) {
       else if (state.screen === "exercise-library") navigate("settings");
       else if (state.screen === "cardio-day") navigate("cardio");
       else if (state.screen === "cardio") navigate("program");
+      else if (state.screen === "coach-pin") navigate("settings");
       else if (state.screen === "coach-add-client") navigate("coach");
       else if (state.screen === "coach-draft-day") navigate("coach-add-client");
       else if (state.screen === "coach-client-link") navigate("coach");
@@ -2552,7 +2688,20 @@ function onClick(e) {
       }
       break;
     }
-    case "go-coach": navigate("coach"); break;
+    case "go-coach": {
+      if (!isCoachDevice()) { toast("This device isn't set up as the coach"); break; }
+      navigate(coachPinSatisfied() ? "coach" : "coach-pin");
+      break;
+    }
+    case "submit-coach-pin": submitCoachPin(); break;
+    case "set-coach-pin": setCoachPin(); break;
+    case "clear-coach-pin": clearCoachPin(); break;
+    case "copy-coach-access-link": {
+      navigator.clipboard.writeText(el.dataset.link)
+        .then(() => toast("Coach link copied — store it somewhere safe"))
+        .catch(() => toast("Couldn't copy — select the link and copy manually"));
+      break;
+    }
     case "go-coach-add-client": resetClientProgramDraft(); navigate("coach-add-client"); break;
     case "go-coach-add-client-keep": navigate("coach-add-client"); break;
     case "customize-starting-program": customizeStartingProgram(); break;
@@ -3902,6 +4051,11 @@ function watchPaywallUnlock(clientId) {
 }
 
 async function boot() {
+  // A coach link makes this device the coach's -- and is the only way back in
+  // if the browser that created the id was ever cleared.
+  if (consumeUrlParam("coach", LOCAL_KEYS.coachId)) {
+    localStorage.removeItem(LOCAL_KEYS.coachPinOkUntil); // still ask for the PIN, if one is set
+  }
   consumeUrlParam("client", LOCAL_KEYS.clientId);
   consumeUrlParam("price", LOCAL_KEYS.clientPriceCents);
   if (consumeUrlParam("m", LOCAL_KEYS.managed)) localStorage.setItem(LOCAL_KEYS.managed, "true");

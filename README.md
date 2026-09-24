@@ -99,6 +99,14 @@ To change any of those thresholds, edit the constants at the top of `functions/r
 
 **Text message reminders** are not wired up — they need a paid sending service (Twilio or similar) plus a small amount of extra function code. The coach dashboard already stores each client's mobile number, so nothing would need re-entering if you add it later.
 
+**Who can open the coach dashboard.** The dashboard is only offered on a device that holds a coach id, and a coach id only ever arrives two ways: the device created one by opening the dashboard before this gate existed, or it came in from a **coach link**. Anyone else — a client, or a stranger who simply opens the app's address — sees no dashboard and has no way to conjure one. Clients could never see another client's data regardless (that needs their client id), but they no longer see the entry point at all.
+
+The coach link is on the dashboard under **Coach access**: `…/app/?coach=<coachId>`. Open it on a new phone or laptop and that device becomes the coach's.
+
+**Save that link somewhere safe.** It is also the only backup of the coach id, which is what the whole roster hangs off. Clearing the browser without it means the roster cannot be recovered. Never send it to a client — anyone holding it can open the dashboard.
+
+An optional **PIN** sits on top, set from the same card. It stops someone who picks up an unlocked phone, and that is all it claims to do: it's a four-to-eight digit code hashed into the same local storage it guards, so anyone comfortable in browser devtools can get past it. A privacy screen, not a security boundary. Once entered it stays unlocked for 30 minutes so building a program doesn't mean retyping it on every screen.
+
 **Contact info shown to clients.** The "Email coach" / "Text coach" buttons on the paywall and Settings screens, and the Zelle address shown on the payment screen, come from `COACH_EMAIL` / `COACH_PHONE_DISPLAY` / `COACH_PHONE_HREF` near the top of `app/js/app.js` — update those three constants if either ever changes.
 
 ## Sending this to someone (e.g. a client)
