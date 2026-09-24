@@ -176,6 +176,67 @@ export async function setClientReminders(coachId, clientId, reminders) {
   ]);
 }
 
+/** Writes one harmless document to each collection the coach flow touches and
+ * reports exactly what happened to each. Firestore's own failure modes are
+ * easy to mistake for network trouble -- an offline write hangs rather than
+ * failing, and a rules rejection fails instantly with plenty of signal -- so
+ * this names which collection, and which of the two. */
+export async function runSyncDiagnostics(coachId) {
+  const results = [];
+  const probe = `diag-${Date.now()}`;
+
+  if (!isSyncConfigured()) {
+    return [{ step: "Firebase config", ok: false, detail: "firebaseConfig.js has no real project key" }];
+  }
+  try {
+    ensureDb();
+    results.push({ step: "Firebase SDK", ok: true, detail: "loaded" });
+  } catch (e) {
+    return [...results, { step: "Firebase SDK", ok: false, detail: e.message }];
+  }
+
+  const database = ensureDb();
+  const attempts = [
+    ["Write to clients", () => database.collection("clients").doc(probe).set({ diag: true })],
+    ["Write to your roster", () => database.collection("coaches").doc(coachId).collection("roster").doc(probe).set({ diag: true })],
+    ["Write to customPrograms", () => database.collection("customPrograms").doc(probe).set({ diag: true, coachId })],
+    ["Read back", () => database.collection("clients").doc(probe).get()],
+  ];
+
+  for (const [step, run] of attempts) {
+    let timer;
+    try {
+      await Promise.race([
+        run(),
+        new Promise((_, reject) => { timer = setTimeout(() => reject(new Error("__timeout__")), 8000); }),
+      ]);
+      results.push({ step, ok: true, detail: "ok" });
+    } catch (e) {
+      const code = (e && (e.code || e.message)) || "unknown";
+      results.push({
+        step,
+        ok: false,
+        detail: code === "__timeout__"
+          ? "hung — never reached Firebase (blocked connection, or the database is paused/deleted)"
+          : code,
+      });
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  // Tidy up after ourselves, best effort.
+  try {
+    await Promise.all([
+      database.collection("clients").doc(probe).delete(),
+      database.collection("coaches").doc(coachId).collection("roster").doc(probe).delete(),
+      database.collection("customPrograms").doc(probe).delete(),
+    ]);
+  } catch { /* leftovers are invisible without their ids */ }
+
+  return results;
+}
+
 // ---------- coach side ----------
 
 /** priceCents: 0/undefined means free -- the client's link works exactly as

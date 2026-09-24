@@ -13,6 +13,7 @@ import {
   pushClientProgram,
   pushClientCheckIns,
   setClientReminders,
+  runSyncDiagnostics,
   addClientToRoster,
   removeClientFromRoster,
   listenRoster,
@@ -1424,8 +1425,32 @@ function renderCoachAccessCard() {
         <button class="btn small" data-action="set-coach-pin">${coachPinIsSet() ? "Change PIN" : "Set a PIN"}</button>
         ${coachPinIsSet() ? `<button class="btn small danger" data-action="clear-coach-pin">Remove PIN</button>` : ""}
       </div>
+      <div style="height:14px"></div>
+      <h3 style="font-size:15px;">Connection check</h3>
+      <p class="hint" style="margin-top:2px;">If generating a link fails, run this. It writes a throwaway record to each place a new client needs one and says exactly which step is unhappy.</p>
+      <div style="height:10px"></div>
+      <button class="btn small" data-action="run-sync-diagnostics">Run connection check</button>
+      <div id="diag-output"></div>
     </div>
   `;
+}
+
+async function runDiagnostics() {
+  const out = document.getElementById("diag-output");
+  if (out) out.innerHTML = `<p class="hint" style="margin-top:10px;">Checking…</p>`;
+  const results = await runSyncDiagnostics(getOrCreateCoachId());
+  const rows = results.map((r) => `
+    <div class="row" style="border-top:1px solid var(--border);padding-top:8px;margin-top:8px;">
+      <div style="min-width:0;">
+        <h3 style="font-size:14px;margin:0;">${r.ok ? "&#10003;" : "&#10005;"} ${esc(r.step)}</h3>
+        <p style="margin:2px 0 0;${r.ok ? "" : "color:var(--danger);"}">${esc(r.detail)}</p>
+      </div>
+    </div>`).join("");
+  const firstFail = results.find((r) => !r.ok);
+  const verdict = firstFail
+    ? `<p style="margin-top:10px;color:var(--danger);"><strong>${esc(firstFail.step)}</strong> is the problem. Send this screen to whoever set the app up.</p>`
+    : `<p class="hint" style="margin-top:10px;">Everything passed — Firebase is reachable and accepting writes.</p>`;
+  if (out) out.innerHTML = rows + verdict;
 }
 
 // ---------- TEMPLATES screen (load a whole prebuilt program) ----------
@@ -2039,6 +2064,35 @@ function renderCoachAddClient() {
   `;
 }
 
+/** Firestore does not fail the way the old "check your connection" message
+ * assumed. An offline write is *queued*, not rejected -- it just never
+ * settles. So a rejection here almost never means the network, and saying it
+ * does sends you off checking wifi while the real cause (a rules rejection, a
+ * half-loaded SDK) goes unnamed.
+ *
+ * This races the write against a timeout so a hang is distinguishable from a
+ * failure, and reports whichever actually happened, with the code. */
+async function firestoreStep(label, promise, ms = 10000) {
+  let timer;
+  try {
+    await Promise.race([
+      promise,
+      new Promise((_, reject) => { timer = setTimeout(() => reject(new Error("__timeout__")), ms); }),
+    ]);
+  } catch (err) {
+    const code = err && (err.code || err.message);
+    console.error(`[${label}] failed:`, code, err);
+    const e = new Error(code === "__timeout__"
+      ? `${label} is hanging — the write never reached Firebase. Usually a blocked connection or a paused Firestore database.`
+      : `${label} was refused: ${code || "unknown error"}`);
+    e.step = label;
+    e.code = code;
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function confirmAddCoachClient() {
   const label = document.getElementById("coach-client-label").value.trim();
   let selected = document.getElementById("coach-client-template").value;
@@ -2071,16 +2125,16 @@ async function confirmAddCoachClient() {
     if (!result) return;
     const clientId = newId();
     try {
-      await addClientToRoster(getOrCreateCoachId(), clientId, label, priceCents);
-      await setClientManagedProgram(clientId, { customProgramId: result.publishedId, name: result.name });
+      await firestoreStep("Saving to your roster", addClientToRoster(getOrCreateCoachId(), clientId, label, priceCents));
+      await firestoreStep("Linking their program", setClientManagedProgram(clientId, { customProgramId: result.publishedId, name: result.name }));
       resetClientProgramDraft();
       navigate("coach-client-link", {
         clientId, label, priceCents, managed: true,
         customProgramId: result.publishedId, programName: result.name,
         templateId: null,
       });
-    } catch {
-      toast("Couldn't create the client link — check your connection");
+    } catch (err) {
+      toast(err.message || "Couldn't create the client link");
     }
     return;
   }
@@ -2097,10 +2151,10 @@ async function confirmAddCoachClient() {
   const { templateId, customProgramId, programName } = resolved;
   const clientId = newId();
   try {
-    await addClientToRoster(getOrCreateCoachId(), clientId, label, priceCents);
+    await firestoreStep("Saving to your roster", addClientToRoster(getOrCreateCoachId(), clientId, label, priceCents));
     navigate("coach-client-link", { clientId, label, templateId, customProgramId, programName, priceCents });
-  } catch {
-    toast("Couldn't create the client link — check your connection");
+  } catch (err) {
+    toast(err.message || "Couldn't create the client link");
   }
 }
 
@@ -2706,6 +2760,7 @@ function onClick(e) {
     case "submit-coach-pin": submitCoachPin(); break;
     case "set-coach-pin": setCoachPin(); break;
     case "clear-coach-pin": clearCoachPin(); break;
+    case "run-sync-diagnostics": runDiagnostics(); break;
     case "copy-coach-access-link": {
       navigator.clipboard.writeText(el.dataset.link)
         .then(() => toast("Coach link copied — store it somewhere safe"))
