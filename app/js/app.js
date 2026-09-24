@@ -1709,7 +1709,7 @@ async function publishSavedProgram(programId) {
     toast(`"${meta.name}" is now available when adding a client`);
     render();
   } catch (e) {
-    toast(e?.message === "timeout" ? "Taking a while — check your connection and try again" : "Couldn't publish — check your connection and try again");
+    toast(firebaseWriteMessage(e, "publish that program"));
   }
 }
 
@@ -2183,6 +2183,19 @@ async function confirmAddCoachClient() {
  * of it (not switched to -- the coach stays on whatever they had open), so
  * they can change this client's program later from Settings > Saved programs
  * and push the edit out with "Update for clients". */
+/** Firestore rejects a write for exactly two interesting reasons, and they
+ * need different things from the reader. permission-denied means the security
+ * rules in the Firebase console are behind the ones in this repo -- no amount
+ * of checking wifi fixes it -- so name the collection and the fix. */
+function firebaseWriteMessage(err, what) {
+  const code = err && (err.code || err.message);
+  if (code === "permission-denied") {
+    return `Firebase refused to ${what}: its security rules are out of date. Coach dashboard > Run connection check to see which collection, then publish firestore.rules in the Firebase console.`;
+  }
+  if (code === "timeout") return `Taking a while to ${what} — check your connection and try again.`;
+  return `Couldn't ${what}${code ? ` (${code})` : ""}.`;
+}
+
 async function publishDraftForClient(clientLabel, days) {
   const typed = ((clientProgramDraft && clientProgramDraft.programName) || "").trim();
   const name = typed || `${clientLabel}'s Program`;
@@ -2193,7 +2206,7 @@ async function publishDraftForClient(clientLabel, days) {
       new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 8000)),
     ]);
   } catch (e) {
-    toast(e?.message === "timeout" ? "Taking a while — check your connection and try again" : "Couldn't publish their program — check your connection");
+    toast(firebaseWriteMessage(e, "publish their program"));
     return null;
   }
   const previousActiveId = Store.listPrograms().find((p) => p.active)?.id || null;

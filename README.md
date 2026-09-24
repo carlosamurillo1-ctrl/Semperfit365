@@ -99,6 +99,15 @@ To change any of those thresholds, edit the constants at the top of `functions/r
 
 **Text message reminders** are not wired up — they need a paid sending service (Twilio or similar) plus a small amount of extra function code. The coach dashboard already stores each client's mobile number, so nothing would need re-entering if you add it later.
 
+**If a write is refused (`permission-denied`).** The security rules live in `firestore.rules` in this repo, but Firebase only enforces whatever was last *published to the project* — editing the file changes nothing on its own. If rules were published before a collection was added, every write to that collection is refused while the rest keep working, which looks like a broken feature rather than a rules problem.
+
+Run **Coach dashboard → Run connection check** to see which collection is refusing, then publish the rules either way:
+
+- **From a browser:** Firebase console → Firestore Database → Rules → paste the contents of `firestore.rules` → Publish.
+- **From a computer with the CLI:** `firebase deploy --only firestore:rules`
+
+Re-run the connection check afterwards; every line should read ok.
+
 **Who can open the coach dashboard.** The dashboard is only offered on a device that holds a coach id, and a coach id only ever arrives two ways: the device created one by opening the dashboard before this gate existed, or it came in from a **coach link**. Anyone else — a client, or a stranger who simply opens the app's address — sees no dashboard and has no way to conjure one. Clients could never see another client's data regardless (that needs their client id), but they no longer see the entry point at all.
 
 The coach link is on the dashboard under **Coach access**: `…/app/?coach=<coachId>`. Open it on a new phone or laptop and that device becomes the coach's.
