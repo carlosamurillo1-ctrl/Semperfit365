@@ -216,6 +216,8 @@ export const Store = {
             restTime: incomingEx.restTime || "",
             setupNote: incomingEx.setupNote || "",
             videoUrl: incomingEx.videoUrl || "",
+            // Run this one straight after the exercise above it.
+            superset: !!incomingEx.superset,
             setLabels,
             weeks: (incomingEx.weeks || []).map((incomingWeek) => {
               const logged = oldEx && oldEx.weeks.find((w) => w.week === incomingWeek.week);
@@ -312,6 +314,7 @@ export const Store = {
           restTime: ex.restTime || "",
           setupNote: ex.setupNote || "",
           videoUrl: ex.videoUrl || "",
+          superset: !!ex.superset,
           setLabels: ex.setLabels,
           weeks: ex.weeks.map((w) => ({
             week: w.week,
@@ -358,6 +361,7 @@ export const Store = {
       restTime: exercise.restTime || "",
       setupNote: "",
       videoUrl: exercise.videoUrl || "",
+      superset: !!exercise.superset,
       setLabels,
       weeks: Array.from({ length: weekCount }, (_, i) => ({
         week: i + 1,
@@ -389,6 +393,7 @@ export const Store = {
       restTime: exercise.restTime || "",
       setupNote: "",
       videoUrl: exercise.videoUrl || "",
+      superset: !!exercise.superset,
       setLabels,
       weeks: Array.from({ length: weekCount }, (_, i) => ({
         week: i + 1,

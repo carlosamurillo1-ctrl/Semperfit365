@@ -810,7 +810,8 @@ function renderDay() {
     const currentWeekRow = progress && !progress.complete && ex.weeks.find((w) => w.week === progress.currentWeek);
     const doneThisWeek = currentWeekRow && !isWeekEmptyRow(currentWeekRow);
     return `
-      <div class="card tappable" data-action="open-exercise" data-day="${esc(day.id)}" data-exercise="${esc(ex.id)}">
+      ${idx > 0 && ex.superset ? `<div class="superset-link"><span>Superset &mdash; straight into this, no rest</span></div>` : ""}
+      <div class="card tappable${ex.superset ? " superset-card" : ""}" data-action="open-exercise" data-day="${esc(day.id)}" data-exercise="${esc(ex.id)}">
         <div class="row">
           <div>
             <h3>${doneThisWeek ? `<span class="done-check" aria-label="Logged this week">&#10003;</span> ` : ""}${esc(ex.name)}</h3>
@@ -1091,6 +1092,8 @@ function renderExercise() {
     navigate("program");
     return "";
   }
+  const exIndex = day.exercises.findIndex((e) => e.id === exerciseId);
+  const supersetPartner = ex.superset && exIndex > 0 ? day.exercises[exIndex - 1].name : "";
   const weeksSorted = [...ex.weeks].sort((a, b) => a.week - b.week);
   const isWeekEmpty = (w) => w.values.every((v) => !v) && (w.reps || []).every((v) => !v) && !w.notes;
   const currentWeek = weeksSorted.find((w) => !w.updatedAt && isWeekEmpty(w));
@@ -1154,6 +1157,7 @@ function renderExercise() {
       ${ex.videoUrl ? `<a class="source-chip" href="${esc(ex.videoUrl)}" target="_blank" rel="noopener noreferrer">&#9654; Video</a>` : ""}
     </div>
     ${renderVideoEmbed(ex.videoUrl)}
+    ${ex.superset && supersetPartner ? `<div class="card" style="border-color:var(--accent);"><h3 style="margin:0;font-size:15px;">Superset</h3><p style="margin:5px 0 0;">Straight into this from <strong>${esc(supersetPartner)}</strong> &mdash; no rest between the two. Rest after this one.</p></div>` : ""}
     ${ex.setupNote ? `<div class="card"><p>${esc(ex.setupNote)}</p></div>` : ""}
     <p class="hint" style="margin:2px 0 10px;">Grayed-out numbers show what you logged last time -- type over them to log this week.</p>
     ${weekCards}
@@ -1678,6 +1682,7 @@ function blankDaysForPublish(days) {
       restTime: ex.restTime,
       setupNote: ex.setupNote,
       videoUrl: ex.videoUrl,
+      superset: !!ex.superset,
       setLabels: ex.setLabels,
       weeks: ex.weeks.map((w) => ({ week: w.week, values: ex.setLabels.map(() => ""), reps: ex.setLabels.map(() => ""), notes: "" })),
     })),
@@ -1798,6 +1803,7 @@ function draftToDays() {
         restTime: ex.restTime.trim(),
         setupNote: "",
         videoUrl: "",
+        superset: !!ex.superset,
         setLabels,
         weeks: Array.from({ length: weekCount }, (_, i) => ({
           week: i + 1,
@@ -1922,7 +1928,13 @@ function renderCoachDraftDay() {
     .join("");
 
   const exRows = day.exercises.map((ex, i) => `
-    <div class="card">
+    ${i === 0 ? "" : `
+    <div class="superset-toggle">
+      <button class="chip${ex.superset ? " on" : ""}" data-action="toggle-draft-superset" data-day="${esc(day.id)}" data-exercise="${esc(ex.id)}" aria-pressed="${ex.superset ? "true" : "false"}">
+        ${ex.superset ? "&#9679; Superset with above" : "Superset with above"}
+      </button>
+    </div>`}
+    <div class="card"${ex.superset ? ' style="border-color:var(--accent);"' : ""}>
       <div class="row" style="margin-bottom:8px;">
         <input type="text" data-draft-ex-name="${esc(ex.id)}" data-day="${esc(day.id)}" value="${esc(ex.name)}" aria-label="Exercise name" style="flex:1;margin:0;font-weight:600;" />
         <div style="display:flex;align-items:center;gap:6px;margin-left:8px;">
@@ -2014,10 +2026,18 @@ function draftAddExercise(dayId) {
   if (next) next.focus();
 }
 
+/** "Superset with the one above" is meaningless on the first exercise, so
+ * anything that can leave a flagged exercise at the top has to clear it --
+ * otherwise a client sees a superset marker pointing at nothing. */
+function normaliseSupersets(day) {
+  if (day.exercises.length) day.exercises[0].superset = false;
+}
+
 function draftRemoveExercise(dayId, exerciseId) {
   const day = draftFindDay(dayId);
   if (!day) return;
   day.exercises = day.exercises.filter((e) => e.id !== exerciseId);
+  normaliseSupersets(day);
   render();
 }
 
@@ -2028,6 +2048,7 @@ function draftMoveExercise(dayId, exerciseId, direction) {
   const j = i + direction;
   if (i < 0 || j < 0 || j >= day.exercises.length) return;
   [day.exercises[i], day.exercises[j]] = [day.exercises[j], day.exercises[i]];
+  normaliseSupersets(day);
   render();
 }
 
@@ -2462,6 +2483,7 @@ async function refreshDay(dayId) {
         repGoal: newEx.repGoal,
         restTime: newEx.restTime,
         setupNote: newEx.setupNote,
+        superset: !!newEx.superset,
         setLabels: newEx.setLabels,
         weeks: newEx.weeks.map((w) => {
           const oldWeek = oldEx?.weeks.find((ow) => ow.week === w.week);
@@ -2794,6 +2816,12 @@ function onClick(e) {
     case "draft-add-exercise": draftAddExercise(el.dataset.day); break;
     case "draft-remove-exercise": draftRemoveExercise(el.dataset.day, el.dataset.exercise); break;
     case "draft-move-exercise": draftMoveExercise(el.dataset.day, el.dataset.exercise, Number(el.dataset.dir)); break;
+    case "toggle-draft-superset": {
+      const day = draftFindDay(el.dataset.day);
+      const ex = day && day.exercises.find((e) => e.id === el.dataset.exercise);
+      if (ex) { ex.superset = !ex.superset; render(); }
+      break;
+    }
     case "confirm-add-coach-client": confirmAddCoachClient(); break;
     case "copy-coach-link": {
       navigator.clipboard.writeText(el.dataset.link)
