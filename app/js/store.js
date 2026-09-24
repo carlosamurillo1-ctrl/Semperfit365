@@ -200,6 +200,7 @@ export const Store = {
         // day id (an open screen, a back-stack entry) still resolves.
         id: (oldDay && oldDay.id) || incomingDay.id || uid(),
         name: incomingDay.name || "Workout",
+        type: incomingDay.type || "strength",
         source: null,
         exercises: (incomingDay.exercises || []).map((incomingEx) => {
           const oldEx =
@@ -304,6 +305,9 @@ export const Store = {
     const dayWithIds = {
       id: uid(),
       name: day.name,
+      // "treadmill" days hold no exercises -- the client picks a level and a
+      // duration and the session is generated (see js/treadmill.js).
+      type: day.type || "strength",
       source: day.source || null,
       exercises: day.exercises.map((ex) => {
         this.saveToLibrary({ name: ex.name, repGoal: ex.repGoal, restTime: ex.restTime, videoUrl: ex.videoUrl });
@@ -574,8 +578,11 @@ export const Store = {
     const log = read(KEYS.cardioLog, {});
     const calories = (entry.calories || "").toString().trim();
     const steps = (entry.steps || "").toString().trim();
-    if (calories || steps) {
-      log[dateStr] = { calories, steps, updatedAt: new Date().toISOString() };
+    // Carried through so a treadmill session can say what it was, rather than
+    // landing on the calendar as an unexplained number.
+    const note = (entry.note || "").toString().trim();
+    if (calories || steps || note) {
+      log[dateStr] = { calories, steps, note, updatedAt: new Date().toISOString() };
     } else {
       delete log[dateStr];
     }

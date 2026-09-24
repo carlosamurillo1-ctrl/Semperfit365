@@ -7,6 +7,7 @@ import { EXERCISE_CATALOG, MUSCLE_GROUPS } from "./exerciseCatalog.js";
 import { Nutrition } from "./nutrition.js";
 import { lookupBarcode, searchFoodByName } from "./foodApi.js";
 import { RECIPE_LIBRARY, DIET_TAGS, MEAL_SLOTS, filterRecipes } from "./recipeLibrary.js";
+import { ZONES, LEVELS, DURATIONS, buildSession, zoneBreakdown, estimateCalories, sessionTimeline, totalSeconds } from "./treadmill.js";
 import {
   isSyncConfigured,
   newId,
@@ -332,6 +333,8 @@ function render() {
     case "nutrition-weight": html = renderNutritionWeight(); break;
     case "nutrition-goals": html = renderNutritionGoals(); break;
     case "nutrition-recipes": html = renderNutritionRecipes(); break;
+    case "treadmill": html = renderTreadmill(); break;
+    case "treadmill-run": html = renderTreadmillRun(); break;
     case "recipe-library": html = renderRecipeLibrary(); break;
     case "recipe-library-item": html = renderLibraryRecipe(); break;
     case "nutrition-recipe-new": html = renderNutritionRecipeNew(); break;
@@ -529,14 +532,16 @@ function renderProgram() {
         <div class="row">
           <div>
             <h3>${esc(day.name)}</h3>
-            <p>${exCount} exercise${exCount === 1 ? "" : "s"}${weekLabel ? ` &middot; ${weekLabel}` : ""}</p>
+            <p>${day.type === "treadmill"
+              ? "Treadmill &middot; pick your level and time"
+              : `${exCount} exercise${exCount === 1 ? "" : "s"}${weekLabel ? ` &middot; ${weekLabel}` : ""}`}</p>
           </div>
           <div style="display:flex;align-items:center;gap:8px;">
             ${isManagedClient() ? "" : `<button class="btn ghost small" data-action="rename-day" data-day="${esc(day.id)}" style="width:auto;padding:4px 8px;font-size:15px;" aria-label="Rename day">&#9998;</button>`}
             <span class="pill">Open</span>
           </div>
         </div>
-        ${progress ? `<div class="progress-track"><div class="progress-fill${progress.complete ? " complete" : ""}" style="width:${progress.complete ? 100 : pct}%"></div></div>` : ""}
+        ${day.type !== "treadmill" && progress ? `<div class="progress-track"><div class="progress-fill${progress.complete ? " complete" : ""}" style="width:${progress.complete ? 100 : pct}%"></div></div>` : ""}
       </div>`;
   }).join("");
 
@@ -549,6 +554,214 @@ function renderProgram() {
     </div>
     ${items}
   `;
+}
+
+// ---------- TREADMILL screens ----------
+
+// The client's choices, and a running session if one is in progress. In memory
+// only: a half-finished run is not worth persisting, and a stale one resuming
+// three days later would be worse than useless.
+let treadmillPick = { level: 3, minutes: 30 };
+let treadmillRun = null; // { session, timeline, elapsed, paused, tickId, dayId }
+
+function zoneChip(zoneId) {
+  const z = ZONES[zoneId];
+  return `<span class="zone-chip" style="background:${z.colour};">${esc(z.short)}</span>`;
+}
+
+function fmtClock(totalSec) {
+  const s = Math.max(0, Math.round(totalSec));
+  const m = Math.floor(s / 60);
+  return `${m}:${String(s % 60).padStart(2, "0")}`;
+}
+
+function renderTreadmill() {
+  const day = Store.getDay(state.params.dayId);
+  if (!day) { navigate("program"); return ""; }
+  const session = buildSession(treadmillPick.level, treadmillPick.minutes);
+  const zones = zoneBreakdown(session);
+  const goals = Nutrition.getGoals();
+  const kcal = estimateCalories(session, goals.weightGoal || Nutrition.getLatestWeight()?.weight);
+
+  const levelChips = LEVELS.map((l) => `
+    <button class="chip${treadmillPick.level === l.level ? " on" : ""}" data-action="set-treadmill-level" data-level="${l.level}">${l.level} &middot; ${esc(l.name)}</button>
+  `).join("");
+  const durationChips = DURATIONS.map((d) => `
+    <button class="chip${treadmillPick.minutes === d ? " on" : ""}" data-action="set-treadmill-duration" data-minutes="${d}">${d} min</button>
+  `).join("");
+
+  const chosen = LEVELS.find((l) => l.level === treadmillPick.level);
+  const rows = session.blocks.map((b) => `
+    <div class="tm-row">
+      ${zoneChip(b.zone)}
+      <div style="flex:1;min-width:0;">
+        <strong>${esc(b.label)}</strong>
+        <p style="margin:1px 0 0;">${esc(ZONES[b.zone].feel)}</p>
+      </div>
+      <span class="tm-mins">${b.minutes} min</span>
+    </div>`).join("");
+
+  return `
+    ${topbar(day.name, { back: true })}
+    <div class="card">
+      <label>How hard</label>
+      <div class="chip-row">${levelChips}</div>
+      <p class="hint" style="margin:8px 0 0;">${esc(chosen.blurb)}</p>
+      <div style="height:14px"></div>
+      <label>How long</label>
+      <div class="chip-row">${durationChips}</div>
+    </div>
+
+    <div class="card">
+      <div class="row" style="align-items:baseline;">
+        <h3 style="margin:0;">Your session</h3>
+        <span class="source-chip">~${kcal} cal</span>
+      </div>
+      <p class="hint" style="margin:6px 0 10px;">
+        ${zones[1] ? `${zones[1]} min easy` : ""}${zones[2] ? ` &middot; ${zones[2]} min steady` : ""}${zones[3] ? ` &middot; ${zones[3]} min hard` : ""}
+      </p>
+      ${rows}
+    </div>
+
+    <button class="btn primary" data-action="start-treadmill" data-day="${esc(day.id)}">Start</button>
+    <div style="height:10px"></div>
+    <div class="card">
+      <h3>The three zones</h3>
+      ${[1, 2, 3].map((id) => `
+        <div class="tm-row">
+          ${zoneChip(id)}
+          <div style="flex:1;min-width:0;">
+            <strong>${esc(ZONES[id].name)} &middot; ${esc(ZONES[id].hr)} of max HR</strong>
+            <p style="margin:1px 0 0;">${esc(ZONES[id].feel)} ${esc(ZONES[id].purpose)}</p>
+          </div>
+        </div>`).join("")}
+      <p class="hint" style="margin:10px 0 0;">No heart rate monitor? Go by the talking test &mdash; it tracks the zones closely enough, and it works on any treadmill.</p>
+    </div>
+  `;
+}
+
+function startTreadmill(dayId) {
+  const session = buildSession(treadmillPick.level, treadmillPick.minutes);
+  treadmillRun = {
+    dayId,
+    session,
+    timeline: sessionTimeline(session),
+    total: totalSeconds(session),
+    elapsed: 0,
+    paused: false,
+    tickId: null,
+  };
+  navigate("treadmill-run", { dayId });
+  treadmillTick();
+}
+
+/** Drives the clock. Updates only the handful of elements that change rather
+ * than re-rendering the screen every second, so the buttons stay tappable and
+ * the page doesn't flicker. */
+// Lets a test jump the clock forward rather than waiting out a real session.
+// Harmless in production: it only touches a run that is already in progress.
+window.__tmSkip = (seconds) => {
+  if (treadmillRun) { treadmillRun.elapsed = Math.min(treadmillRun.total - 1, treadmillRun.elapsed + seconds); paintTreadmillRun(); }
+};
+
+function treadmillTick() {
+  if (treadmillRun?.tickId) clearInterval(treadmillRun.tickId);
+  if (!treadmillRun) return;
+  treadmillRun.tickId = setInterval(() => {
+    if (!treadmillRun || treadmillRun.paused) return;
+    treadmillRun.elapsed += 1;
+    if (treadmillRun.elapsed >= treadmillRun.total) {
+      finishTreadmill(true);
+      return;
+    }
+    paintTreadmillRun();
+  }, 1000);
+}
+
+function currentTreadmillBlock() {
+  if (!treadmillRun) return null;
+  const t = treadmillRun.elapsed;
+  return treadmillRun.timeline.find((b) => t >= b.startSec && t < b.endSec) || treadmillRun.timeline[treadmillRun.timeline.length - 1];
+}
+
+function paintTreadmillRun() {
+  if (!treadmillRun) return;
+  const block = currentTreadmillBlock();
+  if (!block) return;
+  const idx = treadmillRun.timeline.indexOf(block);
+  const next = treadmillRun.timeline[idx + 1];
+  const leftInBlock = block.endSec - treadmillRun.elapsed;
+  const set = (id, value) => { const el = document.getElementById(id); if (el && el.textContent !== value) el.textContent = value; };
+
+  set("tm-block-clock", fmtClock(leftInBlock));
+  set("tm-block-label", block.label);
+  set("tm-zone-name", `${ZONES[block.zone].name} — ${ZONES[block.zone].hr}`);
+  set("tm-zone-feel", ZONES[block.zone].feel);
+  set("tm-next", next ? `Next: ${next.label} · ${next.minutes} min` : "Last block — finish strong");
+  set("tm-total", `${fmtClock(treadmillRun.elapsed)} / ${fmtClock(treadmillRun.total)}`);
+
+  const stage = document.getElementById("tm-stage");
+  if (stage) stage.style.background = ZONES[block.zone].colour;
+  const bar = document.getElementById("tm-progress");
+  if (bar) bar.style.width = `${Math.round((treadmillRun.elapsed / treadmillRun.total) * 100)}%`;
+
+  // A short buzz on each change of zone, so they don't have to watch the screen.
+  if (treadmillRun.lastZone !== undefined && treadmillRun.lastZone !== block.zone && navigator.vibrate) {
+    navigator.vibrate(block.zone === 3 ? [120, 80, 120] : 120);
+  }
+  treadmillRun.lastZone = block.zone;
+}
+
+function renderTreadmillRun() {
+  if (!treadmillRun) { navigate("program"); return ""; }
+  const block = currentTreadmillBlock();
+  const z = ZONES[block.zone];
+  setTimeout(paintTreadmillRun, 0);
+  return `
+    ${topbar("", { back: true, backAction: "quit-treadmill" })}
+    <div id="tm-stage" class="tm-stage" style="background:${z.colour};">
+      <div class="tm-zone-name" id="tm-zone-name">${esc(z.name)} — ${esc(z.hr)}</div>
+      <div class="tm-clock" id="tm-block-clock">${fmtClock(block.endSec - treadmillRun.elapsed)}</div>
+      <div class="tm-block-label" id="tm-block-label">${esc(block.label)}</div>
+      <div class="tm-feel" id="tm-zone-feel">${esc(z.feel)}</div>
+    </div>
+    <div class="tm-progress-track"><div class="tm-progress" id="tm-progress"></div></div>
+    <p class="hint" style="text-align:center;margin:8px 0 2px;" id="tm-next"></p>
+    <p class="hint" style="text-align:center;margin:0 0 14px;" id="tm-total"></p>
+    <div class="btn-row">
+      <button class="btn" data-action="toggle-treadmill-pause">${treadmillRun.paused ? "Resume" : "Pause"}</button>
+      <button class="btn danger" data-action="quit-treadmill">End</button>
+    </div>
+  `;
+}
+
+/** Saves the session to the cardio calendar so it sits alongside everything
+ * else they've logged, then clears the timer. */
+function finishTreadmill(completed) {
+  if (!treadmillRun) { navigate("program"); return; }
+  clearInterval(treadmillRun.tickId);
+  const minutesDone = Math.round(treadmillRun.elapsed / 60);
+  const goals = Nutrition.getGoals();
+  const done = completed
+    ? treadmillRun.session
+    : { ...treadmillRun.session, blocks: sessionTimeline(treadmillRun.session).filter((b) => b.startSec < treadmillRun.elapsed).map((b) => ({ ...b, minutes: Math.min(b.minutes, (Math.min(b.endSec, treadmillRun.elapsed) - b.startSec) / 60) })) };
+  const kcal = estimateCalories(done, goals.weightGoal || Nutrition.getLatestWeight()?.weight);
+
+  if (minutesDone >= 1) {
+    const today = Nutrition.todayStr();
+    const existing = Store.getCardioEntry(today) || {};
+    Store.setCardioEntry(today, {
+      ...existing,
+      calories: String((parseInt(existing.calories, 10) || 0) + kcal),
+      note: `${treadmillRun.session.level ? `Treadmill L${treadmillRun.session.level}` : "Treadmill"} · ${minutesDone} min${completed ? "" : " (ended early)"}`,
+    });
+  }
+  const dayId = treadmillRun.dayId;
+  treadmillRun = null;
+  toast(minutesDone >= 1
+    ? `${minutesDone} min logged${completed ? " — session complete" : ""}`
+    : "Session ended");
+  navigate(dayId ? "treadmill" : "program", { dayId });
 }
 
 // ---------- CARDIO & STEPS calendar ----------
@@ -615,9 +828,10 @@ function renderCardioDay() {
       <input type="text" inputmode="numeric" id="cardio-calories" placeholder="e.g. 450" value="${esc(entry.calories || "")}" />
       <label for="cardio-steps">Steps</label>
       <input type="text" inputmode="numeric" id="cardio-steps" placeholder="e.g. 8200" value="${esc(entry.steps || "")}" />
+      ${entry.note ? `<p class="hint" style="margin:10px 0 0;">${esc(entry.note)}</p>` : ""}
       <div style="height:10px"></div>
       <button class="btn primary" data-action="save-cardio-day" data-date="${esc(date)}">Save</button>
-      ${(entry.calories || entry.steps) ? `<div style="height:8px"></div><button class="btn danger" data-action="clear-cardio-day" data-date="${esc(date)}">Clear this day</button>` : ""}
+      ${(entry.calories || entry.steps || entry.note) ? `<div style="height:8px"></div><button class="btn danger" data-action="clear-cardio-day" data-date="${esc(date)}">Clear this day</button>` : ""}
     </div>
   `;
 }
@@ -1675,6 +1889,7 @@ function blankDaysForPublish(days) {
   return days.map((day) => ({
     id: day.id,
     name: day.name,
+    type: day.type || "strength",
     exercises: day.exercises.map((ex) => ({
       id: ex.id,
       name: ex.name,
@@ -1793,6 +2008,7 @@ function draftToDays() {
   return draft.days.map((day) => ({
     id: day.id,
     name: day.name.trim() || "Workout",
+    type: day.type || "strength",
     exercises: day.exercises.map((ex) => {
       const sets = Math.max(1, Math.min(12, parseInt(ex.sets, 10) || 3));
       const setLabels = Array.from({ length: sets }, (_, i) => `Set ${i + 1}`);
@@ -1881,9 +2097,11 @@ function renderDraftBuilder() {
       <div class="row">
         <div style="min-width:0;">
           <h3 style="font-size:15px;margin:0;">${esc(day.name.trim() || `Day ${i + 1}`)}</h3>
-          <p style="margin:3px 0 0;">${day.exercises.length} exercise${day.exercises.length === 1 ? "" : "s"}${day.exercises.length ? ` &middot; ${esc(day.exercises.slice(0, 3).map((e) => e.name).join(", "))}${day.exercises.length > 3 ? "…" : ""}` : ""}</p>
+          <p style="margin:3px 0 0;">${day.type === "treadmill"
+            ? "Treadmill &mdash; they pick the level and the time"
+            : `${day.exercises.length} exercise${day.exercises.length === 1 ? "" : "s"}${day.exercises.length ? ` &middot; ${esc(day.exercises.slice(0, 3).map((e) => e.name).join(", "))}${day.exercises.length > 3 ? "…" : ""}` : ""}`}</p>
         </div>
-        <span class="pill" style="flex:none;">Edit</span>
+        <span class="pill" style="flex:none;">${day.type === "treadmill" ? "Rename" : "Edit"}</span>
       </div>
     </div>
   `).join("");
@@ -1911,8 +2129,10 @@ function renderDraftBuilder() {
     ${dayCards}
     <div class="btn-row">
       <button class="btn" data-action="draft-add-day">+ Add day</button>
-      <button class="btn ghost danger" data-action="clear-draft">Start over</button>
+      <button class="btn" data-action="draft-add-treadmill-day">+ Treadmill day</button>
     </div>
+    <div style="height:8px"></div>
+    <button class="btn ghost danger" data-action="clear-draft">Start over</button>
     <div style="height:14px"></div>
   `;
 }
@@ -1989,11 +2209,19 @@ function draftFindDay(dayId) {
   return ensureClientProgramDraft().days.find((d) => d.id === dayId);
 }
 
-function draftAddDay() {
+function draftAddDay(type) {
   const draft = ensureClientProgramDraft();
-  const day = { id: draftUid(), name: `Day ${draft.days.length + 1}`, exercises: [] };
+  const treadmill = type === "treadmill";
+  const day = {
+    id: draftUid(),
+    name: treadmill ? "Treadmill" : `Day ${draft.days.length + 1}`,
+    type: treadmill ? "treadmill" : "strength",
+    exercises: [],
+  };
   draft.days.push(day);
-  // Straight into the new day -- nobody adds a day in order to look at it.
+  // A treadmill day has nothing to fill in -- the client picks the level and
+  // the time -- so there is no point opening an editor for it.
+  if (treadmill) { toast("Treadmill day added"); render(); return; }
   navigate("coach-draft-day", { draftDayId: day.id });
 }
 
@@ -2135,7 +2363,7 @@ async function confirmAddCoachClient() {
   // device and they can't edit it or reach any other.
   const built = draftToDays();
   if (built.length) {
-    const emptyDay = built.find((d) => !d.exercises.length);
+    const emptyDay = built.find((d) => d.type !== "treadmill" && !d.exercises.length);
     if (emptyDay) {
       toast(`"${emptyDay.name}" has no exercises yet`);
       return;
@@ -2575,6 +2803,7 @@ function onClick(e) {
       else if (state.screen === "cardio") navigate("program");
       else if (state.screen === "coach-pin") navigate("settings");
       else if (state.screen === "coach-add-client") navigate("coach");
+      else if (state.screen === "treadmill") navigate("program");
       else if (state.screen === "coach-draft-day") navigate("coach-add-client");
       else if (state.screen === "coach-client-link") navigate("coach");
       else if (state.screen === "coach-client") navigate("coach");
@@ -2602,7 +2831,20 @@ function onClick(e) {
     case "create-blank-day": handleCreateBlankDay(); break;
     case "create-blank-program": createBlankProgram(); break;
     case "confirm-review": confirmReview(); break;
-    case "open-day": navigate("day", { dayId: el.dataset.day }); break;
+    case "open-day": {
+      const d = Store.getDay(el.dataset.day);
+      navigate(d && d.type === "treadmill" ? "treadmill" : "day", { dayId: el.dataset.day });
+      break;
+    }
+    case "set-treadmill-level": treadmillPick.level = Number(el.dataset.level); render(); break;
+    case "set-treadmill-duration": treadmillPick.minutes = Number(el.dataset.minutes); render(); break;
+    case "start-treadmill": startTreadmill(el.dataset.day); break;
+    case "toggle-treadmill-pause": {
+      if (treadmillRun) { treadmillRun.paused = !treadmillRun.paused; render(); }
+      break;
+    }
+    case "quit-treadmill": finishTreadmill(false); break;
+    case "draft-add-treadmill-day": draftAddDay("treadmill"); break;
     case "open-exercise": navigate("exercise", { dayId: el.dataset.day, exerciseId: el.dataset.exercise }); break;
     case "go-add-exercise": resetMuscleBrowse(); navigate("add-exercise", { dayId: el.dataset.day }); break;
     case "go-swap-exercise": resetMuscleBrowse(); navigate("add-exercise", { dayId: el.dataset.day, swapExerciseId: el.dataset.exercise }); break;
@@ -2737,7 +2979,10 @@ function onClick(e) {
     case "save-cardio-day": {
       const calories = document.getElementById("cardio-calories").value.trim();
       const steps = document.getElementById("cardio-steps").value.trim();
-      Store.setCardioEntry(el.dataset.date, { calories, steps });
+      // Keep whatever a treadmill session wrote -- editing the numbers by hand
+      // shouldn't erase the note saying where they came from.
+      const existing = Store.getCardioEntry(el.dataset.date) || {};
+      Store.setCardioEntry(el.dataset.date, { calories, steps, note: existing.note || "" });
       toast("Saved");
       navigate("cardio");
       break;
