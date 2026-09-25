@@ -7,6 +7,7 @@ import { EXERCISE_CATALOG, MUSCLE_GROUPS } from "./exerciseCatalog.js";
 import { Nutrition } from "./nutrition.js";
 import { lookupBarcode, searchFoodByName } from "./foodApi.js";
 import { RECIPE_LIBRARY, DIET_TAGS, MEAL_SLOTS, filterRecipes } from "./recipeLibrary.js";
+import { FOOD_LIBRARY, FOOD_CATEGORIES, macrosFor, searchFoods } from "./foodLibrary.js";
 import { ZONES, LEVELS, DURATIONS, buildSession, zoneBreakdown, estimateCalories, sessionTimeline, totalSeconds } from "./treadmill.js";
 import {
   isSyncConfigured,
@@ -175,6 +176,7 @@ const state = {
   // Survives navigating into a recipe and back, so a filtered list isn't lost
   // every time someone opens one to look at it.
   recipeFilter: { tags: [], slot: "All", query: "" },
+  foodFilter: { query: "", category: "All" },
 };
 
 // One timer, cancelled and restarted on each toast. Without that, an earlier
@@ -344,6 +346,8 @@ function render() {
     case "treadmill-run": html = renderTreadmillRun(); break;
     case "recipe-library": html = renderRecipeLibrary(); break;
     case "recipe-library-item": html = renderLibraryRecipe(); break;
+    case "food-library": html = renderFoodLibrary(); break;
+    case "food-library-item": html = renderLibraryFood(); break;
     case "nutrition-recipe-new": html = renderNutritionRecipeNew(); break;
     default: html = renderProgram();
   }
@@ -2880,7 +2884,7 @@ function onClick(e) {
       else if (state.screen === "coach-client-day") navigate("coach-client", { clientId: state.params.clientId, clientLabel: state.params.clientLabel });
       else if (state.screen === "coach-client-exercise") navigate("coach-client-day", { clientId: state.params.clientId, clientLabel: state.params.clientLabel, dayId: state.params.dayId });
       else if (state.screen === "nutrition-add") navigate("nutrition", { dateStr: state.params.dateStr });
-      else if (["nutrition-manual", "nutrition-search", "nutrition-review"].includes(state.screen)) {
+      else if (["nutrition-manual", "nutrition-search", "nutrition-review", "food-library"].includes(state.screen)) {
         if (recipeDraft) navigate("nutrition-recipe-new");
         else navigate("nutrition-add", { dateStr: state.params.dateStr, mealType: state.params.mealType });
       }
@@ -2890,6 +2894,7 @@ function onClick(e) {
       }
       else if (["nutrition-weight", "nutrition-goals", "nutrition-recipes", "recipe-library"].includes(state.screen)) navigate("nutrition");
       else if (state.screen === "recipe-library-item") navigate("recipe-library");
+      else if (state.screen === "food-library-item") navigate("food-library", { dateStr: state.params.dateStr, mealType: state.params.mealType });
       else if (state.screen === "nutrition-recipe-new") navigate("nutrition-recipes");
       else if (state.screen === "nutrition") navigate("program");
       else navigate("program");
@@ -3219,6 +3224,22 @@ function onClick(e) {
       render();
       break;
     }
+    case "go-food-library": navigate("food-library", { dateStr: el.dataset.date, mealType: el.dataset.meal }); break;
+    case "open-library-food":
+      foodItemDraft = null; // opening a food starts at one serving, not wherever they left off
+      navigate("food-library-item", { foodId: el.dataset.food, dateStr: state.params.dateStr, mealType: state.params.mealType });
+      break;
+    case "set-food-category": {
+      state.foodFilter.category = el.dataset.category;
+      render();
+      break;
+    }
+    case "clear-food-filters": {
+      state.foodFilter = { query: "", category: "All" };
+      render();
+      break;
+    }
+    case "log-library-food": logLibraryFood(el.dataset.food); break;
     case "log-library-recipe": logLibraryRecipe(el.dataset.recipe); break;
     case "save-library-recipe": saveLibraryRecipe(el.dataset.recipe); break;
     case "confirm-manual-food": confirmManualFood(el.dataset.date); break;
@@ -3364,6 +3385,18 @@ function onInput(e) {
       </div>`).join("") || `<div class="empty"><p>Nothing matches all of those at once. Try removing a filter.</p></div>`;
     return;
   }
+  if (el.id === "food-lib-search" && state.screen === "food-library") {
+    state.foodFilter.query = el.value;
+    const matches = searchFoods(state.foodFilter.query, state.foodFilter.category);
+    document.getElementById("food-lib-count").textContent = foodCountLine(matches);
+    document.getElementById("food-lib-results").innerHTML = renderFoodRows(matches);
+    return;
+  }
+  if (el.id === "food-item-qty" && state.screen === "food-library-item" && foodItemDraft) {
+    foodItemDraft.qty = el.value;
+    recomputeFoodPreview();
+    return;
+  }
   if (el.id === "library-search" && state.screen === "exercise-library") {
     state.libraryFilter.query = el.value;
     const filtered = filterLibraryEntries(Store.getExerciseLibrary(), state.libraryFilter.query, state.libraryFilter.group);
@@ -3405,7 +3438,13 @@ function onInput(e) {
 
 function onChange(e) {
   const el = e.target;
-  if (isManagedClient()) return; // the change-driven paths are all coach-only
+  // Checked before the managed-client bail-out: logging food is something a
+  // managed client is meant to do.
+  if (state.screen === "food-library-item" && foodItemDraft) {
+    if (el.id === "food-item-unit") { foodItemDraft.unit = el.value; recomputeFoodPreview(); return; }
+    if (el.id === "food-item-meal") { foodItemDraft.mealType = el.value; return; }
+  }
+  if (isManagedClient()) return; // the remaining change-driven paths are coach-only
   if (el.id === "csv-file" && el.files[0]) {
     handleImportFile(el.files[0]);
   }
@@ -3532,9 +3571,11 @@ function renderNutritionAdd() {
   `).join("");
   return `
     ${topbar(`Add to ${esc(mealType || "diary")}`, { back: true })}
+    <button class="btn primary" data-action="go-food-library" data-date="${esc(dateStr)}" data-meal="${esc(mealType)}">Food library</button>
+    <p class="hint" style="margin:6px 2px 12px;">Everyday groceries with the macros already filled in &mdash; slices, cups, tablespoons. Works with no signal.</p>
     <div class="btn-row">
-      <button class="btn primary" data-action="go-nutrition-scan" data-date="${esc(dateStr)}" data-meal="${esc(mealType)}">Scan barcode</button>
-      <button class="btn" data-action="go-nutrition-search" data-date="${esc(dateStr)}" data-meal="${esc(mealType)}">Search by name</button>
+      <button class="btn" data-action="go-nutrition-scan" data-date="${esc(dateStr)}" data-meal="${esc(mealType)}">Scan barcode</button>
+      <button class="btn" data-action="go-nutrition-search" data-date="${esc(dateStr)}" data-meal="${esc(mealType)}">Search online</button>
     </div>
     <div style="height:8px"></div>
     <button class="btn" data-action="go-nutrition-manual" data-date="${esc(dateStr)}" data-meal="${esc(mealType)}">Enter manually</button>
@@ -4120,6 +4161,155 @@ function saveLibraryRecipe(recipeId) {
   toast(`"${recipe.name}" saved to your recipes`);
 }
 
+// ---------- GROCERY FOOD LIBRARY (bundled per-serving macros, no barcode needed) ----------
+
+function foodCountLine(matches) {
+  return `${matches.length} food${matches.length === 1 ? "" : "s"}`;
+}
+
+/** One line per food, showing its default household serving -- "1 slice · 79
+ * cal" -- because that's the decision being made, not grams per 100. */
+function renderFoodRows(matches) {
+  if (!matches.length) {
+    return `<div class="empty"><p>Nothing matching that. Try one word instead of two, or scan the barcode.</p></div>`;
+  }
+  return matches.map((f) => {
+    const unit = f.units[0];
+    const m = macrosFor(f, unit[0], 1);
+    return `
+      <div class="card tappable" data-action="open-library-food" data-food="${esc(f.id)}">
+        <div class="row">
+          <div style="min-width:0;">
+            <h3 style="font-size:15px;margin:0;">${esc(f.name)}</h3>
+            <p style="margin:3px 0 0;">1 ${esc(unit[0])} &middot; ${m.calories} cal &middot; P${m.protein} C${m.carbs} F${m.fat}</p>
+          </div>
+          <span class="pill" style="flex:none;">Add</span>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+function renderFoodLibrary() {
+  const f = state.foodFilter;
+  const matches = searchFoods(f.query, f.category);
+  const chips = ["All", ...FOOD_CATEGORIES].map((c) => `
+    <button class="chip${f.category === c ? " on" : ""}" data-action="set-food-category" data-category="${esc(c)}">${esc(c)}</button>
+  `).join("");
+
+  return `
+    ${topbar("Food library", { back: true })}
+    <div class="card">
+      <input type="text" id="food-lib-search" value="${esc(f.query)}" placeholder="Search e.g. turkey, wheat bread, cheese" autocomplete="off" />
+      <div style="height:10px"></div>
+      <label>Aisle</label>
+      <div class="chip-row">${chips}</div>
+      ${f.query || f.category !== "All" ? `<div style="height:10px"></div><button class="btn ghost small" data-action="clear-food-filters">Clear filters</button>` : ""}
+    </div>
+    <p class="hint" id="food-lib-count" style="margin:0 0 10px 2px;">${foodCountLine(matches)}</p>
+    <div id="food-lib-results">${renderFoodRows(matches)}</div>
+  `;
+}
+
+// How much, of which unit, into which meal. Held here rather than read back off
+// the inputs at log time because anything can re-render this screen out from
+// under them -- an expiring toast from the last thing they logged is enough --
+// and a re-render silently snaps a <select> back to its first option. Someone
+// picking grams, typing 45, and getting 45 tablespoons logged is the bug that
+// costs trust.
+let foodItemDraft = null;
+function ensureFoodItemDraft(food) {
+  if (!foodItemDraft || foodItemDraft.foodId !== food.id) {
+    foodItemDraft = {
+      foodId: food.id,
+      qty: "1",
+      unit: food.units[0][0],
+      mealType: state.params.mealType || Nutrition.MEAL_TYPES[0],
+    };
+  }
+  return foodItemDraft;
+}
+
+function renderLibraryFood() {
+  const food = FOOD_LIBRARY.find((f) => f.id === state.params.foodId);
+  if (!food) return `${topbar("Food", { back: true })}<div class="empty"><p>Food not found.</p></div>`;
+  const d = ensureFoodItemDraft(food);
+  const m = macrosFor(food, d.unit, parseFloat(d.qty) || 0);
+  return `
+    ${topbar("Add food", { back: true })}
+    <div class="card">
+      <h3 style="margin:0;">${esc(food.name)}</h3>
+      <p class="hint" style="margin:3px 0 0;">${esc(food.category)}</p>
+      <div style="height:12px"></div>
+      <div class="row">
+        <div style="flex:1;">
+          <label for="food-item-qty">How much</label>
+          <input type="text" id="food-item-qty" value="${esc(d.qty)}" inputmode="decimal" />
+        </div>
+        <div style="flex:1;">
+          <label for="food-item-unit">Unit</label>
+          <select id="food-item-unit">${food.units.map((u) => `<option value="${esc(u[0])}" ${u[0] === d.unit ? "selected" : ""}>${esc(u[0])}</option>`).join("")}</select>
+        </div>
+      </div>
+      <div id="food-item-preview">${macroRow(m, {})}</div>
+      <p class="hint" id="food-item-grams" style="margin:8px 0 0;">${m.grams} g</p>
+    </div>
+    <div class="card">
+      <label for="food-item-meal">${recipeDraft ? "Adding to your recipe" : "Meal"}</label>
+      ${recipeDraft
+        ? `<p class="hint" style="margin:4px 0 0;">Goes into the recipe you're building.</p>`
+        : `<select id="food-item-meal">${Nutrition.MEAL_TYPES.map((mt) => `<option value="${esc(mt)}" ${mt === d.mealType ? "selected" : ""}>${esc(mt)}</option>`).join("")}</select>`}
+    </div>
+    <button class="btn primary" data-action="log-library-food" data-food="${esc(food.id)}">${recipeDraft ? "Add to recipe" : "Log it"}</button>
+    <p class="hint" style="margin:12px 2px 0;">Typical supermarket numbers. Brands differ &mdash; bread and deli meat most of all &mdash; so scan the barcode instead when you've got the packet in your hand.</p>
+  `;
+}
+
+function currentFoodSelection() {
+  const food = FOOD_LIBRARY.find((f) => f.id === state.params.foodId);
+  if (!food) return null;
+  const d = ensureFoodItemDraft(food);
+  const qty = String(d.qty).trim();
+  return { food, unitLabel: d.unit, qty, macros: macrosFor(food, d.unit, parseFloat(qty) || 0) };
+}
+
+function recomputeFoodPreview() {
+  const sel = currentFoodSelection();
+  if (!sel) return;
+  const preview = document.getElementById("food-item-preview");
+  if (preview) preview.innerHTML = macroRow(sel.macros, {});
+  const grams = document.getElementById("food-item-grams");
+  if (grams) grams.textContent = `${sel.macros.grams} g`;
+}
+
+function logLibraryFood(foodId) {
+  const sel = currentFoodSelection();
+  if (!sel || sel.food.id !== foodId) return;
+  const { food, unitLabel, qty, macros } = sel;
+  if (!(parseFloat(qty) > 0)) { toast("How much? Put a number in"); return; }
+  const entry = {
+    name: food.name,
+    brand: "",
+    qty: qty || "1",
+    unit: unitLabel,
+    calories: macros.calories,
+    protein: macros.protein,
+    carbs: macros.carbs,
+    fat: macros.fat,
+    source: "food-library",
+  };
+  if (recipeDraft) {
+    recipeDraft.ingredients.push(entry);
+    toast(`"${food.name}" added to recipe`);
+    navigate("nutrition-recipe-new");
+    return;
+  }
+  const dateStr = state.params.dateStr || Nutrition.todayStr();
+  Nutrition.addDiaryEntry(dateStr, { ...entry, mealType: foodItemDraft.mealType });
+  toast(`${qty} ${unitLabel} ${food.name.toLowerCase()} logged`);
+  navigate("nutrition", { dateStr });
+}
+
 function renderNutritionRecipes() {
   if (recipeDraft) return renderNutritionRecipeNew();
   const recipes = Nutrition.getRecipes();
@@ -4174,6 +4364,7 @@ function renderNutritionRecipeNew() {
       <h3>Ingredients</h3>
       ${ingredientRows || `<p class="hint">None added yet.</p>`}
       <div class="btn-row" style="margin-top:10px;">
+        <button class="btn" data-action="go-food-library" data-date="" data-meal="">+ Add ingredient (library)</button>
         <button class="btn" data-action="go-nutrition-manual" data-date="" data-meal="">+ Add ingredient (manual)</button>
         <button class="btn" data-action="go-nutrition-search" data-date="" data-meal="">+ Add ingredient (search)</button>
       </div>

@@ -50,10 +50,13 @@ Requires coach sync to already be set up (above). Like everything else in that s
 
 A **Nutrition** tab sits alongside Program/History/Settings: daily calorie & macro goals, a food diary (Breakfast/Lunch/Dinner/Snacks), a weight log, and simple recipes you build once from ingredients and re-log with one tap.
 
-Three ways to log a food:
+Four ways to log a food:
+- **Food library** — 110 ordinary grocery items (`js/foodLibrary.js`), bundled with the app, searchable by aisle or free text, with the servings people actually say out loud: a slice of bread, a slice of cheese, a tablespoon of peanut butter, an ounce of chicken. Pick the food, pick the unit, type how many, and the macros are already filled in. Works fully offline and needs no barcode.
 - **Enter manually** — type in the name and macros yourself. Always available, works fully offline.
-- **Search by name** — looks up [Open Food Facts](https://world.openfoodfacts.org), a free, no-signup food database, then lets you adjust the quantity before logging.
+- **Search online** — looks up [Open Food Facts](https://world.openfoodfacts.org), a free, no-signup food database, then lets you adjust the quantity before logging.
 - **Scan barcode** — uses the device camera (via the vendored ZXing library) to read a barcode and looks up the same database. Needs camera permission and a real phone/browser — this can't be exercised in an automated test environment, so if scanning ever looks off, it's worth testing directly on a phone.
+
+**About the library's numbers.** Macros are stored once per food, per 100g, and scaled to whichever unit is picked — so there's one set of numbers per food rather than one per serving size, which is far harder to get quietly inconsistent. The values are representative of a typical supermarket version, drawn from standard composition data; a specific brand will differ, sometimes a lot (bread and deli meat most of all). Scanning the barcode beats the library whenever the packet is to hand. The library is also available as an ingredient source when building a recipe.
 
 Both the search and scan paths fall back gracefully to manual entry if a food isn't found or the network/camera isn't available.
 
