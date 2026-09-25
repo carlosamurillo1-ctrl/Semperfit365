@@ -398,13 +398,26 @@ export async function getClientManagedProgram(clientId) {
 /** Live-subscribe to a coach's client roster. Returns an unsubscribe function. */
 export function listenRoster(coachId, callback) {
   const database = ensureDb();
+  // Deliberately no orderBy. Firestore silently omits any document missing the
+  // field being ordered on, so an entry written without a resolved addedAt --
+  // a half-completed add, an older write, a serverTimestamp that never landed
+  // -- would sit in the database and never appear on the dashboard. A coach
+  // seeing "no clients yet" for a client who exists is far worse than an
+  // unsorted list, so sort in the app where a missing field is visible.
   return database
     .collection("coaches")
     .doc(coachId)
     .collection("roster")
-    .orderBy("addedAt", "desc")
     .onSnapshot(
-      (snap) => callback(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
+      (snap) => {
+        const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        rows.sort((a, b) => {
+          const at = a.addedAt && a.addedAt.toMillis ? a.addedAt.toMillis() : 0;
+          const bt = b.addedAt && b.addedAt.toMillis ? b.addedAt.toMillis() : 0;
+          return bt - at;
+        });
+        callback(rows);
+      },
       (err) => console.warn("roster listen failed", err)
     );
 }

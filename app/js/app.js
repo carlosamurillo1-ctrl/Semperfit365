@@ -177,13 +177,20 @@ const state = {
   recipeFilter: { tags: [], slot: "All", query: "" },
 };
 
+// One timer, cancelled and restarted on each toast. Without that, an earlier
+// toast's timeout fires partway through a later one and wipes it -- so the
+// message that actually matters (the one explaining why something failed)
+// flashes and disappears, which is how a real error goes unread.
+let toastTimer = null;
 function toast(msg) {
   state.toast = msg;
   render();
-  setTimeout(() => {
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
     state.toast = null;
+    toastTimer = null;
     render();
-  }, 2200);
+  }, 2800);
 }
 
 // Live Firestore listeners for the coach views, scoped to whichever coach
@@ -1869,6 +1876,8 @@ function renderCoach() {
   return `
     ${topbar("Coach dashboard", { back: true })}
     <button class="btn primary" data-action="go-coach-add-client">+ Add client</button>
+    <div style="height:10px"></div>
+    <button class="btn" data-action="relink-client">Re-add a client from their link</button>
     <div style="height:14px"></div>
     ${renderCoachAccessCard()}
     <div style="height:12px"></div>
@@ -2588,6 +2597,46 @@ function renderCoachReminders(clientId, clientLabel, reminders) {
 
 /** Merges a change into this client's reminder settings (the buttons send one
  * field, the contact form sends two) and writes it in both places. */
+/** Puts a client back on the roster from a link you already sent them.
+ *
+ * Adding a client does several things in order -- publish their program, save
+ * them to the roster, point their device at it -- and if one step fails the
+ * ones after it never run. The client can end up holding a working link while
+ * the coach's dashboard shows nothing, which is the worst version of this to
+ * be in. Pasting the link back in re-attaches them without changing anything
+ * on their phone or touching a number they have logged. */
+async function relinkClient() {
+  const pasted = (prompt("Paste the client link you sent them (or just their client id)") || "").trim();
+  if (!pasted) return;
+
+  let clientId = "";
+  let priceCents = 0;
+  try {
+    const url = new URL(pasted);
+    clientId = url.searchParams.get("client") || "";
+    priceCents = parseInt(url.searchParams.get("price") || "0", 10) || 0;
+  } catch {
+    // Not a URL -- treat it as a bare id, which is what the coach sees on
+    // their own client screen.
+    clientId = pasted.replace(/\s/g, "");
+  }
+  if (!clientId) {
+    toast("That link has no client id in it — make sure it's the link you sent them");
+    return;
+  }
+
+  const label = (prompt("What's their name?") || "").trim();
+  if (!label) return;
+
+  try {
+    await firestoreStep("Saving to your roster", addClientToRoster(getOrCreateCoachId(), clientId, label, priceCents));
+    toast(`${label} is back on your roster`);
+    render();
+  } catch (err) {
+    toast(err.message || "Couldn't re-add them");
+  }
+}
+
 async function saveClientReminders(clientId, clientLabel, patch) {
   const current = (coachClientData && coachClientData.reminders) || {};
   const next = { enabled: current.enabled !== false, phone: current.phone || "", email: current.email || "", ...patch };
@@ -3041,6 +3090,7 @@ function onClick(e) {
     case "set-coach-pin": setCoachPin(); break;
     case "clear-coach-pin": clearCoachPin(); break;
     case "run-sync-diagnostics": runDiagnostics(); break;
+    case "relink-client": relinkClient(); break;
     case "copy-coach-access-link": {
       navigator.clipboard.writeText(el.dataset.link)
         .then(() => toast("Coach link copied — store it somewhere safe"))
