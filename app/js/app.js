@@ -2611,10 +2611,14 @@ async function relinkClient() {
 
   let clientId = "";
   let priceCents = 0;
+  let customProgramId = "";
+  let managed = false;
   try {
     const url = new URL(pasted);
     clientId = url.searchParams.get("client") || "";
     priceCents = parseInt(url.searchParams.get("price") || "0", 10) || 0;
+    customProgramId = url.searchParams.get("cp") || "";
+    managed = url.searchParams.get("m") === "1";
   } catch {
     // Not a URL -- treat it as a bare id, which is what the coach sees on
     // their own client screen.
@@ -2630,7 +2634,23 @@ async function relinkClient() {
 
   try {
     await firestoreStep("Saving to your roster", addClientToRoster(getOrCreateCoachId(), clientId, label, priceCents));
-    toast(`${label} is back on your roster`);
+
+    // A managed link carries the program in ?cp=, and their device loaded it
+    // straight from there on first open. But *later* updates are driven by a
+    // managedProgram pointer on their client doc, which the failed add never
+    // wrote -- so without this they'd be on the right program today and cut
+    // off from every change after it. Restore the pointer too.
+    if (managed && customProgramId) {
+      const local = Store.listPrograms().find((p) => p.publishedId === customProgramId);
+      await firestoreStep("Linking their program", setClientManagedProgram(clientId, {
+        customProgramId,
+        name: local ? local.name : `${label}'s Program`,
+      }));
+    }
+
+    toast(managed && customProgramId
+      ? `${label} is back on your roster — updates will reach her again`
+      : `${label} is back on your roster`);
     render();
   } catch (err) {
     toast(err.message || "Couldn't re-add them");
