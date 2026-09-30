@@ -426,10 +426,13 @@ select { appearance: none; }
 .progress-fill.complete { background: var(--accent); }
 .done-check { color: var(--accent); font-weight: 700; }
 
+/* Sits low and left, clear of both the header and the centre-anchored toast.
+   It used to be pinned top-right, where it covered the tail of the screen
+   title and anything in the top bar for as long as a write was in flight. */
 .sync-status {
   position: fixed;
-  top: calc(env(safe-area-inset-top, 0px) + 10px);
-  right: 12px;
+  bottom: calc(76px + var(--safe-bottom) + 44px);
+  left: 12px;
   z-index: 20;
   font-size: 11px;
   font-weight: 600;
@@ -439,11 +442,18 @@ select { appearance: none; }
   border: 1px solid var(--border);
   color: var(--text-dim);
   opacity: 0;
-  transform: translateY(-6px);
+  transform: translateY(6px); /* rises into view, now that it lives at the bottom */
   pointer-events: none;
   transition: opacity .2s ease, transform .2s ease;
 }
 .sync-status.show { opacity: 1; transform: translateY(0); }
+/* The toast is centre-anchored and wraps to two lines when the message is
+   long, growing upward into whatever is above it. So when the pill is showing,
+   lift the toast clear of the pill's TOP edge rather than trying to leave a
+   fixed gap under it -- that way the toast's height can't reintroduce the
+   overlap. Browsers without :has() fall back to the offsets above, which
+   already clear a single-line toast. */
+body:has(.sync-status.show) .toast { bottom: calc(76px + var(--safe-bottom) + 76px); }
 .sync-status.pending { color: var(--text-dim); }
 .sync-status.synced { color: var(--accent); border-color: var(--accent-dim); }
 .sync-status.error { color: var(--warn); border-color: var(--warn); }

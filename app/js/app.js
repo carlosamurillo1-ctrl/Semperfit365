@@ -1373,13 +1373,13 @@ function renderExercise() {
     `;
   }).join("");
 
-  const findOnYoutube = `<a class="btn ghost small" href="${youtubeSearchUrl(ex.name)}" target="_blank" rel="noopener noreferrer" style="width:auto;padding:6px 10px;text-decoration:none;" aria-label="Find &quot;${esc(ex.name)}&quot; on YouTube">&#9654;</a>`;
   return `
-    ${topbar(ex.name, { back: true, right: findOnYoutube })}
+    ${topbar(ex.name, { back: true })}
     <div class="row" style="margin-bottom:10px;flex-wrap:wrap;gap:8px;">
       ${ex.repGoal ? `<span class="source-chip">Reps: ${esc(ex.repGoal)}</span>` : ""}
       ${ex.restTime ? `<span class="source-chip">Rest: ${esc(ex.restTime)}</span>` : ""}
       ${ex.videoUrl ? `<a class="source-chip" href="${esc(ex.videoUrl)}" target="_blank" rel="noopener noreferrer">&#9654; Video</a>` : ""}
+      ${howToChip(ex.name)}
     </div>
     ${renderVideoEmbed(ex.videoUrl)}
     ${ex.superset && supersetPartner ? `<div class="card" style="border-color:var(--accent);"><h3 style="margin:0;font-size:15px;">Superset</h3><p style="margin:5px 0 0;">Straight into this from <strong>${esc(supersetPartner)}</strong> &mdash; no rest between the two. Rest after this one.</p></div>` : ""}
@@ -1401,6 +1401,15 @@ function renderExercise() {
 
 function youtubeSearchUrl(query) {
   return `https://www.youtube.com/results?search_query=${encodeURIComponent(`${query} exercise how to`)}`;
+}
+
+/** "How to" sits in the chip row under the title rather than in the top bar,
+ * where it used to be buried under the "Saving…" pill for as long as a write
+ * was in flight -- which on a phone mid-set is exactly when someone reaches
+ * for it. The pill has moved out of that corner too, but a chip beside Reps
+ * and Rest is where a client looks anyway. */
+function howToChip(exerciseName) {
+  return `<a class="source-chip" href="${youtubeSearchUrl(exerciseName)}" target="_blank" rel="noopener noreferrer">&#9654; How to</a>`;
 }
 
 function renderVideoEmbed(videoUrl) {
@@ -2765,13 +2774,13 @@ function renderCoachClientExercise() {
     `;
   }).join("");
 
-  const findOnYoutube = `<a class="btn ghost small" href="${youtubeSearchUrl(ex.name)}" target="_blank" rel="noopener noreferrer" style="width:auto;padding:6px 10px;text-decoration:none;" aria-label="Find &quot;${esc(ex.name)}&quot; on YouTube">&#9654;</a>`;
   return `
-    ${topbar(ex.name, { back: true, right: findOnYoutube })}
+    ${topbar(ex.name, { back: true })}
     <div class="row" style="margin-bottom:10px;flex-wrap:wrap;gap:8px;">
       ${ex.repGoal ? `<span class="source-chip">Reps: ${esc(ex.repGoal)}</span>` : ""}
       ${ex.restTime ? `<span class="source-chip">Rest: ${esc(ex.restTime)}</span>` : ""}
       ${ex.videoUrl ? `<a class="source-chip" href="${esc(ex.videoUrl)}" target="_blank" rel="noopener noreferrer">&#9654; Video</a>` : ""}
+      ${howToChip(ex.name)}
     </div>
     ${renderVideoEmbed(ex.videoUrl)}
     ${ex.setupNote ? `<div class="card"><p>${esc(ex.setupNote)}</p></div>` : ""}
