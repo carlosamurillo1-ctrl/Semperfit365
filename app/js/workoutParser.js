@@ -34,6 +34,10 @@ function isBlankRow(row) {
   return row.every((c) => c.trim() === "");
 }
 
+function findUrlCell(row) {
+  return row.findIndex((c) => /^https?:\/\/\S+$/i.test(c.trim()));
+}
+
 function firstNonEmptyCell(row) {
   return (row.find((c) => c.trim() !== "") || "").trim();
 }
@@ -98,7 +102,7 @@ function parseDayRows(rows) {
   let current = null;
   let sawFirstNonBlank = false;
 
-  const blankExercise = (name) => ({ name, repGoal: "", restTime: "", setupNotes: [], header: null, dataRows: [] });
+  const blankExercise = (name) => ({ name, repGoal: "", restTime: "", videoUrl: "", setupNotes: [], header: null, dataRows: [] });
 
   function finalizeCurrent() {
     if (current && current.header && current.dataRows.length) {
@@ -106,6 +110,7 @@ function parseDayRows(rows) {
         name: current.name || `Exercise ${exercises.length + 1}`,
         repGoal: current.repGoal,
         restTime: current.restTime,
+        videoUrl: current.videoUrl,
         setupNote: current.setupNotes.join(" ").trim(),
         setLabels: current.header.setCols.map((c) => c.label),
         weeks: current.dataRows.map((row, i) => ({
@@ -135,9 +140,16 @@ function parseDayRows(rows) {
     if (weekIdx !== -1) {
       if (!current) current = blankExercise("Exercise");
       const notesCol = findCellIndex(row, /^notes?$/i);
+      // Coaches park the exercise's how-to link in a spare cell on this row,
+      // usually just past "Notes". Claim it as the video rather than letting
+      // it sit there unused -- or, when there's no Notes column to stop the
+      // scan, get mistaken for another set's label.
+      const urlIdx = findUrlCell(row);
+      if (urlIdx !== -1 && !current.videoUrl) current.videoUrl = row[urlIdx].trim();
       const end = notesCol >= 0 ? notesCol : row.length;
       const setCols = [];
       for (let i = weekIdx + 1; i < end; i++) {
+        if (i === urlIdx) continue;
         const label = row[i].trim();
         if (label) setCols.push({ idx: i, label });
       }

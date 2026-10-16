@@ -264,6 +264,14 @@ function esc(s) {
   return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
+/** A rep goal as it should read on screen. "10-15" wants "reps" after it;
+ * "30 seconds" or "1 minute each side" already says what it is, and a timed
+ * hold rendered as "30 seconds reps" just looks like a bug. */
+function repGoalText(repGoal) {
+  if (!repGoal) return "";
+  return /\b(rep|sec|min|hold|side|round)/i.test(repGoal) ? repGoal : `${repGoal} reps`;
+}
+
 function relativeTime(iso) {
   const diffMs = Date.now() - new Date(iso).getTime();
   const mins = Math.round(diffMs / 60000);
@@ -1030,7 +1038,7 @@ function renderDay() {
   const progress = dayProgress(day);
   const items = day.exercises.map((ex, idx) => {
     const filled = ex.weeks.filter((w) => w.updatedAt).length;
-    const repText = ex.repGoal && (/rep/i.test(ex.repGoal) ? ex.repGoal : `${ex.repGoal} reps`);
+    const repText = repGoalText(ex.repGoal);
     const target = [repText, ex.restTime && `rest ${ex.restTime}`].filter(Boolean).join(" &middot; ");
     const currentWeekRow = progress && !progress.complete && ex.weeks.find((w) => w.week === progress.currentWeek);
     const doneThisWeek = currentWeekRow && !isWeekEmptyRow(currentWeekRow);
@@ -1147,7 +1155,7 @@ function renderMuscleBrowse(library) {
     const rows = filtered.map((e) => `
       <div class="card tappable" data-action="pick-muscle-exercise" data-name="${esc(e.name)}">
         <h3>${esc(e.name)}</h3>
-        <p>${[e.equipment, e.repGoal && `${e.repGoal} reps`].filter(Boolean).join(" &middot; ") || "Tap to use"}</p>
+        <p>${[e.equipment, repGoalText(e.repGoal)].filter(Boolean).join(" &middot; ") || "Tap to use"}</p>
       </div>
     `).join("");
     return `
@@ -1833,7 +1841,7 @@ function renderLibraryRows(filtered) {
       <div class="row" style="align-items:flex-start;">
         <div>
           <h3 style="font-size:15px;">${esc(e.name)}</h3>
-          <p>${[e.muscleGroup, e.equipment].filter(Boolean).join(" &middot; ") || "From your program"}${e.repGoal ? ` &middot; ${esc(e.repGoal)} reps` : ""}${e.restTime ? ` &middot; rest ${esc(e.restTime)}` : ""}</p>
+          <p>${[e.muscleGroup, e.equipment].filter(Boolean).join(" &middot; ") || "From your program"}${e.repGoal ? ` &middot; ${esc(repGoalText(e.repGoal))}` : ""}${e.restTime ? ` &middot; rest ${esc(e.restTime)}` : ""}</p>
         </div>
         <a class="btn ghost small" href="${youtubeSearchUrl(e.name)}" target="_blank" rel="noopener noreferrer" style="width:auto;text-decoration:none;white-space:nowrap;">Video</a>
       </div>
@@ -2730,7 +2738,7 @@ function renderCoachClientDay() {
   }
   const items = day.exercises.map((ex) => {
     const filled = ex.weeks.filter((w) => w.updatedAt).length;
-    const repText = ex.repGoal && (/rep/i.test(ex.repGoal) ? ex.repGoal : `${ex.repGoal} reps`);
+    const repText = repGoalText(ex.repGoal);
     const target = [repText, ex.restTime && `rest ${ex.restTime}`].filter(Boolean).join(" &middot; ");
     return `
       <div class="card tappable" data-action="open-coach-client-exercise" data-client="${esc(clientId)}" data-label="${esc(clientLabel || "")}" data-day="${esc(dayId)}" data-exercise="${esc(ex.id)}">
