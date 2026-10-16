@@ -114,6 +114,35 @@ export const Store = {
     changeListeners.forEach((fn) => fn(this.getProgram()));
   },
   /** Wipes every saved program on this device, not just the active one. */
+  /** Wipes every logged weight, rep, note and timestamp from the active
+   * program while leaving the plan itself alone -- days, exercises, rep goals,
+   * rest times, videos and week count all stay. This is what a coach wants
+   * when handing a program that's already been run to a new client: the same
+   * plan, a clean sheet. Returns how many weeks were cleared. */
+  clearLoggedNumbers() {
+    const program = this.getProgram();
+    if (!program) return 0;
+    let cleared = 0;
+    program.days.forEach((day) => {
+      (day.exercises || []).forEach((ex) => {
+        ex.weeks = (ex.weeks || []).map((w) => {
+          const hadSomething = (w.values || []).some(Boolean)
+            || (w.reps || []).some(Boolean) || w.notes || w.updatedAt;
+          if (hadSomething) cleared++;
+          return {
+            week: w.week,
+            values: (w.values || []).map(() => ""),
+            reps: (w.reps || []).map(() => ""),
+            notes: "",
+            updatedAt: null,
+          };
+        });
+      });
+    });
+    this.setProgram(program);
+    return cleared;
+  },
+
   clearProgram() {
     localStorage.removeItem(KEYS.programs);
     localStorage.removeItem(KEYS.legacyProgram);

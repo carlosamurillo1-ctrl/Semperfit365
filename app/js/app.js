@@ -1551,6 +1551,13 @@ function renderSettings() {
       <button class="btn" data-action="go-exercise-library">Browse library</button>
     </div>
     ${renderSyncSettingsCard()}
+    ${isManagedClient() || !days.length ? "" : `
+    <div class="card">
+      <h3>Clear logged numbers</h3>
+      <p>Wipes every weight, rep and note from <strong>${esc(programs.find((p) => p.active)?.name || "this program")}</strong>, and keeps the plan itself &mdash; days, exercises, rep goals, rest times and videos all stay. For handing a program you've already run to someone new.</p>
+      <div style="height:10px"></div>
+      <button class="btn danger" data-action="clear-logged-numbers">Clear the numbers</button>
+    </div>`}
     <div class="card">
       <h3>Reset</h3>
       <p>Clears every saved program, every logged value, and your cardio &amp; steps calendar from this device.${isManagedClient() ? " Your coach's program will download again next time you open the app, but the numbers you logged against it are gone for good." : ""}</p>
@@ -2860,6 +2867,7 @@ const COACH_ONLY_ACTIONS = new Set([
   "switch-program", "switch-program-btn", "rename-program", "delete-program",
   "publish-program", "unpublish-program",
   "go-coach", "go-coach-add-client", "confirm-add-coach-client",
+  "clear-logged-numbers",
 ]);
 
 function onClick(e) {
@@ -3025,6 +3033,15 @@ function onClick(e) {
     case "set-theme": {
       setTheme(el.dataset.theme);
       render();
+      break;
+    }
+    case "clear-logged-numbers": {
+      const name = Store.listPrograms().find((p) => p.active)?.name || "this program";
+      if (confirm(`Clear every logged weight, rep and note from ${name}? The days, exercises, rep goals and rest times all stay. This can't be undone.`)) {
+        const cleared = Store.clearLoggedNumbers();
+        toast(cleared ? `Cleared ${cleared} logged week${cleared === 1 ? "" : "s"}` : "Nothing was logged yet");
+        navigate("program");
+      }
       break;
     }
     case "reset-all": {

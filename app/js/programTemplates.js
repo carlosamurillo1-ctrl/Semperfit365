@@ -239,7 +239,7 @@ const LEG_GLUTE_FOCUS_TEXT = `	Workout A
 8	WEEK 8
 `;
 
-const PHASE_1_UPPER_TEXT = `	Semperfit Training - Phase 1 - (WORKOUT A)
+const PHASE_1_UPPER_TEXT = `	Push Day - Phase 1
 
 	Chest Press Machine			Rep goal: 10-15 reps			Rest time: 2-3 min.
 
@@ -375,7 +375,7 @@ const PHASE_1_UPPER_TEXT = `	Semperfit Training - Phase 1 - (WORKOUT A)
 7	WEEK 7
 8	WEEK 8
 
-	Semperfit Training - Phase 1 - (WORKOUT B)
+	Pull Day - Phase 1
 
 	Abduction and Adduction Machine			Rep goal: 15-20 reps			Rest time: 2-3 min.
 
@@ -527,8 +527,8 @@ export const PROGRAM_TEMPLATES = [
   },
   {
     id: "phase-1-upper",
-    name: "Semperfit Phase 1 — Upper A/B",
-    description: "Workout A/B — two upper-body days, each finishing with a five-move core circuit run for four rounds.",
+    name: "Semperfit Phase 1 — Push / Pull",
+    description: "Push day and pull day, each finishing with a five-move core circuit run for four rounds.",
     sheetText: PHASE_1_UPPER_TEXT,
   },
 ];
