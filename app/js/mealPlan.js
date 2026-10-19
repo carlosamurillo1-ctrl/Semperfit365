@@ -36,6 +36,28 @@ export const RATES = [0.25, 0.5, 0.75, 1, 1.5];
 
 const KCAL_PER_LB = 3500;
 
+/** Percentage of calories from each macro. 40/30/30 protein-first is the
+ * default: it's the split most physique coaching works to, and it keeps
+ * protein high enough to hold muscle on a deficit. Editable per plan -- a
+ * client who trains hard and eats low fat wants different numbers. */
+export const DEFAULT_SPLIT = { protein: 40, carbs: 30, fat: 30 };
+
+/** Brings a split back to 100%. Someone typing three boxes will not always
+ * land on it, and silently generating against 94% would quietly produce a
+ * plan that misses every target. */
+export function normalizeSplit(split) {
+  const p = Math.max(0, Number(split?.protein) || 0);
+  const c = Math.max(0, Number(split?.carbs) || 0);
+  const f = Math.max(0, Number(split?.fat) || 0);
+  const total = p + c + f;
+  if (total <= 0) return { ...DEFAULT_SPLIT };
+  // Fat takes the remainder of the ROUNDED other two, not of the raw ones --
+  // otherwise 40/40/40 rounds to 33/33/33 and quietly adds up to 99.
+  const protein = Math.round((p / total) * 100);
+  const carbs = Math.round((c / total) * 100);
+  return { protein, carbs, fat: 100 - protein - carbs };
+}
+
 /** Nobody is generated a plan below this, whatever the arithmetic says. A
  * target this low stops being a diet and starts being a medical question. */
 const CALORIE_FLOOR = 1200;
@@ -51,7 +73,7 @@ const round = (n, step = 1) => Math.round(n / step) * step;
  * `notes` explains anything the guardrails changed, so the screen can say so
  * instead of silently handing back a different number than was asked for.
  */
-export function calcTargets({ weightLb, activity = "light", goal = "maintain", rate = 0.5, diet = "Anything" }) {
+export function calcTargets({ weightLb, activity = "light", goal = "maintain", rate = 0.5, diet = "Anything", split = DEFAULT_SPLIT }) {
   const weight = Number(weightLb) || 0;
   const notes = [];
   if (weight <= 0) return null;
@@ -75,23 +97,23 @@ export function calcTargets({ weightLb, activity = "light", goal = "maintain", r
     }
   }
 
-  // Protein first: ~1g per lb is the number most coaches work to, and it's the
-  // one macro worth protecting when calories are low.
-  let protein = round(weight * 1.0, 5);
-  // Fat next, at a quarter of calories, with a floor so hormones aren't an
-  // afterthought on a deep cut.
-  let fat = round(Math.max((calories * 0.25) / 9, weight * 0.3), 5);
-  // Carbs take whatever's left.
-  let carbs = round((calories - protein * 4 - fat * 9) / 4, 5);
+  // The split decides the macros; calories decide the size.
+  const sp = normalizeSplit(split);
+  let protein = round((calories * sp.protein / 100) / 4, 5);
+  let carbs = round((calories * sp.carbs / 100) / 4, 5);
+  let fat = round((calories * sp.fat / 100) / 9, 5);
 
   // Keto isn't just a food filter -- it's a different macro split. Carbs go to
   // a ketogenic ceiling and fat takes the calories they gave up. Without this
   // the targets would still ask for 300g of carbs from a food list that has
   // nothing to supply them, and the plan would read as wildly off.
   if (diet === "Keto") {
+    const before = carbs;
     carbs = Math.min(carbs, 40);
     fat = round((calories - protein * 4 - carbs * 4) / 9, 5);
-    notes.push("Keto: carbs held to 40g and the rest of the day's calories put into fat.");
+    if (before > carbs) {
+      notes.push(`Keto overrides the split: carbs held to 40g (the ${sp.carbs}% would have been ${before}g) and those calories put into fat.`);
+    }
   }
 
   if (carbs < 0) {
@@ -105,6 +127,7 @@ export function calcTargets({ weightLb, activity = "light", goal = "maintain", r
   return {
     calories: round(calories, 10),
     protein, carbs, fat,
+    split: sp,
     maintenance: round(maintenance, 10),
     adjusted: round(dir * dailySwing, 10),
     notes,
@@ -344,8 +367,17 @@ export function generatePlan({ targets, diet = "Anything", avoid = [], seed = 1 
     const chosen = [];
 
     for (const [ri, role] of m.roles.entries()) {
-      const pool = allowedForSlot(filters, role, m.slot);
+      let pool = allowedForSlot(filters, role, m.slot);
       if (!pool.length) continue;
+      // A demanding protein target can't be met out of lentils and chickpeas.
+      // When protein is a big share of the day, pick from the leaner, denser
+      // half of what's available -- the fish and the egg whites, not the
+      // legumes that bring three times their protein in carbohydrate.
+      if (role === "protein" && (targets.split?.protein || 0) >= 35 && pool.length > 3) {
+        const density = (f) => (f.per100g.protein || 0) / (f.per100g.calories || 1);
+        const ranked = [...pool].sort((a, b) => density(b) - density(a));
+        pool = ranked.slice(0, Math.max(3, Math.ceil(ranked.length / 2)));
+      }
       const fresh = pool.filter((f) => !used.has(f.id));
       const food = pick(fresh.length ? fresh : pool, seed + mi * 31, ri);
       if (!food) continue;
@@ -447,11 +479,23 @@ export function generatePlan({ targets, diet = "Anything", avoid = [], seed = 1 
   for (let guard = 0; guard < 4; guard++) {
     const all = meals.flatMap((m) => m.chosen);
     if (rawMacros(all).calories - targets.calories < Math.max(120, targets.calories * 0.05)) break;
+    // Only ever remove a macro there is too MUCH of. A high-protein split on a
+    // restricted diet overshoots on the protein foods alone, and a trim that
+    // just takes the biggest non-protein item strips every scrap of fat and
+    // carbohydrate out of the day to make room for more beans.
+    const got = rawMacros(all);
+    const spare = {
+      carb: got.carbs > targets.carbs * 0.95,
+      fat: got.fat > targets.fat * 0.95,
+      fruit: got.carbs > targets.carbs * 0.95,
+      veg: got.carbs > targets.carbs * 0.95,
+    };
     let victim = null;
     for (const meal of meals) {
       for (const c of meal.chosen) {
         if (meal.chosen.length <= 2) continue;
         if (c.role === "protein") continue; // protein is the last thing to cut
+        if (!spare[c.role]) continue;
         const cals = (c.food.per100g.calories || 0) * c.grams / 100;
         if (!victim || cals > victim.cals) victim = { meal, c, cals };
       }

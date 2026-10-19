@@ -10,8 +10,8 @@ import { RECIPE_LIBRARY, DIET_TAGS, MEAL_SLOTS, filterRecipes } from "./recipeLi
 import { FOOD_LIBRARY, FOOD_CATEGORIES, macrosFor, searchFoods } from "./foodLibrary.js";
 import { DIETS, ALLERGENS } from "./foodTags.js";
 import {
-  ACTIVITY_LEVELS, GOALS, RATES, calcTargets, generatePlan,
-  swapItem, removeItem, alternativesFor, planAccuracy,
+  ACTIVITY_LEVELS, GOALS, RATES, DEFAULT_SPLIT, normalizeSplit,
+  calcTargets, generatePlan, swapItem, removeItem, alternativesFor, planAccuracy,
 } from "./mealPlan.js";
 import { ZONES, LEVELS, DURATIONS, buildSession, zoneBreakdown, estimateCalories, sessionTimeline, totalSeconds } from "./treadmill.js";
 import {
@@ -3302,6 +3302,11 @@ function onClick(e) {
       render();
       break;
     }
+    case "reset-meal-plan-split": {
+      ensureMealPlanDraft().split = { ...DEFAULT_SPLIT };
+      render();
+      break;
+    }
     case "generate-meal-plan": buildMealPlan(); break;
     case "regenerate-meal-plan": {
       const d = ensureMealPlanDraft();
@@ -3482,7 +3487,18 @@ function onInput(e) {
       </div>`).join("") || `<div class="empty"><p>Nothing matches all of those at once. Try removing a filter.</p></div>`;
     return;
   }
-  if (el.id === "mp-weight" && mealPlanDraft) { mealPlanDraft.weightLb = el.value; return; }
+  if (el.id === "mp-weight" && mealPlanDraft) {
+    mealPlanDraft.weightLb = el.value;
+    refreshSplitLine();
+    return;
+  }
+  if (mealPlanDraft && ["mp-split-protein", "mp-split-carbs", "mp-split-fat"].includes(el.id)) {
+    const key = el.id.replace("mp-split-", "") === "protein" ? "protein"
+      : el.id.endsWith("carbs") ? "carbs" : "fat";
+    mealPlanDraft.split[key] = el.value === "" ? 0 : Number(el.value) || 0;
+    refreshSplitLine();
+    return;
+  }
   if (el.id === "mp-name" && mealPlanDraft) { mealPlanDraft.name = el.value; return; }
   if (el.id === "food-lib-search" && state.screen === "food-library") {
     state.foodFilter.query = el.value;
@@ -4427,6 +4443,7 @@ function ensureMealPlanDraft() {
       rate: 0.5,
       diet: "Anything",
       avoid: [],
+      split: { ...DEFAULT_SPLIT },
       name: "",
       plan: null,
       seed: 1,
@@ -4471,6 +4488,40 @@ function chipRow(action, field, options, selected, labelOf = (o) => o) {
   }).join("")}</div>`;
 }
 
+/** The split as typed, and what it actually normalises to if it doesn't add
+ * up -- shown rather than silently applied, so nobody wonders why 40/40/40
+ * produced thirds. */
+function splitSummary(d) {
+  const raw = Number(d.split.protein) + Number(d.split.carbs) + Number(d.split.fat);
+  const n = normalizeSplit(d.split);
+  if (raw === 100) return `${n.protein}/${n.carbs}/${n.fat}`;
+  return `adds to ${raw || 0}% — using ${n.protein}/${n.carbs}/${n.fat}`;
+}
+
+/** What the split comes to in grams for this client, so the percentages mean
+ * something before a plan is built. */
+function splitGramsLine(d) {
+  const weight = parseFloat(d.weightLb);
+  if (!(weight > 0)) return "Put a bodyweight in to see what that comes to in grams.";
+  const t = calcTargets({
+    weightLb: weight, activity: d.activity, goal: d.goal, rate: d.rate,
+    diet: d.diet, split: d.split,
+  });
+  if (!t) return "";
+  const perLb = (t.protein / weight).toFixed(1);
+  return `${t.calories} cal &middot; ${t.protein}g protein (${perLb}g per lb) &middot; ${t.carbs}g carbs &middot; ${t.fat}g fat`;
+}
+
+/** Updates the two lines that depend on the split without re-rendering, so the
+ * box being typed in keeps focus and the caret stays where it was. */
+function refreshSplitLine() {
+  if (state.screen !== "meal-plan-new" || !mealPlanDraft) return;
+  const grams = document.getElementById("mp-split-grams");
+  if (grams) grams.innerHTML = splitGramsLine(mealPlanDraft);
+  const chip = document.querySelector("#mp-split-protein")?.closest(".card")?.querySelector(".source-chip");
+  if (chip) chip.textContent = splitSummary(mealPlanDraft);
+}
+
 function renderMealPlanNew() {
   const d = ensureMealPlanDraft();
   return `
@@ -4495,6 +4546,31 @@ function renderMealPlanNew() {
       <div style="height:12px"></div>
       <label>Avoid (tap any that apply)</label>
       ${chipRow("toggle-meal-plan-avoid", "avoid", ALLERGENS, d.avoid)}
+    </div>
+    <div class="card">
+      <div class="row">
+        <h3 style="margin:0;">Macro split</h3>
+        <span class="source-chip">${splitSummary(d)}</span>
+      </div>
+      <p class="hint" style="margin:6px 0 0;">Percent of calories from each. Starts at 40/30/30 &mdash; change it if this client needs something else.</p>
+      <div style="height:10px"></div>
+      <div class="row">
+        <div style="flex:1;">
+          <label for="mp-split-protein">Protein %</label>
+          <input type="text" id="mp-split-protein" inputmode="numeric" value="${esc(String(d.split.protein))}" />
+        </div>
+        <div style="flex:1;">
+          <label for="mp-split-carbs">Carbs %</label>
+          <input type="text" id="mp-split-carbs" inputmode="numeric" value="${esc(String(d.split.carbs))}" />
+        </div>
+        <div style="flex:1;">
+          <label for="mp-split-fat">Fat %</label>
+          <input type="text" id="mp-split-fat" inputmode="numeric" value="${esc(String(d.split.fat))}" />
+        </div>
+      </div>
+      <p class="hint" id="mp-split-grams" style="margin:10px 0 0;">${splitGramsLine(d)}</p>
+      <div style="height:10px"></div>
+      <button class="btn ghost small" style="width:auto;" data-action="reset-meal-plan-split">Back to 40/30/30</button>
     </div>
     <button class="btn primary" data-action="generate-meal-plan">Build the plan</button>
     <p class="hint" style="margin:12px 2px 0;">Calories are worked out from bodyweight and training load &mdash; a starting point, not a prescription. Weigh in weekly and adjust from what the scale actually does.</p>
@@ -4553,7 +4629,7 @@ function renderMealPlan() {
     <div class="card">
       ${targetVsActual(plan)}
       ${notes}
-      <p class="hint" style="margin:8px 0 0;">${esc(plan.filters.diet)}${plan.filters.avoid.length ? ` &middot; no ${plan.filters.avoid.map((a) => esc(a.toLowerCase())).join(", ")}` : ""}</p>
+      <p class="hint" style="margin:8px 0 0;">${esc(plan.filters.diet)}${plan.filters.avoid.length ? ` &middot; no ${plan.filters.avoid.map((a) => esc(a.toLowerCase())).join(", ")}` : ""}${plan.targets.split ? ` &middot; ${plan.targets.split.protein}/${plan.targets.split.carbs}/${plan.targets.split.fat} split` : ""}</p>
     </div>
     ${plan.shortfall.length ? `<div class="card"><p>Couldn't find any ${plan.shortfall.join(", ")} that fits those restrictions, so those slots are empty. Loosen one, or add something yourself.</p></div>` : ""}
     ${meals}
@@ -4601,7 +4677,8 @@ function buildMealPlan(keepName = false) {
   const weight = parseFloat(d.weightLb);
   if (!(weight > 0)) { toast("Put a bodyweight in first"); return; }
   const targets = calcTargets({
-    weightLb: weight, activity: d.activity, goal: d.goal, rate: d.rate, diet: d.diet,
+    weightLb: weight, activity: d.activity, goal: d.goal, rate: d.rate,
+    diet: d.diet, split: d.split,
   });
   if (!targets) { toast("That bodyweight doesn't look right"); return; }
   d.plan = generatePlan({ targets, diet: d.diet, avoid: d.avoid, seed: d.seed });
@@ -4621,6 +4698,7 @@ function openSavedMealPlan(id) {
     rate: i.rate ?? d.rate,
     diet: i.diet || "Anything",
     avoid: i.avoid || [],
+    split: i.split || saved.targets?.split || { ...DEFAULT_SPLIT },
     name: saved.name,
     planId: saved.id,
     // A saved plan carries everything the screen needs to render and edit it,
@@ -4652,7 +4730,7 @@ function saveCurrentMealPlan() {
     inputs: {
       weightLb: parseFloat(d.weightLb) || null,
       activity: d.activity, goal: d.goal, rate: d.rate,
-      diet: d.diet, avoid: d.avoid,
+      diet: d.diet, avoid: d.avoid, split: d.split,
     },
     targets: d.plan.targets,
     meals: d.plan.meals,

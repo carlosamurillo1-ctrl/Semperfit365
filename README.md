@@ -62,7 +62,9 @@ Four ways to log a food:
 
 Every item can be **swapped** for another food in the same role — the replacement is sized to the calories it replaced, so the day's totals don't lurch — or removed. **Log this meal to today** drops a whole meal into the food diary.
 
-**There is no AI in this.** `js/mealPlan.js` is arithmetic and a pick order: it runs offline, instantly, and gives the same answer twice. Targets come from a bodyweight multiplier (13–18 cal/lb by training load), protein at about 1g per pound, fat at a quarter of calories with a floor, carbs taking the rest. Keto overrides that split and holds carbs to 40g.
+**Macro split.** Every plan is built to a protein/carb/fat split, shown on the form and on the plan, and editable per client. It defaults to **40/30/30** (protein first). The form shows live what the split comes to in grams *and in grams of protein per pound*, because 40% protein at a high calorie target is a demanding number — around 1.7g/lb on a bulk — and that should be a decision rather than a surprise. A split that doesn't add to 100 is normalised, and the form says so rather than silently applying something else.
+
+**There is no AI in this.** `js/mealPlan.js` is arithmetic and a pick order: it runs offline, instantly, and gives the same answer twice. Calories come from a bodyweight multiplier (13–18 cal/lb by training load) adjusted for the goal and pace; the split turns them into grams. Keto overrides the split and holds carbs to 40g, and says so on the plan.
 
 **Guardrails.** It will not generate below 1,200 calories or cut more than 25% below maintenance, and says on the plan when it has reined a request in. Portions are capped both in grams and in servings of the food's own unit, so no plan ever asks for eleven slices of bread. A food that is mostly one macro can't take over a meal, and on a low-carb target nothing can spend more than about a third of the day's carbs.
 
