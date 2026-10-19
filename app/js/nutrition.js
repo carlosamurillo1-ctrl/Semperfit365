@@ -24,6 +24,7 @@ const KEYS = {
   diary: "sf365.foodDiary.v1",
   recipes: "sf365.recipes.v1",
   recentFoods: "sf365.recentFoods.v1",
+  mealPlans: "sf365.mealPlans.v1",
 };
 
 const MEAL_TYPES = ["Breakfast", "Lunch", "Dinner", "Snacks"];
@@ -233,6 +234,40 @@ export const Nutrition = {
     write(KEYS.recipes, recipes);
     return recipe.id;
   },
+  // ---- Meal plans ----
+  // A saved plan is a whole day: its inputs, the targets they produced, and the
+  // meals themselves. The inputs are kept so a plan can say where its numbers
+  // came from months later, and so "make me another one" doesn't mean filling
+  // the form in again.
+
+  getMealPlans() {
+    return read(KEYS.mealPlans, []).slice().sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
+  },
+  getMealPlan(id) {
+    return read(KEYS.mealPlans, []).find((p) => p.id === id) || null;
+  },
+  /** plan: { name, source, inputs, targets, meals, totals }. Returns its id. */
+  saveMealPlan(plan) {
+    const plans = read(KEYS.mealPlans, []);
+    const record = {
+      ...plan,
+      id: plan.id || uid(),
+      name: (plan.name || "").trim() || "Untitled plan",
+      // "coach" marks a plan the coach built, so a client can tell it apart
+      // from one they generated themselves.
+      source: plan.source === "coach" ? "coach" : "self",
+      createdAt: plan.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    const at = plans.findIndex((p) => p.id === record.id);
+    if (at >= 0) plans[at] = record; else plans.push(record);
+    write(KEYS.mealPlans, plans);
+    return record.id;
+  },
+  deleteMealPlan(id) {
+    write(KEYS.mealPlans, read(KEYS.mealPlans, []).filter((p) => p.id !== id));
+  },
+
   deleteRecipe(id) {
     write(KEYS.recipes, read(KEYS.recipes, []).filter((r) => r.id !== id));
   },
@@ -248,6 +283,7 @@ export const Nutrition = {
   },
 
   clearAll() {
+    localStorage.removeItem(KEYS.mealPlans);
     localStorage.removeItem(KEYS.goals);
     localStorage.removeItem(KEYS.weightLog);
     localStorage.removeItem(KEYS.diary);

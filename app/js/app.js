@@ -8,6 +8,11 @@ import { Nutrition } from "./nutrition.js";
 import { lookupBarcode, searchFoodByName } from "./foodApi.js";
 import { RECIPE_LIBRARY, DIET_TAGS, MEAL_SLOTS, filterRecipes } from "./recipeLibrary.js";
 import { FOOD_LIBRARY, FOOD_CATEGORIES, macrosFor, searchFoods } from "./foodLibrary.js";
+import { DIETS, ALLERGENS } from "./foodTags.js";
+import {
+  ACTIVITY_LEVELS, GOALS, RATES, calcTargets, generatePlan,
+  swapItem, removeItem, alternativesFor, planAccuracy,
+} from "./mealPlan.js";
 import { ZONES, LEVELS, DURATIONS, buildSession, zoneBreakdown, estimateCalories, sessionTimeline, totalSeconds } from "./treadmill.js";
 import {
   isSyncConfigured,
@@ -356,6 +361,10 @@ function render() {
     case "recipe-library-item": html = renderLibraryRecipe(); break;
     case "food-library": html = renderFoodLibrary(); break;
     case "food-library-item": html = renderLibraryFood(); break;
+    case "meal-plans": html = renderMealPlans(); break;
+    case "meal-plan-new": html = renderMealPlanNew(); break;
+    case "meal-plan": html = renderMealPlan(); break;
+    case "meal-plan-swap": html = renderMealItemSwap(); break;
     case "nutrition-recipe-new": html = renderNutritionRecipeNew(); break;
     default: html = renderProgram();
   }
@@ -2920,6 +2929,10 @@ function onClick(e) {
       else if (["nutrition-weight", "nutrition-goals", "nutrition-recipes", "recipe-library"].includes(state.screen)) navigate("nutrition");
       else if (state.screen === "recipe-library-item") navigate("recipe-library");
       else if (state.screen === "food-library-item") navigate("food-library", { dateStr: state.params.dateStr, mealType: state.params.mealType });
+      else if (state.screen === "meal-plans") navigate("nutrition");
+      else if (state.screen === "meal-plan-new") navigate("meal-plans");
+      else if (state.screen === "meal-plan") navigate("meal-plans");
+      else if (state.screen === "meal-plan-swap") navigate("meal-plan");
       else if (state.screen === "nutrition-recipe-new") navigate("nutrition-recipes");
       else if (state.screen === "nutrition") navigate("program");
       else navigate("program");
@@ -3273,6 +3286,56 @@ function onClick(e) {
       render();
       break;
     }
+    case "go-meal-plans": navigate("meal-plans"); break;
+    case "go-meal-plan-new": navigate("meal-plan-new"); break;
+    case "set-meal-plan-field": {
+      const d = ensureMealPlanDraft();
+      const v = el.dataset.value;
+      d[el.dataset.field] = el.dataset.field === "rate" ? Number(v) : v;
+      render();
+      break;
+    }
+    case "toggle-meal-plan-avoid": {
+      const d = ensureMealPlanDraft();
+      const v = el.dataset.value;
+      d.avoid = d.avoid.includes(v) ? d.avoid.filter((a) => a !== v) : [...d.avoid, v];
+      render();
+      break;
+    }
+    case "generate-meal-plan": buildMealPlan(); break;
+    case "regenerate-meal-plan": {
+      const d = ensureMealPlanDraft();
+      d.seed = d.seed + 1;
+      buildMealPlan(true);
+      break;
+    }
+    case "open-meal-plan": openSavedMealPlan(el.dataset.plan); break;
+    case "delete-meal-plan": {
+      if (confirm("Delete this meal plan?")) {
+        Nutrition.deleteMealPlan(el.dataset.plan);
+        toast("Plan deleted");
+        render();
+      }
+      break;
+    }
+    case "go-swap-meal-item":
+      navigate("meal-plan-swap", { mealIndex: Number(el.dataset.meal), itemIndex: Number(el.dataset.item) });
+      break;
+    case "confirm-swap-meal-item": {
+      const d = ensureMealPlanDraft();
+      d.plan = swapItem(d.plan, Number(el.dataset.meal), Number(el.dataset.item), el.dataset.food);
+      toast("Swapped");
+      navigate("meal-plan");
+      break;
+    }
+    case "remove-meal-item": {
+      const d = ensureMealPlanDraft();
+      d.plan = removeItem(d.plan, Number(el.dataset.meal), Number(el.dataset.item));
+      render();
+      break;
+    }
+    case "log-meal-to-diary": logPlannedMeal(Number(el.dataset.meal)); break;
+    case "save-meal-plan": saveCurrentMealPlan(); break;
     case "log-library-food": logLibraryFood(el.dataset.food); break;
     case "log-library-recipe": logLibraryRecipe(el.dataset.recipe); break;
     case "save-library-recipe": saveLibraryRecipe(el.dataset.recipe); break;
@@ -3419,6 +3482,8 @@ function onInput(e) {
       </div>`).join("") || `<div class="empty"><p>Nothing matches all of those at once. Try removing a filter.</p></div>`;
     return;
   }
+  if (el.id === "mp-weight" && mealPlanDraft) { mealPlanDraft.weightLb = el.value; return; }
+  if (el.id === "mp-name" && mealPlanDraft) { mealPlanDraft.name = el.value; return; }
   if (el.id === "food-lib-search" && state.screen === "food-library") {
     state.foodFilter.query = el.value;
     const matches = searchFoods(state.foodFilter.query, state.foodFilter.category);
@@ -3584,7 +3649,9 @@ function renderNutrition() {
       ${hasGoals ? "" : `<p class="hint" style="margin-top:10px;">No goals set yet. <a href="#" data-action="go-nutrition-goals">Set calorie &amp; macro goals</a> to track progress here.</p>`}
     </div>
     ${mealSections}
-    <button class="btn primary" data-action="go-recipe-library">Meal ideas</button>
+    <button class="btn primary" data-action="go-meal-plans">Meal plans</button>
+    <div style="height:8px"></div>
+    <button class="btn" data-action="go-recipe-library">Meal ideas</button>
     <div style="height:8px"></div>
     <div class="btn-row">
       <button class="btn" data-action="go-nutrition-weight">Check in</button>
@@ -4342,6 +4409,290 @@ function logLibraryFood(foodId) {
   Nutrition.addDiaryEntry(dateStr, { ...entry, mealType: foodItemDraft.mealType });
   toast(`${qty} ${unitLabel} ${food.name.toLowerCase()} logged`);
   navigate("nutrition", { dateStr });
+}
+
+// ---------- MEAL PLANS (generated from targets, or built by the coach) ----------
+
+// The form and the plan being worked on. Module-level for the usual reason:
+// every chip tap re-renders, and a draft that lived in the DOM would lose the
+// weight someone just typed the moment they picked a diet.
+let mealPlanDraft = null;
+function ensureMealPlanDraft() {
+  if (!mealPlanDraft) {
+    const lastWeight = Nutrition.getLatestWeight();
+    mealPlanDraft = {
+      weightLb: lastWeight ? String(Math.round(lastWeight.weight)) : "",
+      activity: "light",
+      goal: "lose",
+      rate: 0.5,
+      diet: "Anything",
+      avoid: [],
+      name: "",
+      plan: null,
+      seed: 1,
+      planId: null,
+    };
+  }
+  return mealPlanDraft;
+}
+
+function macroLine(totals) {
+  return `${Math.round(totals.calories)} cal &middot; P${Math.round(totals.protein)} C${Math.round(totals.carbs)} F${Math.round(totals.fat)}`;
+}
+
+function renderMealPlans() {
+  const plans = Nutrition.getMealPlans();
+  const rows = plans.map((p) => `
+    <div class="card tappable" data-action="open-meal-plan" data-plan="${esc(p.id)}">
+      <div class="row">
+        <div style="min-width:0;">
+          <h3 style="font-size:15px;margin:0;">${esc(p.name)}${p.source === "coach" ? ` <span class="pill">From your coach</span>` : ""}</h3>
+          <p style="margin:3px 0 0;">${macroLine(p.totals)}</p>
+          <p style="margin:3px 0 0;">${esc(p.inputs?.diet || "Anything")}${(p.inputs?.avoid || []).length ? ` &middot; no ${p.inputs.avoid.map((a) => esc(a.toLowerCase())).join(", ")}` : ""}</p>
+        </div>
+        <button class="btn ghost small" data-action="delete-meal-plan" data-plan="${esc(p.id)}" aria-label="Delete">&#10005;</button>
+      </div>
+    </div>
+  `).join("");
+
+  return `
+    ${topbar("Meal plans", { back: true })}
+    <button class="btn primary" data-action="go-meal-plan-new">Build a new plan</button>
+    <div style="height:14px"></div>
+    ${rows || `<div class="empty"><p>No meal plans yet. Build one and it'll be saved here &mdash; you can keep as many as you like and switch between them.</p></div>`}
+  `;
+}
+
+function chipRow(action, field, options, selected, labelOf = (o) => o) {
+  return `<div class="chip-row">${options.map((o) => {
+    const val = typeof o === "object" ? o.id : o;
+    const on = Array.isArray(selected) ? selected.includes(val) : selected === val;
+    return `<button class="chip${on ? " on" : ""}" data-action="${esc(action)}" data-field="${esc(field)}" data-value="${esc(String(val))}">${esc(labelOf(o))}</button>`;
+  }).join("")}</div>`;
+}
+
+function renderMealPlanNew() {
+  const d = ensureMealPlanDraft();
+  return `
+    ${topbar("Build a meal plan", { back: true })}
+    <div class="card">
+      <label for="mp-weight">Bodyweight (lb)</label>
+      <input type="text" id="mp-weight" inputmode="decimal" value="${esc(d.weightLb)}" placeholder="e.g. 165" />
+      <div style="height:12px"></div>
+      <label>How much training</label>
+      ${chipRow("set-meal-plan-field", "activity", ACTIVITY_LEVELS, d.activity, (o) => o.label)}
+      <div style="height:12px"></div>
+      <label>Goal</label>
+      ${chipRow("set-meal-plan-field", "goal", GOALS, d.goal, (o) => o.label)}
+      ${d.goal === "maintain" ? "" : `
+        <div style="height:12px"></div>
+        <label>Pace (lb per week)</label>
+        ${chipRow("set-meal-plan-field", "rate", RATES, d.rate, (o) => `${o} lb`)}`}
+    </div>
+    <div class="card">
+      <label>How they eat</label>
+      ${chipRow("set-meal-plan-field", "diet", DIETS, d.diet)}
+      <div style="height:12px"></div>
+      <label>Avoid (tap any that apply)</label>
+      ${chipRow("toggle-meal-plan-avoid", "avoid", ALLERGENS, d.avoid)}
+    </div>
+    <button class="btn primary" data-action="generate-meal-plan">Build the plan</button>
+    <p class="hint" style="margin:12px 2px 0;">Calories are worked out from bodyweight and training load &mdash; a starting point, not a prescription. Weigh in weekly and adjust from what the scale actually does.</p>
+  `;
+}
+
+function targetVsActual(plan) {
+  const acc = planAccuracy(plan);
+  const cell = (label, got, want, info, unit = "") => `
+    <div class="macro-stat">
+      <p class="macro-stat-label">${esc(label)}</p>
+      <h3>${Math.round(got)}${unit}<span class="macro-stat-goal">/${Math.round(want)}${unit}</span></h3>
+      <p style="margin:2px 0 0;font-size:11px;color:${info.ok ? "var(--accent)" : "var(--text-dim)"};">${info.ok ? "on target" : `${info.diff > 0 ? "+" : ""}${info.diff} ${info.diff > 0 ? "over" : "under"}`}</p>
+    </div>`;
+  const t = plan.targets, g = plan.totals;
+  return `<div class="macro-row">
+    ${cell("Calories", g.calories, t.calories, acc.calories)}
+    ${cell("Protein", g.protein, t.protein, acc.protein, "g")}
+    ${cell("Carbs", g.carbs, t.carbs, acc.carbs, "g")}
+    ${cell("Fat", g.fat, t.fat, acc.fat, "g")}
+  </div>`;
+}
+
+function renderMealPlan() {
+  const d = ensureMealPlanDraft();
+  const plan = d.plan;
+  if (!plan) return `${topbar("Meal plan", { back: true })}<div class="empty"><p>No plan loaded.</p></div>`;
+
+  const meals = plan.meals.map((meal, mi) => `
+    <div class="card">
+      <div class="row">
+        <h3 style="margin:0;">${esc(meal.slot)}</h3>
+        <span class="source-chip">${macroLine(meal.totals)}</span>
+      </div>
+      ${meal.items.map((item, ii) => `
+        <div class="row food-entry-row">
+          <div style="min-width:0;">
+            <h3 style="font-size:14px;margin:0;">${esc(item.name)}</h3>
+            <p style="margin:2px 0 0;">${esc(String(item.qty))} ${esc(item.unit)} &middot; ${item.grams}g &middot; ${macroLine(item)}</p>
+          </div>
+          <div class="btn-row" style="width:auto;gap:6px;flex:none;">
+            <button class="btn ghost small" data-action="go-swap-meal-item" data-meal="${mi}" data-item="${ii}">Swap</button>
+            <button class="btn ghost small" data-action="remove-meal-item" data-meal="${mi}" data-item="${ii}" aria-label="Remove">&#10005;</button>
+          </div>
+        </div>
+      `).join("")}
+      <div style="height:8px"></div>
+      <button class="btn ghost small" style="width:auto;" data-action="log-meal-to-diary" data-meal="${mi}">Log this meal to today</button>
+    </div>
+  `).join("");
+
+  const notes = (plan.targets.notes || []).map((n) => `<p class="hint" style="margin:6px 0 0;">${esc(n)}</p>`).join("");
+
+  return `
+    ${topbar("Meal plan", { back: true })}
+    <div class="card">
+      ${targetVsActual(plan)}
+      ${notes}
+      <p class="hint" style="margin:8px 0 0;">${esc(plan.filters.diet)}${plan.filters.avoid.length ? ` &middot; no ${plan.filters.avoid.map((a) => esc(a.toLowerCase())).join(", ")}` : ""}</p>
+    </div>
+    ${plan.shortfall.length ? `<div class="card"><p>Couldn't find any ${plan.shortfall.join(", ")} that fits those restrictions, so those slots are empty. Loosen one, or add something yourself.</p></div>` : ""}
+    ${meals}
+    <div class="card">
+      <label for="mp-name">Name this plan</label>
+      <input type="text" id="mp-name" value="${esc(d.name)}" placeholder="e.g. Mike — clean bulk" />
+      <div style="height:10px"></div>
+      <button class="btn primary" data-action="save-meal-plan">${d.planId ? "Save changes" : "Save to my plans"}</button>
+    </div>
+    <button class="btn" data-action="regenerate-meal-plan">Build a different one</button>
+    <p class="hint" style="margin:12px 2px 0;">Portions are rounded to something you'd actually weigh out. Swap anything they won't eat &mdash; the replacement is sized to match the calories it replaced.</p>
+  `;
+}
+
+function renderMealItemSwap() {
+  const d = ensureMealPlanDraft();
+  const { mealIndex, itemIndex } = state.params;
+  const item = d.plan?.meals[mealIndex]?.items[itemIndex];
+  if (!item) return `${topbar("Swap", { back: true })}<div class="empty"><p>Nothing to swap.</p></div>`;
+  const alts = alternativesFor(d.plan, mealIndex, itemIndex);
+  const rows = alts.map((f) => {
+    const m = macrosFor(f, f.units[0][0], 1);
+    return `
+      <div class="card tappable" data-action="confirm-swap-meal-item" data-meal="${mealIndex}" data-item="${itemIndex}" data-food="${esc(f.id)}">
+        <div class="row">
+          <div style="min-width:0;">
+            <h3 style="font-size:15px;margin:0;">${esc(f.name)}</h3>
+            <p style="margin:3px 0 0;">1 ${esc(f.units[0][0])} &middot; ${m.calories} cal &middot; P${m.protein} C${m.carbs} F${m.fat}</p>
+          </div>
+          <span class="pill" style="flex:none;">Use</span>
+        </div>
+      </div>`;
+  }).join("");
+  return `
+    ${topbar("Swap food", { back: true })}
+    <div class="card">
+      <p>Replacing <strong>${esc(item.name)}</strong> (${Math.round(item.calories)} cal). Whatever you pick is sized to about the same, so the day's totals stay put.</p>
+    </div>
+    ${rows || `<div class="empty"><p>Nothing else in the library fits that slot with these restrictions.</p></div>`}
+  `;
+}
+
+function buildMealPlan(keepName = false) {
+  const d = ensureMealPlanDraft();
+  const weight = parseFloat(d.weightLb);
+  if (!(weight > 0)) { toast("Put a bodyweight in first"); return; }
+  const targets = calcTargets({
+    weightLb: weight, activity: d.activity, goal: d.goal, rate: d.rate, diet: d.diet,
+  });
+  if (!targets) { toast("That bodyweight doesn't look right"); return; }
+  d.plan = generatePlan({ targets, diet: d.diet, avoid: d.avoid, seed: d.seed });
+  if (!keepName) { d.name = ""; d.planId = null; }
+  navigate("meal-plan");
+}
+
+function openSavedMealPlan(id) {
+  const saved = Nutrition.getMealPlan(id);
+  if (!saved) { toast("Plan not found"); return; }
+  const d = ensureMealPlanDraft();
+  const i = saved.inputs || {};
+  Object.assign(d, {
+    weightLb: i.weightLb != null ? String(i.weightLb) : d.weightLb,
+    activity: i.activity || d.activity,
+    goal: i.goal || d.goal,
+    rate: i.rate ?? d.rate,
+    diet: i.diet || "Anything",
+    avoid: i.avoid || [],
+    name: saved.name,
+    planId: saved.id,
+    // A saved plan carries everything the screen needs to render and edit it,
+    // so it reopens exactly as it was left rather than being regenerated --
+    // regenerating would quietly undo every swap that was made.
+    plan: {
+      meals: saved.meals,
+      totals: saved.totals,
+      targets: saved.targets,
+      filters: { diet: i.diet || "Anything", avoid: i.avoid || [] },
+      seed: saved.seed || 1,
+      shortfall: saved.shortfall || [],
+    },
+  });
+  navigate("meal-plan");
+}
+
+function saveCurrentMealPlan() {
+  const d = ensureMealPlanDraft();
+  if (!d.plan) return;
+  const name = (d.name || "").trim();
+  if (!name) { toast("Give the plan a name first"); return; }
+  d.planId = Nutrition.saveMealPlan({
+    id: d.planId,
+    name,
+    // A plan built on a coach's own device is the coach's; on a managed
+    // client's device it's theirs. That's what the badge in the list reads.
+    source: isCoachDevice() && !isManagedClient() ? "coach" : "self",
+    inputs: {
+      weightLb: parseFloat(d.weightLb) || null,
+      activity: d.activity, goal: d.goal, rate: d.rate,
+      diet: d.diet, avoid: d.avoid,
+    },
+    targets: d.plan.targets,
+    meals: d.plan.meals,
+    totals: d.plan.totals,
+    seed: d.plan.seed,
+    shortfall: d.plan.shortfall,
+  });
+  toast(`"${name}" saved`);
+  navigate("meal-plans");
+}
+
+/** Drops a planned meal straight into today's diary, so following the plan
+ * doesn't mean logging the same five foods by hand every morning. */
+function logPlannedMeal(mealIndex) {
+  const d = ensureMealPlanDraft();
+  const meal = d.plan?.meals[mealIndex];
+  if (!meal || !meal.items.length) return;
+  // The plan's own slot names are finer-grained than the diary's four meals,
+  // so map them onto the nearest one rather than inventing a fifth.
+  const slot = meal.slot.toLowerCase();
+  const mealType = slot.includes("breakfast") ? "Breakfast"
+    : slot.includes("lunch") ? "Lunch"
+    : slot.includes("dinner") ? "Dinner"
+    : "Snacks";
+  const dateStr = Nutrition.todayStr();
+  for (const item of meal.items) {
+    Nutrition.addDiaryEntry(dateStr, {
+      mealType,
+      name: item.name,
+      brand: "",
+      qty: String(item.qty),
+      unit: item.unit,
+      calories: item.calories,
+      protein: item.protein,
+      carbs: item.carbs,
+      fat: item.fat,
+      source: "meal-plan",
+    });
+  }
+  toast(`${meal.slot} logged to ${mealType}`);
 }
 
 function renderNutritionRecipes() {

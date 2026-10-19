@@ -51,10 +51,22 @@ Requires coach sync to already be set up (above). Like everything else in that s
 A **Nutrition** tab sits alongside Program/History/Settings: daily calorie & macro goals, a food diary (Breakfast/Lunch/Dinner/Snacks), a weight log, and simple recipes you build once from ingredients and re-log with one tap.
 
 Four ways to log a food:
-- **Food library** — 110 ordinary grocery items (`js/foodLibrary.js`), bundled with the app, searchable by aisle or free text, with the servings people actually say out loud: a slice of bread, a slice of cheese, a tablespoon of peanut butter, an ounce of chicken. Pick the food, pick the unit, type how many, and the macros are already filled in. Works fully offline and needs no barcode.
+- **Food library** — 116 ordinary grocery items (`js/foodLibrary.js`), bundled with the app, searchable by aisle or free text, with the servings people actually say out loud: a slice of bread, a slice of cheese, a tablespoon of peanut butter, an ounce of chicken. Pick the food, pick the unit, type how many, and the macros are already filled in. Works fully offline and needs no barcode.
 - **Enter manually** — type in the name and macros yourself. Always available, works fully offline.
 - **Search online** — looks up [Open Food Facts](https://world.openfoodfacts.org), a free, no-signup food database, then lets you adjust the quantity before logging.
 - **Scan barcode** — uses the device camera (via the vendored ZXing library) to read a barcode and looks up the same database. Needs camera permission and a real phone/browser — this can't be exercised in an automated test environment, so if scanning ever looks off, it's worth testing directly on a phone.
+
+## Meal plans
+
+**Nutrition → Meal plans.** Enter bodyweight, training load, goal and pace, how they eat (Anything / Vegetarian / Vegan / Pescatarian / Keto / Gluten free) and anything to avoid (dairy, egg, fish, shellfish, nuts, soy, gluten, pork). Out comes a day of five meals that lands on a calorie and macro target. Name it and it saves to a library; build as many as you like. Plans built on a coach's device are badged **From your coach** in the client's list.
+
+Every item can be **swapped** for another food in the same role — the replacement is sized to the calories it replaced, so the day's totals don't lurch — or removed. **Log this meal to today** drops a whole meal into the food diary.
+
+**There is no AI in this.** `js/mealPlan.js` is arithmetic and a pick order: it runs offline, instantly, and gives the same answer twice. Targets come from a bodyweight multiplier (13–18 cal/lb by training load), protein at about 1g per pound, fat at a quarter of calories with a floor, carbs taking the rest. Keto overrides that split and holds carbs to 40g.
+
+**Guardrails.** It will not generate below 1,200 calories or cut more than 25% below maintenance, and says on the plan when it has reined a request in. Portions are capped both in grams and in servings of the food's own unit, so no plan ever asks for eleven slices of bread. A food that is mostly one macro can't take over a meal, and on a low-carb target nothing can spend more than about a third of the day's carbs.
+
+**What it can't do.** It assembles from the 116 foods in the library — it can't invent a recipe. Accuracy is typically within 5% of the calorie target and usually better on protein; restricted diets drift further, because a vegan cut runs out of protein foods that aren't also carbohydrate long before it runs out of calories. The plan screen shows the miss ("23g under") rather than hiding it. Treat the output as a first draft, the same as a plan written by hand: the weekly weigh-in is what corrects it.
 
 **About the library's numbers.** Macros are stored once per food, per 100g, and scaled to whichever unit is picked — so there's one set of numbers per food rather than one per serving size, which is far harder to get quietly inconsistent. The values are representative of a typical supermarket version, drawn from standard composition data; a specific brand will differ, sometimes a lot (bread and deli meat most of all). Scanning the barcode beats the library whenever the packet is to hand. The library is also available as an ingredient source when building a recipe.
 

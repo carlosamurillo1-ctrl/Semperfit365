@@ -114,6 +114,15 @@ export const FOOD_LIBRARY = [
   F("green-beans", "Green beans, cooked", "Vegetables", [["cup", 125], ["g", 1]], 35, 1.9, 8, 0.3, ""),
   F("asparagus", "Asparagus, cooked", "Vegetables", [["cup", 180], ["spear", 20], ["g", 1]], 22, 2.4, 4.1, 0.2, ""),
   F("corn", "Corn, cooked", "Vegetables", [["cup", 164], ["ear", 90], ["g", 1]], 96, 3.4, 21, 1.5, ""),
+  // Plant proteins. Without these a vegan plan has only beans and chickpeas to
+  // build on, and both carry roughly three times as much carbohydrate as
+  // protein -- so hitting a protein target buries the carb target.
+  F("tofu-firm", "Tofu, firm", "Meat & fish", [["oz", 28], ["g", 1]], 144, 17, 3, 9, "soy beancurd vegan plant protein"),
+  F("tempeh", "Tempeh", "Meat & fish", [["oz", 28], ["g", 1]], 192, 20, 7.6, 11, "soy vegan plant protein"),
+  F("seitan", "Seitan, cooked", "Meat & fish", [["oz", 28], ["g", 1]], 141, 25, 4, 2, "wheat gluten vegan plant protein mock meat"),
+  F("lentils", "Lentils, cooked", "Vegetables", [["cup", 198], ["g", 1]], 116, 9, 20, 0.4, "pulses legumes vegan plant protein"),
+  F("edamame", "Edamame, shelled", "Vegetables", [["cup", 155], ["g", 1]], 121, 12, 9, 5, "soy beans vegan plant protein"),
+  F("pea-protein", "Pea protein powder", "Snacks & sweets", [["scoop", 30], ["g", 1]], 400, 80, 7, 5, "vegan plant protein shake"),
   F("black-beans", "Black beans, cooked", "Vegetables", [["cup", 172], ["g", 1]], 132, 8.9, 24, 0.5, "legumes"),
   F("chickpeas", "Chickpeas, cooked", "Vegetables", [["cup", 164], ["g", 1]], 164, 8.9, 27, 2.6, "garbanzo hummus beans"),
 
