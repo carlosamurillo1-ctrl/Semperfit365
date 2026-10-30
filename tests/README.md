@@ -6,6 +6,7 @@ Plain Node scripts, no framework. Serve the repo and run them:
 python3 -m http.server 8123          # from the repo root
 node tests/smoke.js                  # every screen renders, no page errors
 node tests/dashboard.js              # the Me tab: compliance, food, weight
+node tests/managed-client.js         # a locked-down client arriving via their link
 ```
 
 They drive a real browser via Playwright (`NODE_PATH` may need to point at a
