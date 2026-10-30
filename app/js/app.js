@@ -346,6 +346,7 @@ function render() {
     case "coach-client-assign-program": html = renderCoachClientAssignProgram(); break;
     case "coach-client-day": html = renderCoachClientDay(); break;
     case "coach-client-exercise": html = renderCoachClientExercise(); break;
+    case "profile": html = renderProfile(); break;
     case "nutrition": html = renderNutrition(); break;
     case "nutrition-add": html = renderNutritionAdd(); break;
     case "nutrition-search": html = renderNutritionSearch(); break;
@@ -1444,6 +1445,159 @@ function renderVideoEmbed(videoUrl) {
 
 // ---------- HISTORY screen ----------
 
+// ---------- PROFILE / DASHBOARD ----------
+
+/** Compliance figures derived from what's actually been logged. Works off the
+ * same day/exercise/week shape on both sides, so the client's dashboard and
+ * the coach's view of that client can't disagree about the numbers.
+ *
+ * A "workout" is one day in one week with at least one value logged against
+ * it -- not one exercise, which would count a single session five times. */
+function trainingStats(days) {
+  const sessions = new Map(); // "dayId:week" -> most recent iso timestamp
+  for (const day of days || []) {
+    for (const ex of day.exercises || []) {
+      for (const w of ex.weeks || []) {
+        if (!w.updatedAt) continue;
+        const key = `${day.id}:${w.week}`;
+        const prev = sessions.get(key);
+        if (!prev || w.updatedAt > prev) sessions.set(key, w.updatedAt);
+      }
+    }
+  }
+  const stamps = [...sessions.values()].sort();
+  const dayKeys = new Set(stamps.map((iso) => iso.slice(0, 10)));
+
+  // Counted back from today, but a streak isn't broken until a day has been
+  // missed in full -- so today not being trained yet is not a zero.
+  const dayStr = (d) => d.toISOString().slice(0, 10);
+  let streak = 0;
+  const cursor = new Date();
+  if (!dayKeys.has(dayStr(cursor))) cursor.setDate(cursor.getDate() - 1);
+  while (dayKeys.has(dayStr(cursor))) {
+    streak++;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+
+  const weekAgo = new Date();
+  weekAgo.setDate(weekAgo.getDate() - 7);
+  const thisWeek = stamps.filter((iso) => iso >= weekAgo.toISOString()).length;
+
+  return {
+    completed: sessions.size,
+    streak,
+    thisWeek,
+    lastWorkout: stamps.length ? stamps[stamps.length - 1] : null,
+    daysTrained: dayKeys.size,
+  };
+}
+
+function statTile(value, label, accent = false) {
+  return `
+    <div class="macro-stat">
+      <p class="macro-stat-label">${esc(label)}</p>
+      <h3${accent ? ' style="color:var(--accent);"' : ""}>${esc(String(value))}</h3>
+    </div>`;
+}
+
+/** The compliance strip, shared by the client's dashboard and the coach's
+ * view of that client. */
+function complianceRow(stats) {
+  return `<div class="macro-row">
+    ${statTile(stats.completed, "Workouts done")}
+    ${statTile(stats.streak, "Day streak", stats.streak > 0)}
+    ${statTile(stats.thisWeek, "Last 7 days")}
+  </div>`;
+}
+
+function renderProfile() {
+  const program = Store.getProgram();
+  const days = program?.days || [];
+  const stats = trainingStats(days);
+  const name = getClientName() || "";
+
+  const todayStr = Nutrition.todayStr();
+  const totals = Nutrition.getDayTotals(todayStr);
+  const goals = Nutrition.getGoals();
+  const hasGoals = goals.calorieGoal || goals.proteinGoal;
+  const logged = (Nutrition.getDiaryDay(todayStr).entries || []).length;
+
+  const weights = Nutrition.getWeightLog();
+  const latest = Nutrition.getLatestWeight();
+  const first = weights.length ? weights[weights.length - 1] : null;
+  const change = latest && first && latest.id !== first.id
+    ? Math.round((latest.weight - first.weight) * 10) / 10 : null;
+  const sinceCheckIn = Nutrition.daysSinceLastCheckIn();
+
+  const plans = Nutrition.getMealPlans();
+  const plan = plans[0] || null;
+
+  // The next thing to actually do: the first day whose earliest unlogged week
+  // is still waiting. Better than listing every day and leaving them to work
+  // out where they got to.
+  let nextUp = null;
+  for (const day of days) {
+    const anyUnlogged = (day.exercises || []).some((ex) =>
+      (ex.weeks || []).some((w) => !w.updatedAt));
+    if (anyUnlogged) { nextUp = day; break; }
+  }
+
+  return `
+    ${topbar(name ? `Hi, ${name}` : "Your progress")}
+    <div class="card">
+      <h3 style="margin:0 0 10px;">Compliance</h3>
+      ${complianceRow(stats)}
+      <p class="hint" style="margin:10px 0 0;">${stats.lastWorkout
+        ? `Last workout ${esc(relativeTime(stats.lastWorkout))}.`
+        : "Nothing logged yet — open a day and fill in your first set."}</p>
+    </div>
+
+    ${nextUp ? `
+    <div class="card tappable" data-action="open-day" data-day="${esc(nextUp.id)}">
+      <div class="row">
+        <div style="min-width:0;">
+          <p class="macro-stat-label" style="margin:0;">Next up</p>
+          <h3 style="margin:3px 0 0;">${esc(nextUp.name)}</h3>
+          <p style="margin:3px 0 0;">${nextUp.exercises.length} exercise${nextUp.exercises.length === 1 ? "" : "s"}</p>
+        </div>
+        <span class="pill" style="flex:none;">Start</span>
+      </div>
+    </div>` : ""}
+
+    <div class="card">
+      <div class="row">
+        <h3 style="margin:0;">Today's food</h3>
+        <span class="source-chip">${logged} item${logged === 1 ? "" : "s"}</span>
+      </div>
+      <div style="height:10px"></div>
+      ${macroRow(totals, goals)}
+      ${hasGoals ? "" : `<p class="hint" style="margin:10px 0 0;">No targets set yet. <a href="#" data-action="go-nutrition-goals">Set calories and macros</a> and this fills in.</p>`}
+      <div style="height:10px"></div>
+      <div class="btn-row">
+        <button class="btn ghost small" data-action="go-nutrition-add" data-date="${esc(todayStr)}" data-meal="Breakfast">Log food</button>
+        ${plan ? `<button class="btn ghost small" data-action="open-meal-plan" data-plan="${esc(plan.id)}">${esc(plan.name)}</button>` : `<button class="btn ghost small" data-action="go-meal-plans">Meal plans</button>`}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row">
+        <h3 style="margin:0;">Weight</h3>
+        ${latest ? `<span class="source-chip">${esc(String(latest.weight))} ${esc(goals.weightUnit || "lb")}</span>` : ""}
+      </div>
+      ${latest ? `
+        <p style="margin:8px 0 0;">${change === null ? "First check-in logged."
+          : change === 0 ? "Level with where you started."
+          : `${change > 0 ? "Up" : "Down"} ${Math.abs(change)} ${esc(goals.weightUnit || "lb")} since you started.`}</p>
+        <p class="hint" style="margin:4px 0 0;">${sinceCheckIn === 0 ? "Checked in today."
+          : sinceCheckIn === 1 ? "Checked in yesterday."
+          : `${sinceCheckIn} days since your last check-in.`}</p>
+      ` : `<p style="margin:8px 0 0;">No check-ins yet.</p>`}
+      <div style="height:10px"></div>
+      <button class="btn${sinceCheckIn === null || sinceCheckIn >= 7 ? " primary" : ""}" data-action="go-nutrition-weight">Check in</button>
+    </div>
+  `;
+}
+
 function renderHistory() {
   const entries = Store.getRecentEntries();
   if (!entries.length) {
@@ -2541,6 +2695,14 @@ function renderCoachClient() {
   return `
     ${topbar(coachClientData.displayName || clientLabel || "Client", { back: true })}
     <p style="margin-bottom:12px;">Last synced ${coachClientData.updatedAt ? relativeTime(firestoreTimeToIso(coachClientData.updatedAt)) : "never"}</p>
+    <div class="card">
+      <h3 style="margin:0 0 10px;">Compliance</h3>
+      ${complianceRow(trainingStats(days))}
+      <p class="hint" style="margin:10px 0 0;">${(() => {
+        const st = trainingStats(days);
+        return st.lastWorkout ? `Last workout ${esc(relativeTime(st.lastWorkout))}.` : "Hasn't logged a workout yet.";
+      })()}</p>
+    </div>
     ${renderCoachCheckIns(coachClientData.checkIns || [])}
     ${renderCoachReminders(clientId, clientLabel, coachClientData.reminders)}
     ${assignBtn}
