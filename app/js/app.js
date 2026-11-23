@@ -5113,7 +5113,17 @@ function consumeUrlParam(name, storageKey) {
   const urlParams = new URLSearchParams(window.location.search);
   const value = urlParams.get(name);
   if (value === null) return false;
-  localStorage.setItem(storageKey, value);
+  // A blank value ("?coach=" with nothing after it) is not a link, it's a
+  // half-built one. Storing it wrote an empty id that every check reads as
+  // false -- so the app did nothing, said nothing, and a real coach id that
+  // was already there got overwritten on the way.
+  if (!value.trim()) {
+    urlParams.delete(name);
+    const left = urlParams.toString();
+    history.replaceState(null, "", window.location.pathname + (left ? `?${left}` : ""));
+    return false;
+  }
+  localStorage.setItem(storageKey, value.trim());
   urlParams.delete(name);
   const rest = urlParams.toString();
   history.replaceState(null, "", window.location.pathname + (rest ? `?${rest}` : ""));

@@ -61,6 +61,24 @@ const check = (l, c, d) => { if (c) { pass++; console.log("  PASS", l); } else {
   check("a real client sees no dashboard and no hint of one",
     !/Coach dashboard/i.test(clientView), clientView.slice(0, 300));
 
+  // 6. A half-built link -- "?coach=" with nothing pasted after it -- must not
+  // quietly overwrite a working coach id with an empty one.
+  const ctx3 = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: "block" });
+  const page3 = await ctx3.newPage();
+  await page3.goto(BASE + "?coach=coach-real", { waitUntil: "domcontentloaded" });
+  await page3.waitForTimeout(1800);
+  await page3.click('[data-route="settings"]');
+  await page3.waitForTimeout(500);
+  check("set up as coach first", /Open coach dashboard/i.test(await page3.innerText("body")));
+  await page3.goto(BASE + "?coach=", { waitUntil: "domcontentloaded" });
+  await page3.waitForTimeout(1800);
+  await page3.click('[data-route="settings"]');
+  await page3.waitForTimeout(500);
+  check("an empty ?coach= leaves the real id alone", /Open coach dashboard/i.test(await page3.innerText("body")),
+    await page3.innerText("body"));
+  check("and stores nothing empty", await page3.evaluate(() => localStorage.getItem("sf365.coachId")) === "coach-real",
+    await page3.evaluate(() => localStorage.getItem("sf365.coachId")));
+
   check("no page errors", errs.length === 0, errs);
   console.log(`\n${pass} passed, ${fail} failed`);
   await browser.close();
