@@ -351,30 +351,6 @@
     .svc-list { grid-template-columns: 1fr; }
   }
 
-  /* ---------- myths ---------- */
-  .myth-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; }
-  .myth {
-    border-radius: var(--radius);
-    overflow: hidden;
-    background: #fff;
-    border: 1px solid var(--line);
-    display: flex;
-    flex-direction: column;
-  }
-  .myth .m { background: var(--sky); color: #fff; padding: 18px 22px; }
-  .myth .f { padding: 18px 22px; flex: 1; }
-  .myth .lb {
-    display: inline-block;
-    font: 800 12px "Baloo 2", sans-serif;
-    letter-spacing: .14em;
-    text-transform: uppercase;
-    margin-bottom: 4px;
-  }
-  .myth .m .lb { opacity: .85; }
-  .myth .f .lb { color: var(--sage); }
-  .myth .m p { margin: 0; font-weight: 700; font-size: 17px; line-height: 1.35; }
-  .myth .f p { margin: 0; color: var(--ink); font-size: 15.5px; }
-
   /* ---------- reviews ---------- */
   .quotes { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
   .quote {
@@ -553,7 +529,6 @@
     <div class="wrap">
       <a href="#about"><span class="en">About Evelyn</span><span class="es">Sobre Evelyn</span></a>
       <a href="#services"><span class="en">Services</span><span class="es">Servicios</span></a>
-      <a href="#myths"><span class="en">Myths vs. facts</span><span class="es">Mitos vs. hechos</span></a>
       <a href="#reviews"><span class="en">What families say</span><span class="es">Lo que dicen las familias</span></a>
       <a href="#how"><span class="en">How it works</span><span class="es">Cómo funciona</span></a>
       <a href="#start"><span class="en">Get started</span><span class="es">Comenzar</span></a>
@@ -620,8 +595,6 @@
         <span class="cred"><span class="en">Bilingual EN/ES</span><span class="es">Bilingüe EN/ES</span></span>
         <span class="cred">AAC</span>
         <span class="cred s">SOS Approach to Feeding</span>
-        <span class="cred">PECS Level 1 &amp; 2</span>
-        <span class="cred s">FEES</span>
         <span class="cred"><span class="en">Basic ASL</span><span class="es">ASL básico</span></span>
       </div>
     </aside>
@@ -683,7 +656,7 @@
       <div class="spec reveal">
         <div class="ic"><svg viewBox="0 0 24 24"><path d="M19 3H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h5v2h4v-2h5a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zM7 7h2v2H7zm0 4h2v2H7zm4-4h2v2h-2zm0 4h2v2h-2zm4-4h2v2h-2zm0 4h2v2h-2z"/></svg></div>
         <h3><span class="en">AAC &amp; Assistive Tech</span><span class="es">CAA y tecnología de apoyo</span></h3>
-        <p><span class="en">Assessment and implementation of augmentative and alternative communication &mdash; devices, boards, PECS and more.</span><span class="es">Evaluación e implementación de comunicación aumentativa y alternativa &mdash; dispositivos, tableros, PECS y más.</span></p>
+        <p><span class="en">Assessment and implementation of augmentative and alternative communication &mdash; devices, communication boards and more.</span><span class="es">Evaluación e implementación de comunicación aumentativa y alternativa &mdash; dispositivos, tableros de comunicación y más.</span></p>
       </div>
       <div class="spec reveal">
         <div class="ic"><svg viewBox="0 0 24 24"><path d="M8.1 13.3 10.9 10.5 3.9 3.5a4 4 0 0 0 0 5.7zm6.8-1.8c1.5.7 3.7.2 5.3-1.4 1.9-1.9 2.3-4.7.8-6.2s-4.3-1.1-6.2.8c-1.6 1.6-2.1 3.8-1.4 5.3L3.6 19.6 5 21l6.9-6.9 6.9 6.9 1.4-1.4-6.9-6.9z"/></svg></div>
@@ -710,34 +683,6 @@
         <li><svg viewBox="0 0 24 24"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg><span class="en">Parent/caregiver training &amp; support</span><span class="es">Capacitación y apoyo para padres/cuidadores</span></li>
         <li><svg viewBox="0 0 24 24"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg><span class="en">Sessions in English or Spanish</span><span class="es">Sesiones en inglés o español</span></li>
       </ul>
-    </div>
-  </div>
-</section>
-
-<!-- ================= MYTHS ================= -->
-<section id="myths">
-  <div class="wrap">
-    <div class="sec-head reveal">
-      <div class="kicker"><span class="en">Things I tell every family</span><span class="es">Lo que le digo a cada familia</span></div>
-      <h2><span class="en">Myths vs. facts</span><span class="es">Mitos vs. hechos</span></h2>
-    </div>
-    <div class="myth-grid">
-      <div class="myth reveal">
-        <div class="m"><span class="lb"><span class="en">Myth</span><span class="es">Mito</span></span><p><span class="en">Raising my child with two languages will cause a delay.</span><span class="es">Criar a mi hijo/a con dos idiomas le causará un retraso.</span></p></div>
-        <div class="f"><span class="lb"><span class="en">Fact</span><span class="es">Hecho</span></span><p><span class="en">Bilingualism does not cause language delay. Keep speaking the language of your heart at home.</span><span class="es">El bilingüismo no causa retraso del lenguaje. Siga hablando en casa el idioma de su corazón.</span></p></div>
-      </div>
-      <div class="myth reveal">
-        <div class="m"><span class="lb"><span class="en">Myth</span><span class="es">Mito</span></span><p><span class="en">If my child uses a device, they won't learn to talk.</span><span class="es">Si mi hijo/a usa un dispositivo, no aprenderá a hablar.</span></p></div>
-        <div class="f"><span class="lb"><span class="en">Fact</span><span class="es">Hecho</span></span><p><span class="en">Research shows AAC does not hinder speech &mdash; it often accelerates verbal language.</span><span class="es">Los estudios muestran que la CAA no frena el habla &mdash; a menudo acelera el lenguaje verbal.</span></p></div>
-      </div>
-      <div class="myth reveal">
-        <div class="m"><span class="lb"><span class="en">Myth</span><span class="es">Mito</span></span><p><span class="en">AAC is a last resort.</span><span class="es">La CAA es un último recurso.</span></p></div>
-        <div class="f"><span class="lb"><span class="en">Fact</span><span class="es">Hecho</span></span><p><span class="en">AAC can be introduced as soon as any communication difficulty arises. All forms of communication are respected.</span><span class="es">La CAA puede introducirse en cuanto surge cualquier dificultad de comunicación. Todas las formas de comunicación se respetan.</span></p></div>
-      </div>
-      <div class="myth reveal">
-        <div class="m"><span class="lb"><span class="en">Myth</span><span class="es">Mito</span></span><p><span class="en">Speech therapy is just about saying sounds correctly.</span><span class="es">La terapia del habla solo trata de pronunciar bien los sonidos.</span></p></div>
-        <div class="f"><span class="lb"><span class="en">Fact</span><span class="es">Hecho</span></span><p><span class="en">It's like physical therapy for the brain &mdash; language, understanding, social skills, feeding and more.</span><span class="es">Es como fisioterapia para el cerebro &mdash; lenguaje, comprensión, habilidades sociales, alimentación y más.</span></p></div>
-      </div>
     </div>
   </div>
 </section>
