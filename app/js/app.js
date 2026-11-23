@@ -1757,6 +1757,18 @@ function renderSyncSettingsCard() {
       </div>` : "";
   // Nothing at all for a device that is neither -- no dashboard and no hint
   // that one exists.
+  // A device that holds a coach id but is flagged as a managed client has
+  // almost certainly been used to test a client link. Silently hiding the
+  // dashboard leaves the coach locked out of his own roster with nothing on
+  // screen to explain it, so say so and offer the way back.
+  const strandedCoach = !isCoachDevice() && localStorage.getItem(LOCAL_KEYS.coachId) ? `
+    <div class="card">
+      <h3>Coach dashboard is hidden</h3>
+      <p>This device is yours, but it's currently in client mode &mdash; that happens after opening one of your own client links here, since those lock the app down to that client's program.</p>
+      <div style="height:10px"></div>
+      <button class="btn primary" data-action="restore-coach-device">Switch back to coach</button>
+    </div>` : "";
+
   const coachCard = isCoachDevice() ? `
     <div class="card">
       <h3>Coach dashboard</h3>
@@ -1765,7 +1777,7 @@ function renderSyncSettingsCard() {
       <div style="height:10px"></div>
       <button class="btn" data-action="go-coach">Open coach dashboard</button>
     </div>` : "";
-  return clientCards + coachCard;
+  return strandedCoach + clientCards + coachCard;
 }
 
 // ---------- PIN gate in front of the dashboard ----------
@@ -3313,6 +3325,12 @@ function onClick(e) {
       if (confirm("Unpublish this program? It'll no longer show up as an option when adding a new client. Clients who already started with it are unaffected.")) {
         unpublishSavedProgram(el.dataset.program, el.dataset.published);
       }
+      break;
+    }
+    case "restore-coach-device": {
+      localStorage.removeItem(LOCAL_KEYS.managed);
+      toast("Coach dashboard is back");
+      navigate("settings");
       break;
     }
     case "go-coach": {
@@ -5296,6 +5314,11 @@ async function boot() {
   // if the browser that created the id was ever cleared.
   if (consumeUrlParam("coach", LOCAL_KEYS.coachId)) {
     localStorage.removeItem(LOCAL_KEYS.coachPinOkUntil); // still ask for the PIN, if one is set
+    // A coach link is the statement "this device is mine". If the coach had
+    // opened one of his own client links here to check it -- every one of them
+    // carries m=1 -- that flag is still set and would keep the dashboard
+    // hidden, which made the one documented way back in not actually work.
+    localStorage.removeItem(LOCAL_KEYS.managed);
   }
   consumeUrlParam("client", LOCAL_KEYS.clientId);
   consumeUrlParam("price", LOCAL_KEYS.clientPriceCents);
