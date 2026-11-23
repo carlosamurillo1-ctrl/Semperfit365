@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>A World of Words — Bilingual Speech-Language Therapy in Westchester, NY</title>
+<meta name="description" content="Bilingual (English/Spanish) speech-language therapy in Westchester County, NY with Evelyn Marin, M.S., CCC-SLP, TSSLD-BE. Evaluations, therapy, AAC, feeding, and parent coaching." />
+<meta name="theme-color" content="#6a9fd3" />
+<link rel="icon" href="img/favicon.png" type="image/png" />
+
+<meta property="og:type" content="website" />
+<meta property="og:title" content="A World of Words · Un Mundo de Palabras" />
+<meta property="og:description" content="Bilingual speech-language therapy in Westchester County, NY. Every child deserves a voice." />
+<!-- EDIT ME: once this has its own domain, make this an absolute URL
+     (e.g. https://aworldofwordsslp.com/img/logo.jpg) so link previews show it. -->
+<meta property="og:image" content="img/logo.jpg" />
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "MedicalBusiness",
+  "name": "A World of Words Speech and Language Therapy L.L.C.",
+  "alternateName": "Un Mundo de Palabras",
+  "description": "Bilingual (English/Spanish) speech-language therapy: evaluations, individual and group therapy, AAC, feeding and swallowing, and parent/caregiver coaching.",
+  "telephone": "+1-914-413-9709",
+  "email": "awowspeech@gmail.com",
+  "areaServed": { "@type": "AdministrativeArea", "name": "Westchester County, NY" },
+  "knowsLanguage": ["en", "es"],
+  "founder": {
+    "@type": "Person",
+    "name": "Evelyn Marin",
+    "jobTitle": "Speech-Language Pathologist, M.S., CCC-SLP, TSSLD-BE"
+  },
+  "sameAs": ["https://www.instagram.com/_aworldofwords"]
+}
+</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Caveat:wght@600;700&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet" />
+
+<style>
+  :root {
+    --sky: #6a9fd3;
+    --sky-soft: #e6f0fa;
+    --navy: #1f3a76;
+    --navy-2: #2b4c94;
+    --sage: #868d6b;
+    --sage-soft: #eef0e6;
+    --cream: #fbfaf6;
+    --paper: #ffffff;
+    --ink: #1f2633;
+    --dim: #586072;
+    --line: rgba(31, 58, 118, 0.12);
+    --danger: #b3261e;
+    --radius: 22px;
+    --maxw: 1100px;
+    color-scheme: light;
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+
+  /* Language toggle: every bit of copy exists twice, .en and .es. */
+  html:not([lang="es"]) .es { display: none !important; }
+  html[lang="es"] .en { display: none !important; }
+
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    * { animation: none !important; transition: none !important; }
+  }
+
+  body {
+    margin: 0;
+    background: var(--cream);
+    color: var(--ink);
+    font-family: Nunito, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 17px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  img { max-width: 100%; display: block; }
+  a { color: var(--navy-2); }
+  h1, h2, h3 {
+    font-family: "Baloo 2", Nunito, sans-serif;
+    color: var(--navy);
+    line-height: 1.12;
+    margin: 0 0 12px;
+    letter-spacing: -0.01em;
+  }
+  h2 { font-size: clamp(30px, 4.6vw, 44px); }
+  h3 { font-size: 22px; }
+  .script { font-family: Caveat, cursive; font-weight: 700; }
+
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 20px; }
+  section { padding: 88px 0; position: relative; }
+  section.tint { background: var(--sky-soft); }
+  section.sage { background: var(--sage-soft); }
+
+  .kicker {
+    font-family: Caveat, cursive;
+    font-weight: 700;
+    font-size: 26px;
+    color: var(--sage);
+    margin-bottom: 2px;
+  }
+  .sec-head { max-width: 680px; margin: 0 auto 44px; text-align: center; }
+  .sec-head p { color: var(--dim); margin: 0; }
+
+  /* ---------- buttons ---------- */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 14px 26px;
+    border-radius: 999px;
+    font-family: "Baloo 2", Nunito, sans-serif;
+    font-weight: 700;
+    font-size: 17px;
+    text-decoration: none;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: transform .15s ease, background .15s ease, box-shadow .15s ease;
+  }
+  .btn:active { transform: scale(.97); }
+  .btn-primary { background: var(--navy); color: #fff; box-shadow: 0 6px 18px rgba(31,58,118,.25); }
+  .btn-primary:hover { background: var(--navy-2); }
+  .btn-ghost { background: #fff; color: var(--navy); border-color: var(--line); }
+  .btn-ghost:hover { border-color: var(--sky); }
+  .btn:disabled { opacity: .6; cursor: wait; }
+
+  /* ---------- nav ---------- */
+  .nav {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(251, 250, 246, .9);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--line);
+  }
+  .nav-inner { display: flex; align-items: center; justify-content: space-between; height: 72px; gap: 12px; }
+  .nav-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--navy); }
+  .nav-logo img { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; background: #fff; border: 1px solid var(--line); }
+  .nav-logo b { font-family: Caveat, cursive; font-size: 27px; line-height: 1; white-space: nowrap; }
+  .nav-links { display: flex; gap: 26px; }
+  .nav-links a { color: var(--ink); text-decoration: none; font-weight: 600; font-size: 15.5px; }
+  .nav-links a:hover { color: var(--navy-2); }
+  .nav-right { display: flex; align-items: center; gap: 10px; }
+  .nav-right .btn { padding: 10px 18px; font-size: 15px; }
+
+  .lang {
+    display: inline-flex;
+    border: 1.5px solid var(--line);
+    border-radius: 999px;
+    background: #fff;
+    padding: 3px;
+  }
+  .lang button {
+    border: 0; background: transparent; cursor: pointer;
+    font: 700 13px Nunito, sans-serif;
+    color: var(--dim);
+    padding: 6px 10px;
+    border-radius: 999px;
+  }
+  .lang button[aria-pressed="true"] { background: var(--sky); color: #fff; }
+
+  .nav-toggle { display: none; background: none; border: 0; padding: 8px; cursor: pointer; }
+  .nav-toggle svg { width: 26px; height: 26px; fill: var(--navy); }
+  .nav-toggle .ic-close { display: none; }
+  .nav-toggle[aria-expanded="true"] .ic-open { display: none; }
+  .nav-toggle[aria-expanded="true"] .ic-close { display: block; }
+  .nav-panel { display: none; border-top: 1px solid var(--line); background: var(--cream); }
+  .nav-panel.open { display: block; }
+  .nav-panel a { display: block; padding: 14px 0; color: var(--ink); text-decoration: none; font-weight: 600; border-bottom: 1px solid var(--line); }
+  .nav-panel a:last-child { border-bottom: 0; }
+
+  @media (max-width: 900px) {
+    .nav-links { display: none; }
+    .nav-toggle { display: block; }
+  }
+  @media (max-width: 520px) {
+    .nav-logo b { display: none; }
+    .nav-right .btn { display: none; }
+  }
+
+  /* ---------- hero ---------- */
+  .hero {
+    padding: 64px 0 80px;
+    background:
+      radial-gradient(circle at 88% 12%, rgba(106,159,211,.22) 0, transparent 42%),
+      radial-gradient(circle at 6% 90%, rgba(134,141,107,.20) 0, transparent 40%),
+      var(--cream);
+    overflow: hidden;
+  }
+  .hero-inner { display: grid; grid-template-columns: 1.1fr .9fr; gap: 48px; align-items: center; }
+  .eyebrow {
+    display: inline-block;
+    background: #fff;
+    border: 1px solid var(--line);
+    color: var(--navy);
+    font-weight: 700;
+    font-size: 13.5px;
+    padding: 7px 14px;
+    border-radius: 999px;
+    margin-bottom: 18px;
+  }
+  .hero h1 { font-size: clamp(40px, 6.4vw, 66px); margin-bottom: 6px; }
+  .hero .tag { font-family: Caveat, cursive; font-size: clamp(28px, 3.6vw, 38px); color: var(--sage); margin: 0 0 18px; line-height: 1.1; }
+  .hero .lede { font-size: 19px; color: var(--dim); max-width: 560px; margin: 0 0 30px; }
+  .hero-cta { display: flex; flex-wrap: wrap; gap: 12px; }
+  .hero-art { position: relative; justify-self: center; width: min(420px, 86vw); }
+  .hero-art .photo {
+    width: 100%;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 24px 60px rgba(31,58,118,.18);
+    padding: 10px;
+  }
+  .hero-art .photo img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+  .bubble {
+    position: absolute;
+    background: #fff;
+    border-radius: 20px;
+    padding: 10px 16px;
+    font-family: Caveat, cursive;
+    font-weight: 700;
+    font-size: 22px;
+    color: var(--navy);
+    box-shadow: 0 10px 26px rgba(31,58,118,.14);
+    line-height: 1.1;
+    white-space: nowrap;
+  }
+  .bubble.b1 { top: 4%; left: -8%; transform: rotate(-6deg); }
+  .bubble.b2 { bottom: 10%; right: -10%; transform: rotate(5deg); background: var(--sage); color: #fff; }
+  .bubble.b3 { bottom: -2%; left: 4%; transform: rotate(-3deg); background: var(--sky); color: #fff; }
+  @media (max-width: 860px) {
+    .hero-inner { grid-template-columns: 1fr; text-align: center; }
+    .hero .lede { margin-left: auto; margin-right: auto; }
+    .hero-cta { justify-content: center; }
+    .hero-art { order: -1; width: min(300px, 72vw); }
+    .bubble { font-size: 18px; }
+    .bubble.b1 { left: -6%; }
+    .bubble.b2 { right: -6%; }
+  }
+
+  /* ---------- strip ---------- */
+  .strip { background: var(--navy); color: #fff; padding: 22px 0; }
+  .strip-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; text-align: center; }
+  .strip .n { font-family: "Baloo 2", sans-serif; font-weight: 800; font-size: 22px; line-height: 1.1; }
+  .strip .l { font-size: 13.5px; opacity: .8; }
+  @media (max-width: 700px) { .strip-grid { grid-template-columns: repeat(2, 1fr); row-gap: 18px; } }
+
+  /* ---------- about ---------- */
+  .about-grid { display: grid; grid-template-columns: .8fr 1.2fr; gap: 56px; align-items: start; }
+  .about-card {
+    background: #fff;
+    border-radius: var(--radius);
+    padding: 28px;
+    border: 1px solid var(--line);
+    position: sticky;
+    top: 96px;
+    text-align: center;
+  }
+  .about-card img { width: 220px; margin: 0 auto 16px; }
+  .about-card .nm { font-family: "Baloo 2", sans-serif; font-weight: 800; font-size: 24px; color: var(--navy); line-height: 1.1; }
+  .about-card .ti { color: var(--dim); font-size: 15px; margin-top: 4px; }
+  .creds { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 18px; }
+  .cred {
+    font-size: 13px;
+    font-weight: 700;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: var(--sky-soft);
+    color: var(--navy);
+  }
+  .cred.s { background: var(--sage-soft); color: #555c40; }
+  .about-body p { margin: 0 0 18px; }
+  .about-body .pull {
+    font-family: Caveat, cursive;
+    font-size: 30px;
+    color: var(--navy-2);
+    line-height: 1.2;
+    border-left: 4px solid var(--sky);
+    padding-left: 18px;
+    margin: 28px 0;
+  }
+  .timeline { list-style: none; padding: 0; margin: 26px 0 0; display: grid; gap: 12px; }
+  .timeline li {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 14px 18px;
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    font-size: 15.5px;
+  }
+  .timeline .dot {
+    flex: 0 0 34px; height: 34px; border-radius: 50%;
+    background: var(--sky-soft); color: var(--navy);
+    display: grid; place-items: center;
+  }
+  .timeline .dot svg { width: 18px; height: 18px; fill: currentColor; }
+  .timeline b { color: var(--navy); }
+  @media (max-width: 860px) {
+    .about-grid { grid-template-columns: 1fr; gap: 32px; }
+    .about-card { position: static; }
+  }
+
+  /* ---------- specialties ---------- */
+  .spec-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 18px; }
+  .spec {
+    background: #fff;
+    border-radius: var(--radius);
+    padding: 28px 24px;
+    border: 1px solid var(--line);
+    transition: transform .18s ease, box-shadow .18s ease;
+  }
+  .spec:hover { transform: translateY(-4px); box-shadow: 0 16px 34px rgba(31,58,118,.10); }
+  .spec .ic {
+    width: 58px; height: 58px; border-radius: 18px;
+    display: grid; place-items: center;
+    background: var(--sky); color: #fff;
+    margin-bottom: 16px;
+  }
+  .spec:nth-child(even) .ic { background: var(--sage); }
+  .spec .ic svg { width: 30px; height: 30px; fill: currentColor; }
+  .spec p { color: var(--dim); margin: 0; font-size: 15.5px; }
+
+  .svc-wrap {
+    margin-top: 40px;
+    background: var(--navy);
+    color: #fff;
+    border-radius: var(--radius);
+    padding: 34px;
+    display: grid;
+    grid-template-columns: .8fr 1.2fr;
+    gap: 28px;
+    align-items: center;
+  }
+  .svc-wrap h3 { color: #fff; font-family: Caveat, cursive; font-size: 40px; margin: 0; }
+  .svc-wrap p { margin: 6px 0 0; opacity: .8; font-size: 15.5px; }
+  .svc-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 12px 22px; }
+  .svc-list li { display: flex; gap: 10px; align-items: flex-start; font-weight: 600; }
+  .svc-list svg { flex: 0 0 22px; width: 22px; height: 22px; fill: #b9d4ef; margin-top: 2px; }
+  @media (max-width: 760px) {
+    .svc-wrap { grid-template-columns: 1fr; padding: 26px; }
+    .svc-list { grid-template-columns: 1fr; }
+  }
+
+  /* ---------- myths ---------- */
+  .myth-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; }
+  .myth {
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: #fff;
+    border: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+  }
+  .myth .m { background: var(--sky); color: #fff; padding: 18px 22px; }
+  .myth .f { padding: 18px 22px; flex: 1; }
+  .myth .lb {
+    display: inline-block;
+    font: 800 12px "Baloo 2", sans-serif;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .myth .m .lb { opacity: .85; }
+  .myth .f .lb { color: var(--sage); }
+  .myth .m p { margin: 0; font-weight: 700; font-size: 17px; line-height: 1.35; }
+  .myth .f p { margin: 0; color: var(--ink); font-size: 15.5px; }
+
+  /* ---------- reviews ---------- */
+  .quotes { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+  .quote {
+    background: #fff;
+    border-radius: var(--radius);
+    padding: 30px;
+    border: 1px solid var(--line);
+    position: relative;
+  }
+  .quote::before {
+    content: "\201C";
+    position: absolute;
+    top: -6px; right: 20px;
+    font: 800 110px/1 "Baloo 2", serif;
+    color: var(--sky-soft);
+  }
+  .quote .st { color: #e4a72a; letter-spacing: 2px; font-size: 18px; margin-bottom: 8px; }
+  .quote p { margin: 0 0 16px; position: relative; }
+  .quote .who { font-weight: 700; color: var(--navy); font-size: 15px; }
+  @media (max-width: 760px) { .quotes { grid-template-columns: 1fr; } }
+
+  /* ---------- how ---------- */
+  .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; counter-reset: s; }
+  .step { text-align: center; padding: 8px; }
+  .step .num {
+    width: 62px; height: 62px; margin: 0 auto 14px;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    font: 800 26px "Baloo 2", sans-serif;
+    color: #fff;
+    background: var(--sage);
+    box-shadow: 0 0 0 7px #fff;
+  }
+  .step:nth-child(odd) .num { background: var(--sky); }
+  .step p { color: var(--dim); margin: 0; font-size: 15.5px; }
+  @media (max-width: 860px) { .steps { grid-template-columns: 1fr 1fr; row-gap: 30px; } }
+  @media (max-width: 480px) { .steps { grid-template-columns: 1fr; } }
+
+  /* ---------- questionnaire ---------- */
+  .form-shell {
+    max-width: 720px;
+    margin: 0 auto;
+    background: #fff;
+    border-radius: 28px;
+    padding: 36px;
+    border: 1px solid var(--line);
+    box-shadow: 0 24px 60px rgba(31,58,118,.10);
+  }
+  @media (max-width: 560px) { .form-shell { padding: 24px 18px; border-radius: 22px; } }
+
+  .fbar { height: 8px; background: var(--sky-soft); border-radius: 99px; margin-bottom: 8px; overflow: hidden; }
+  .fbar span { display: block; height: 100%; width: 33%; background: linear-gradient(90deg, var(--sky), var(--navy-2)); border-radius: 99px; transition: width .3s ease; }
+  .fcount { font-size: 13px; color: var(--dim); font-weight: 700; margin-bottom: 22px; }
+  .fstep h3 { font-size: 24px; margin-bottom: 4px; }
+
+  #lead-form label, .flabel {
+    display: block;
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--navy);
+    margin: 20px 0 8px;
+  }
+  #lead-form .opt { color: var(--sage); font-weight: 600; font-size: 13px; }
+  #lead-form input[type="text"],
+  #lead-form input[type="email"],
+  #lead-form input[type="tel"],
+  #lead-form textarea {
+    width: 100%;
+    background: var(--cream);
+    border: 1.5px solid var(--line);
+    border-radius: 14px;
+    padding: 14px;
+    color: var(--ink);
+    font: inherit;
+    font-size: 16px; /* under 16px iOS zooms the page on focus */
+  }
+  #lead-form input:focus, #lead-form textarea:focus { outline: none; border-color: var(--sky); background: #fff; }
+  #lead-form textarea { resize: vertical; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
+  @media (max-width: 560px) { .two { grid-template-columns: 1fr; } }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 9px; }
+  .chip { margin: 0 !important; font-weight: 400 !important; }
+  .chip input { position: absolute; opacity: 0; pointer-events: none; }
+  .chip > span {
+    display: inline-block;
+    padding: 10px 16px;
+    border: 1.5px solid var(--line);
+    border-radius: 999px;
+    font-size: 15px;
+    color: var(--ink);
+    background: #fff;
+    cursor: pointer;
+    transition: border-color .15s ease, background .15s ease;
+  }
+  .chip > span:hover { border-color: var(--sky); }
+  .chip input:checked + span { border-color: var(--navy-2); background: var(--navy); color: #fff; }
+  .chip input:focus-visible + span { outline: 2px solid var(--sky); outline-offset: 2px; }
+
+  .botcheck { position: absolute !important; left: -9999px; }
+  .privacy {
+    margin-top: 18px;
+    font-size: 13.5px;
+    color: var(--dim);
+    background: var(--sage-soft);
+    border-radius: 12px;
+    padding: 12px 14px;
+  }
+  .fnav { display: flex; gap: 10px; margin-top: 28px; }
+  .fnav .btn { flex: 1; }
+  .ferror { color: var(--danger); font-size: 14.5px; font-weight: 600; margin: 16px 0 0; }
+  .result { text-align: center; padding: 10px 0; }
+  .result .big { font-family: Caveat, cursive; font-size: 46px; color: var(--navy); line-height: 1; margin-bottom: 10px; }
+  .result p { color: var(--dim); margin: 0 0 16px; }
+  .btn-row { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+
+  /* ---------- contact ---------- */
+  .contact-grid { display: grid; gap: 14px; grid-template-columns: 1fr 1fr; max-width: 820px; margin: 0 auto; }
+  @media (max-width: 640px) { .contact-grid { grid-template-columns: 1fr; } }
+  .contact-card {
+    display: flex; align-items: center; gap: 14px;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 20px;
+    text-decoration: none;
+    color: var(--ink);
+    transition: border-color .15s ease, transform .15s ease;
+  }
+  a.contact-card:hover { border-color: var(--sky); transform: translateY(-2px); }
+  .contact-card .ci { flex: 0 0 46px; height: 46px; border-radius: 14px; background: var(--sky-soft); color: var(--navy); display: grid; place-items: center; }
+  .contact-card svg { width: 22px; height: 22px; fill: currentColor; }
+  .contact-card .lab { font-size: 12px; text-transform: uppercase; letter-spacing: .1em; color: var(--dim); font-weight: 700; }
+  .contact-card .val { font-weight: 700; font-size: 16px; overflow-wrap: anywhere; }
+
+  /* ---------- footer ---------- */
+  footer { background: #fff; border-top: 1px solid var(--line); padding: 44px 0; text-align: center; color: var(--dim); font-size: 14px; }
+  footer img { width: 120px; margin: 0 auto 14px; }
+  footer .sig { font-family: Caveat, cursive; font-size: 26px; color: var(--navy); }
+  footer .legal { margin-top: 14px; font-size: 12.5px; opacity: .85; max-width: 620px; margin-left: auto; margin-right: auto; }
+
+  /* ---------- scroll reveal ---------- */
+  .reveal { opacity: 0; transform: translateY(18px); transition: opacity .55s ease, transform .55s ease; }
+  .reveal.in { opacity: 1; transform: none; }
+</style>
+</head>
+<body>
+
+<!-- ================= NAV ================= -->
+<header class="nav">
+  <div class="wrap nav-inner">
+    <a class="nav-logo" href="#top">
+      <img src="img/logo.jpg" alt="A World of Words logo" />
+      <b>A World of Words</b>
+    </a>
+    <nav class="nav-links">
+      <a href="#about"><span class="en">About</span><span class="es">Sobre mí</span></a>
+      <a href="#services"><span class="en">Services</span><span class="es">Servicios</span></a>
+      <a href="#reviews"><span class="en">Families</span><span class="es">Familias</span></a>
+      <a href="#how"><span class="en">How it works</span><span class="es">Cómo funciona</span></a>
+      <a href="#contact"><span class="en">Contact</span><span class="es">Contacto</span></a>
+    </nav>
+    <div class="nav-right">
+      <div class="lang" role="group" aria-label="Language / Idioma">
+        <button type="button" data-lang="en" aria-pressed="true">EN</button>
+        <button type="button" data-lang="es" aria-pressed="false">ES</button>
+      </div>
+      <a class="btn btn-primary" href="#start"><span class="en">Get started</span><span class="es">Comenzar</span></a>
+      <button class="nav-toggle" id="nav-toggle" type="button" aria-label="Menu" aria-expanded="false" aria-controls="nav-panel">
+        <svg class="ic-open" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+        <svg class="ic-close" viewBox="0 0 24 24"><path d="M19 6.4 17.6 5 12 10.6 6.4 5 5 6.4l5.6 5.6L5 17.6 6.4 19l5.6-5.6 5.6 5.6 1.4-1.4-5.6-5.6z"/></svg>
+      </button>
+    </div>
+  </div>
+  <div class="nav-panel" id="nav-panel">
+    <div class="wrap">
+      <a href="#about"><span class="en">About Evelyn</span><span class="es">Sobre Evelyn</span></a>
+      <a href="#services"><span class="en">Services</span><span class="es">Servicios</span></a>
+      <a href="#myths"><span class="en">Myths vs. facts</span><span class="es">Mitos vs. hechos</span></a>
+      <a href="#reviews"><span class="en">What families say</span><span class="es">Lo que dicen las familias</span></a>
+      <a href="#how"><span class="en">How it works</span><span class="es">Cómo funciona</span></a>
+      <a href="#start"><span class="en">Get started</span><span class="es">Comenzar</span></a>
+      <a href="#contact"><span class="en">Contact</span><span class="es">Contacto</span></a>
+    </div>
+  </div>
+</header>
+
+<!-- ================= HERO ================= -->
+<section class="hero" id="top">
+  <div class="wrap hero-inner">
+    <div>
+      <span class="eyebrow">
+        <span class="en">Bilingual Speech-Language Therapy &middot; Westchester County, NY</span>
+        <span class="es">Terapia del habla y lenguaje bilingüe &middot; Condado de Westchester, NY</span>
+      </span>
+      <h1>
+        <span class="en">Every child deserves a voice.</span>
+        <span class="es">Cada niño merece una voz.</span>
+      </h1>
+      <p class="tag">A World of Words &middot; Un Mundo de Palabras</p>
+      <p class="lede en">
+        I'm Evelyn Marin, a bilingual speech-language pathologist. I help children find their words &mdash;
+        in English, in Spanish, with a device, or with their hands &mdash; and I coach parents and caregivers
+        so progress keeps happening long after our session ends.
+      </p>
+      <p class="lede es">
+        Soy Evelyn Marin, patóloga del habla y lenguaje bilingüe. Ayudo a los niños a encontrar sus palabras
+        &mdash; en inglés, en español, con un dispositivo o con sus manos &mdash; y acompaño a padres y cuidadores
+        para que el progreso continúe mucho después de cada sesión.
+      </p>
+      <div class="hero-cta">
+        <a class="btn btn-primary" href="#start"><span class="en">Tell me about your child &rarr;</span><span class="es">Cuénteme sobre su hijo/a &rarr;</span></a>
+        <a class="btn btn-ghost" href="#services"><span class="en">See services</span><span class="es">Ver servicios</span></a>
+      </div>
+    </div>
+    <div class="hero-art">
+      <div class="photo"><img src="img/evelyn.png" alt="Evelyn Marin, speech-language pathologist" /></div>
+      <div class="bubble b1"><span class="en">Hi!</span><span class="es">¡Hola!</span> &#128075;</div>
+      <div class="bubble b2">English &amp; Español</div>
+      <div class="bubble b3"><span class="en">Let's talk!</span><span class="es">¡Hablemos!</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= STRIP ================= -->
+<div class="strip">
+  <div class="wrap strip-grid">
+    <div><div class="n">CCC-SLP</div><div class="l"><span class="en">ASHA certified</span><span class="es">Certificada por ASHA</span></div></div>
+    <div><div class="n">TSSLD-BE</div><div class="l"><span class="en">Bilingual extension</span><span class="es">Extensión bilingüe</span></div></div>
+    <div><div class="n">EN &middot; ES</div><div class="l"><span class="en">Evaluations &amp; therapy</span><span class="es">Evaluaciones y terapia</span></div></div>
+    <div><div class="n">Westchester</div><div class="l"><span class="en">County, NY</span><span class="es">Condado, NY</span></div></div>
+  </div>
+</div>
+
+<!-- ================= ABOUT ================= -->
+<section id="about">
+  <div class="wrap about-grid">
+    <aside class="about-card reveal">
+      <img src="img/logo.jpg" alt="A World of Words — Un Mundo de Palabras" />
+      <div class="nm">Evelyn Marin</div>
+      <div class="ti">M.S., CCC-SLP, TSSLD-BE</div>
+      <div class="creds">
+        <span class="cred"><span class="en">Bilingual EN/ES</span><span class="es">Bilingüe EN/ES</span></span>
+        <span class="cred">AAC</span>
+        <span class="cred s">SOS Approach to Feeding</span>
+        <span class="cred">PECS Level 1 &amp; 2</span>
+        <span class="cred s">FEES</span>
+        <span class="cred"><span class="en">Basic ASL</span><span class="es">ASL básico</span></span>
+      </div>
+    </aside>
+
+    <div class="about-body reveal">
+      <div class="kicker"><span class="en">Nice to meet you</span><span class="es">Mucho gusto</span></div>
+      <h2><span class="en">I see your child &mdash; and their whole world.</span><span class="es">Veo a su hijo/a &mdash; y todo su mundo.</span></h2>
+
+      <div class="en">
+        <p>My path into speech-language pathology has always been about purpose. From my first clinical placements in schools and hospitals to my work in the Bronx with bilingual and bicultural families, I've been drawn to the children who need a clinician who truly understands their world &mdash; their languages, their culture, their family &mdash; and who will advocate fiercely for how they communicate.</p>
+        <p>I earned both my Bachelor's and Master's in Communication Disorders from Mercy College in Dobbs Ferry, NY, graduating with honors, and completed the Bilingual Extension Institute at Teachers College, Columbia University.</p>
+        <p class="pull">No two sessions ever look the same &mdash; because no two children are the same.</p>
+        <p>I'm creative, flexible and resourceful, and I bring that into every session: play, books, songs, visuals, and real-life routines your family already has. Just as important, I make sure you leave each session knowing exactly how to keep building at home. <b>Empowering parents and caregivers, one session at a time.</b></p>
+      </div>
+      <div class="es">
+        <p>Mi camino en la patología del habla y lenguaje siempre ha tenido un propósito. Desde mis primeras prácticas clínicas en escuelas y hospitales hasta mi trabajo en el Bronx con familias bilingües y biculturales, siempre me han llamado los niños que necesitan a una terapeuta que de verdad entienda su mundo &mdash; sus idiomas, su cultura, su familia &mdash; y que abogue con fuerza por su manera de comunicarse.</p>
+        <p>Obtuve mi licenciatura y mi maestría en Trastornos de la Comunicación en Mercy College en Dobbs Ferry, NY, con honores, y completé el Bilingual Extension Institute en Teachers College, Columbia University.</p>
+        <p class="pull">Ninguna sesión es igual a otra &mdash; porque ningún niño es igual a otro.</p>
+        <p>Soy creativa, flexible y resolutiva, y eso se nota en cada sesión: juego, libros, canciones, apoyos visuales y las rutinas que su familia ya tiene. Igual de importante, me aseguro de que usted salga de cada sesión sabiendo cómo seguir practicando en casa. <b>Empoderando a padres y cuidadores, una sesión a la vez.</b></p>
+      </div>
+
+      <ul class="timeline">
+        <li>
+          <span class="dot"><svg viewBox="0 0 24 24"><path d="M12 3 1 9l11 6 9-4.9V17h2V9L12 3zm-7 9.2v4L12 20l7-3.8v-4L12 16l-7-3.8z"/></svg></span>
+          <span><b>Mercy College</b> &mdash; <span class="en">B.S. &amp; M.S., Communication Disorders. Dean's List, Program Honors, National Society of Collegiate Scholars.</span><span class="es">Licenciatura y Maestría en Trastornos de la Comunicación. Dean's List, Program Honors, National Society of Collegiate Scholars.</span></span>
+        </li>
+        <li>
+          <span class="dot"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm6.9 6h-3a15.7 15.7 0 0 0-1.4-3.6A8 8 0 0 1 18.9 8zM12 4a14 14 0 0 1 1.9 4h-3.8A14 14 0 0 1 12 4zM4.3 14a8.2 8.2 0 0 1 0-4h3.4a16.5 16.5 0 0 0 0 4zm.8 2h3a15.7 15.7 0 0 0 1.4 3.6A8 8 0 0 1 5.1 16zm3-8h-3a8 8 0 0 1 4.4-3.6A15.7 15.7 0 0 0 8.1 8zM12 20a14 14 0 0 1-1.9-4h3.8A14 14 0 0 1 12 20zm2.3-6H9.7a14.7 14.7 0 0 1 0-4h4.6a14.7 14.7 0 0 1 0 4zm.3 5.6a15.7 15.7 0 0 0 1.4-3.6h3a8 8 0 0 1-4.4 3.6zm1.7-5.6a16.5 16.5 0 0 0 0-4h3.4a8.2 8.2 0 0 1 0 4z"/></svg></span>
+          <span><b>Teachers College, Columbia University</b> &mdash; <span class="en">Bilingual Extension Institute.</span><span class="es">Bilingual Extension Institute.</span></span>
+        </li>
+        <li>
+          <span class="dot"><svg viewBox="0 0 24 24"><path d="M12 21.4 10.6 20C5.4 15.4 2 12.3 2 8.5A5.4 5.4 0 0 1 7.5 3 6 6 0 0 1 12 5.1 6 6 0 0 1 16.5 3 5.4 5.4 0 0 1 22 8.5c0 3.8-3.4 6.9-8.6 11.5z"/></svg></span>
+          <span><b>Ica, Peru</b> &mdash; <span class="en">Volunteered with Healing the Children Northeast, providing speech and language services to children and adults with cleft lip and palate.</span><span class="es">Voluntaria con Healing the Children Northeast, brindando servicios de habla y lenguaje a niños y adultos con labio y paladar hendido.</span></span>
+        </li>
+        <li>
+          <span class="dot"><svg viewBox="0 0 24 24"><path d="M12 3 2 9v2h20V9L12 3zM4 13v6H2v2h20v-2h-2v-6h-2v6h-3v-6h-2v6h-2v-6H9v6H6v-6z"/></svg></span>
+          <span><b><span class="en">Schools, preschools &amp; hospital</span><span class="es">Escuelas, preescolares y hospital</span></b> &mdash; <span class="en">Montefiore Medical Center, elementary and charter schools, and preschool special education programs.</span><span class="es">Montefiore Medical Center, escuelas primarias y chárter, y programas preescolares de educación especial.</span></span>
+        </li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ================= SERVICES ================= -->
+<section class="tint" id="services">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="kicker"><span class="en">How I can help</span><span class="es">Cómo puedo ayudar</span></div>
+      <h2><span class="en">Specialized, evidence-based care</span><span class="es">Atención especializada y basada en evidencia</span></h2>
+      <p><span class="en">Individualized speech-language services that support communication, feeding, independence and participation in daily life.</span><span class="es">Servicios individualizados de habla y lenguaje que apoyan la comunicación, la alimentación, la independencia y la participación en la vida diaria.</span></p>
+    </div>
+
+    <div class="spec-grid">
+      <div class="spec reveal">
+        <div class="ic"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm-3.5 6A1.5 1.5 0 1 1 7 9.5 1.5 1.5 0 0 1 8.5 8zm7 0A1.5 1.5 0 1 1 14 9.5 1.5 1.5 0 0 1 15.5 8zM12 18a5.5 5.5 0 0 1-5.1-3.5h10.2A5.5 5.5 0 0 1 12 18z"/></svg></div>
+        <h3><span class="en">Autism</span><span class="es">Autismo</span></h3>
+        <p><span class="en">Neurodiversity-affirming support for communication, social connection and functional language &mdash; meeting your child where they are.</span><span class="es">Apoyo afirmativo de la neurodiversidad para la comunicación, la conexión social y el lenguaje funcional &mdash; partiendo de donde está su hijo/a.</span></p>
+      </div>
+      <div class="spec reveal">
+        <div class="ic"><svg viewBox="0 0 24 24"><path d="M19 3H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h5v2h4v-2h5a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zM7 7h2v2H7zm0 4h2v2H7zm4-4h2v2h-2zm0 4h2v2h-2zm4-4h2v2h-2zm0 4h2v2h-2z"/></svg></div>
+        <h3><span class="en">AAC &amp; Assistive Tech</span><span class="es">CAA y tecnología de apoyo</span></h3>
+        <p><span class="en">Assessment and implementation of augmentative and alternative communication &mdash; devices, boards, PECS and more.</span><span class="es">Evaluación e implementación de comunicación aumentativa y alternativa &mdash; dispositivos, tableros, PECS y más.</span></p>
+      </div>
+      <div class="spec reveal">
+        <div class="ic"><svg viewBox="0 0 24 24"><path d="M8.1 13.3 10.9 10.5 3.9 3.5a4 4 0 0 0 0 5.7zm6.8-1.8c1.5.7 3.7.2 5.3-1.4 1.9-1.9 2.3-4.7.8-6.2s-4.3-1.1-6.2.8c-1.6 1.6-2.1 3.8-1.4 5.3L3.6 19.6 5 21l6.9-6.9 6.9 6.9 1.4-1.4-6.9-6.9z"/></svg></div>
+        <h3><span class="en">Feeding &amp; Swallowing</span><span class="es">Alimentación y deglución</span></h3>
+        <p><span class="en">SOS Approach to Feeding certified. Therapy for safe, efficient and enjoyable eating and drinking &mdash; including picky and selective eaters.</span><span class="es">Certificada en SOS Approach to Feeding. Terapia para comer y beber de forma segura, eficiente y agradable &mdash; incluyendo niños selectivos con la comida.</span></p>
+      </div>
+      <div class="spec reveal">
+        <div class="ic"><svg viewBox="0 0 24 24"><path d="M21 6h-2v9H6v2a1 1 0 0 0 1 1h11l4 4V7a1 1 0 0 0-1-1zm-4 6V3a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v14l4-4h10a1 1 0 0 0 1-1z"/></svg></div>
+        <h3><span class="en">Bilingual Evaluations</span><span class="es">Evaluaciones bilingües</span></h3>
+        <p><span class="en">Comprehensive evaluations and therapy in English and Spanish, so we see everything your child knows &mdash; in every language they use.</span><span class="es">Evaluaciones completas y terapia en inglés y español, para ver todo lo que su hijo/a sabe &mdash; en cada idioma que usa.</span></p>
+      </div>
+    </div>
+
+    <div class="svc-wrap reveal">
+      <div>
+        <h3><span class="en">Services include</span><span class="es">Servicios</span></h3>
+        <p><span class="en">Also: speech sounds &amp; articulation, childhood apraxia of speech, expressive &amp; receptive language, and early language.</span><span class="es">También: sonidos del habla y articulación, apraxia del habla infantil, lenguaje expresivo y receptivo, y lenguaje temprano.</span></p>
+      </div>
+      <ul class="svc-list">
+        <li><svg viewBox="0 0 24 24"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg><span class="en">Comprehensive evaluations</span><span class="es">Evaluaciones completas</span></li>
+        <li><svg viewBox="0 0 24 24"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg><span class="en">Individual &amp; group therapy</span><span class="es">Terapia individual y grupal</span></li>
+        <li><svg viewBox="0 0 24 24"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg><span class="en">AAC assessment &amp; implementation</span><span class="es">Evaluación e implementación de CAA</span></li>
+        <li><svg viewBox="0 0 24 24"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg><span class="en">Feeding &amp; swallowing therapy</span><span class="es">Terapia de alimentación y deglución</span></li>
+        <li><svg viewBox="0 0 24 24"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg><span class="en">Parent/caregiver training &amp; support</span><span class="es">Capacitación y apoyo para padres/cuidadores</span></li>
+        <li><svg viewBox="0 0 24 24"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg><span class="en">Sessions in English or Spanish</span><span class="es">Sesiones en inglés o español</span></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ================= MYTHS ================= -->
+<section id="myths">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="kicker"><span class="en">Things I tell every family</span><span class="es">Lo que le digo a cada familia</span></div>
+      <h2><span class="en">Myths vs. facts</span><span class="es">Mitos vs. hechos</span></h2>
+    </div>
+    <div class="myth-grid">
+      <div class="myth reveal">
+        <div class="m"><span class="lb"><span class="en">Myth</span><span class="es">Mito</span></span><p><span class="en">Raising my child with two languages will cause a delay.</span><span class="es">Criar a mi hijo/a con dos idiomas le causará un retraso.</span></p></div>
+        <div class="f"><span class="lb"><span class="en">Fact</span><span class="es">Hecho</span></span><p><span class="en">Bilingualism does not cause language delay. Keep speaking the language of your heart at home.</span><span class="es">El bilingüismo no causa retraso del lenguaje. Siga hablando en casa el idioma de su corazón.</span></p></div>
+      </div>
+      <div class="myth reveal">
+        <div class="m"><span class="lb"><span class="en">Myth</span><span class="es">Mito</span></span><p><span class="en">If my child uses a device, they won't learn to talk.</span><span class="es">Si mi hijo/a usa un dispositivo, no aprenderá a hablar.</span></p></div>
+        <div class="f"><span class="lb"><span class="en">Fact</span><span class="es">Hecho</span></span><p><span class="en">Research shows AAC does not hinder speech &mdash; it often accelerates verbal language.</span><span class="es">Los estudios muestran que la CAA no frena el habla &mdash; a menudo acelera el lenguaje verbal.</span></p></div>
+      </div>
+      <div class="myth reveal">
+        <div class="m"><span class="lb"><span class="en">Myth</span><span class="es">Mito</span></span><p><span class="en">AAC is a last resort.</span><span class="es">La CAA es un último recurso.</span></p></div>
+        <div class="f"><span class="lb"><span class="en">Fact</span><span class="es">Hecho</span></span><p><span class="en">AAC can be introduced as soon as any communication difficulty arises. All forms of communication are respected.</span><span class="es">La CAA puede introducirse en cuanto surge cualquier dificultad de comunicación. Todas las formas de comunicación se respetan.</span></p></div>
+      </div>
+      <div class="myth reveal">
+        <div class="m"><span class="lb"><span class="en">Myth</span><span class="es">Mito</span></span><p><span class="en">Speech therapy is just about saying sounds correctly.</span><span class="es">La terapia del habla solo trata de pronunciar bien los sonidos.</span></p></div>
+        <div class="f"><span class="lb"><span class="en">Fact</span><span class="es">Hecho</span></span><p><span class="en">It's like physical therapy for the brain &mdash; language, understanding, social skills, feeding and more.</span><span class="es">Es como fisioterapia para el cerebro &mdash; lenguaje, comprensión, habilidades sociales, alimentación y más.</span></p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= REVIEWS ================= -->
+<section class="sage" id="reviews">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="kicker"><span class="en">Kind words</span><span class="es">Palabras amables</span></div>
+      <h2><span class="en">What families say</span><span class="es">Lo que dicen las familias</span></h2>
+    </div>
+    <!-- Reviews are shown in the language they were written in. -->
+    <div class="quotes">
+      <div class="quote reveal">
+        <div class="st" aria-label="5 stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+        <p>"Our experience with A World of Words Speech and Language Therapy and Evelyn has been nothing short of exceptional. Evelyn is not only highly skilled but also incredibly compassionate, creating a welcoming and supportive environment that made our child feel comfortable and motivated to participate in each session. In just a few months, we've seen significant improvements in our child's language skills, which have positively impacted his confidence and overall development."</p>
+        <div class="who"><span class="en">&mdash; Parent, Westchester County</span><span class="es">&mdash; Madre/padre, condado de Westchester</span></div>
+      </div>
+      <div class="quote reveal">
+        <div class="st" aria-label="5 stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+        <p>"You have been an essential and amazing part of our son's progress with his apraxia! Your enthusiasm, authenticity, and beautiful energy has made it easy for him to give it his all while minimizing frustrations. We really appreciate everything you have done and will definitely recommend you to everyone and anyone who wishes to have an amazing speech therapist as part of their journey."</p>
+        <div class="who"><span class="en">&mdash; Parent of a child with apraxia</span><span class="es">&mdash; Familia de un niño con apraxia</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= HOW ================= -->
+<section id="how">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="kicker"><span class="en">Simple to start</span><span class="es">Fácil de empezar</span></div>
+      <h2><span class="en">How it works</span><span class="es">Cómo funciona</span></h2>
+    </div>
+    <div class="steps">
+      <div class="step reveal">
+        <div class="num">1</div>
+        <h3><span class="en">Reach out</span><span class="es">Contácteme</span></h3>
+        <p><span class="en">Fill out the short questionnaire below. It takes about two minutes.</span><span class="es">Complete el breve cuestionario de abajo. Toma unos dos minutos.</span></p>
+      </div>
+      <div class="step reveal">
+        <div class="num">2</div>
+        <h3><span class="en">We talk</span><span class="es">Conversamos</span></h3>
+        <p><span class="en">I'll call or email you to hear your concerns and answer your questions.</span><span class="es">Le llamaré o escribiré para escuchar sus inquietudes y responder sus preguntas.</span></p>
+      </div>
+      <div class="step reveal">
+        <div class="num">3</div>
+        <h3><span class="en">Evaluation</span><span class="es">Evaluación</span></h3>
+        <p><span class="en">A comprehensive look at your child's communication, in every language they use.</span><span class="es">Una evaluación completa de la comunicación de su hijo/a, en cada idioma que usa.</span></p>
+      </div>
+      <div class="step reveal">
+        <div class="num">4</div>
+        <h3><span class="en">Therapy &amp; coaching</span><span class="es">Terapia y acompañamiento</span></h3>
+        <p><span class="en">A plan built for your child &mdash; and practical strategies for your family at home.</span><span class="es">Un plan hecho para su hijo/a &mdash; y estrategias prácticas para su familia en casa.</span></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= QUESTIONNAIRE ================= -->
+<section class="tint" id="start">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="kicker"><span class="en">Start here</span><span class="es">Empiece aquí</span></div>
+      <h2><span class="en">Tell me about your child</span><span class="es">Cuénteme sobre su hijo/a</span></h2>
+      <p><span class="en">A few quick questions so I can prepare for our first conversation. I'll reach out within 48 hours.</span><span class="es">Unas preguntas rápidas para prepararme para nuestra primera conversación. Me comunicaré con usted en 48 horas.</span></p>
+    </div>
+
+    <div class="form-shell reveal">
+      <form id="lead-form" novalidate>
+        <div class="fbar"><span id="fbar-fill"></span></div>
+        <div class="fcount" id="f-count"></div>
+
+        <!-- Step 1: who's reaching out -->
+        <div class="fstep" data-step="1">
+          <h3><span class="en">About you</span><span class="es">Sobre usted</span></h3>
+          <label for="f-name"><span class="en">Your name (parent/caregiver) *</span><span class="es">Su nombre (padre/madre/cuidador) *</span></label>
+          <input type="text" id="f-name" autocomplete="name" required />
+          <div class="two">
+            <div>
+              <label for="f-email"><span class="en">Email *</span><span class="es">Correo electrónico *</span></label>
+              <input type="email" id="f-email" autocomplete="email" inputmode="email" required />
+            </div>
+            <div>
+              <label for="f-phone"><span class="en">Phone *</span><span class="es">Teléfono *</span></label>
+              <input type="tel" id="f-phone" autocomplete="tel" inputmode="tel" required />
+            </div>
+          </div>
+          <span class="flabel"><span class="en">Which language do you prefer we speak in? *</span><span class="es">¿En qué idioma prefiere que hablemos? *</span></span>
+          <div class="chips">
+            <label class="chip"><input type="radio" name="plang" value="English" /><span>English</span></label>
+            <label class="chip"><input type="radio" name="plang" value="Español" /><span>Español</span></label>
+            <label class="chip"><input type="radio" name="plang" value="Either / Ambos" /><span><span class="en">Either</span><span class="es">Cualquiera</span></span></label>
+          </div>
+        </div>
+
+        <!-- Step 2: about the child -->
+        <div class="fstep" data-step="2" hidden>
+          <h3><span class="en">About your child</span><span class="es">Sobre su hijo/a</span></h3>
+          <label for="f-child"><span class="en">Child's first name</span><span class="es">Nombre de su hijo/a</span> <span class="opt"><span class="en">optional</span><span class="es">opcional</span></span></label>
+          <input type="text" id="f-child" autocomplete="off" />
+
+          <span class="flabel"><span class="en">Age *</span><span class="es">Edad *</span></span>
+          <div class="chips">
+            <label class="chip"><input type="radio" name="age" value="Under 3" /><span><span class="en">Under 3</span><span class="es">Menos de 3</span></span></label>
+            <label class="chip"><input type="radio" name="age" value="3-5" /><span><span class="en">3&ndash;5</span><span class="es">3&ndash;5 años</span></span></label>
+            <label class="chip"><input type="radio" name="age" value="6-12" /><span><span class="en">6&ndash;12</span><span class="es">6&ndash;12 años</span></span></label>
+            <label class="chip"><input type="radio" name="age" value="13-17" /><span><span class="en">13&ndash;17</span><span class="es">13&ndash;17 años</span></span></label>
+            <label class="chip"><input type="radio" name="age" value="Adult" /><span><span class="en">Adult</span><span class="es">Adulto</span></span></label>
+          </div>
+
+          <span class="flabel"><span class="en">What would you like help with? *</span><span class="es">¿Con qué le gustaría recibir ayuda? *</span> <span class="opt"><span class="en">pick any</span><span class="es">elija las que apliquen</span></span></span>
+          <div class="chips">
+            <label class="chip"><input type="checkbox" name="concern" value="Not talking yet / late talker" /><span><span class="en">Not talking yet / late talker</span><span class="es">Todavía no habla / habla tarde</span></span></label>
+            <label class="chip"><input type="checkbox" name="concern" value="Hard to understand (speech sounds)" /><span><span class="en">Hard to understand</span><span class="es">Es difícil entenderle</span></span></label>
+            <label class="chip"><input type="checkbox" name="concern" value="Understanding / following directions" /><span><span class="en">Understanding / following directions</span><span class="es">Comprender / seguir instrucciones</span></span></label>
+            <label class="chip"><input type="checkbox" name="concern" value="Autism / social communication" /><span><span class="en">Autism / social communication</span><span class="es">Autismo / comunicación social</span></span></label>
+            <label class="chip"><input type="checkbox" name="concern" value="AAC / communication device" /><span><span class="en">AAC / device</span><span class="es">CAA / dispositivo</span></span></label>
+            <label class="chip"><input type="checkbox" name="concern" value="Feeding / picky eating / swallowing" /><span><span class="en">Feeding / picky eating</span><span class="es">Alimentación / selectividad</span></span></label>
+            <label class="chip"><input type="checkbox" name="concern" value="Apraxia" /><span><span class="en">Apraxia</span><span class="es">Apraxia</span></span></label>
+            <label class="chip"><input type="checkbox" name="concern" value="Stuttering" /><span><span class="en">Stuttering</span><span class="es">Tartamudez</span></span></label>
+            <label class="chip"><input type="checkbox" name="concern" value="Bilingual evaluation" /><span><span class="en">Bilingual evaluation</span><span class="es">Evaluación bilingüe</span></span></label>
+            <label class="chip"><input type="checkbox" name="concern" value="Not sure" /><span><span class="en">Not sure yet</span><span class="es">No estoy seguro/a</span></span></label>
+          </div>
+
+          <span class="flabel"><span class="en">Languages spoken at home</span><span class="es">Idiomas que se hablan en casa</span></span>
+          <div class="chips">
+            <label class="chip"><input type="checkbox" name="homelang" value="English" /><span><span class="en">English</span><span class="es">Inglés</span></span></label>
+            <label class="chip"><input type="checkbox" name="homelang" value="Spanish" /><span><span class="en">Spanish</span><span class="es">Español</span></span></label>
+            <label class="chip"><input type="checkbox" name="homelang" value="Other" /><span><span class="en">Other</span><span class="es">Otro</span></span></label>
+          </div>
+        </div>
+
+        <!-- Step 3: anything else -->
+        <div class="fstep" data-step="3" hidden>
+          <h3><span class="en">Almost done</span><span class="es">Casi listo</span></h3>
+          <span class="flabel"><span class="en">What are you looking for? *</span><span class="es">¿Qué está buscando? *</span></span>
+          <div class="chips">
+            <label class="chip"><input type="radio" name="service" value="Evaluation" /><span><span class="en">An evaluation</span><span class="es">Una evaluación</span></span></label>
+            <label class="chip"><input type="radio" name="service" value="Ongoing therapy" /><span><span class="en">Ongoing therapy</span><span class="es">Terapia continua</span></span></label>
+            <label class="chip"><input type="radio" name="service" value="Parent coaching" /><span><span class="en">Parent coaching</span><span class="es">Orientación para padres</span></span></label>
+            <label class="chip"><input type="radio" name="service" value="Not sure / just have questions" /><span><span class="en">Just have questions</span><span class="es">Solo tengo preguntas</span></span></label>
+          </div>
+
+          <label for="f-notes"><span class="en">Anything you'd like me to know?</span><span class="es">¿Algo más que quiera contarme?</span> <span class="opt"><span class="en">optional</span><span class="es">opcional</span></span></label>
+          <textarea id="f-notes" rows="4"></textarea>
+
+          <div class="two">
+            <div>
+              <label for="f-time"><span class="en">Best time to reach you</span><span class="es">Mejor horario para contactarle</span> <span class="opt"><span class="en">optional</span><span class="es">opcional</span></span></label>
+              <input type="text" id="f-time" />
+            </div>
+            <div>
+              <label for="f-heard"><span class="en">How did you hear about me?</span><span class="es">¿Cómo supo de mí?</span> <span class="opt"><span class="en">optional</span><span class="es">opcional</span></span></label>
+              <input type="text" id="f-heard" />
+            </div>
+          </div>
+
+          <p class="privacy">
+            <span class="en">&#128274; Please keep this general &mdash; no medical records or diagnoses details here. We'll go over the specifics privately when we talk.</span>
+            <span class="es">&#128274; Por favor, mantenga esta información general &mdash; sin historiales médicos ni detalles de diagnósticos. Hablaremos de los detalles en privado.</span>
+          </p>
+          <!-- spam trap: real people never fill this in -->
+          <input type="checkbox" class="botcheck" tabindex="-1" autocomplete="off" aria-hidden="true" />
+        </div>
+
+        <p class="ferror" id="f-error" role="alert" hidden></p>
+
+        <div class="fnav">
+          <button type="button" class="btn btn-ghost" id="f-back" hidden><span class="en">Back</span><span class="es">Atrás</span></button>
+          <button type="button" class="btn btn-primary" id="f-next"><span class="en">Continue</span><span class="es">Continuar</span></button>
+          <button type="submit" class="btn btn-primary" id="f-send" hidden><span class="en">Send</span><span class="es">Enviar</span></button>
+        </div>
+      </form>
+
+      <div id="lead-done" class="result" hidden>
+        <div class="big"><span class="en">Thank you!</span><span class="es">¡Gracias!</span></div>
+        <p><span class="en">I've got your message and will reach out within 48 hours.</span><span class="es">Recibí su mensaje y me comunicaré con usted en 48 horas.</span></p>
+      </div>
+
+      <div id="lead-fail" class="result" hidden>
+        <div class="big"><span class="en">Hmm, that didn't send.</span><span class="es">Ups, no se envió.</span></div>
+        <p><span class="en">Please reach me directly instead &mdash; I'd love to hear from you.</span><span class="es">Por favor, contácteme directamente &mdash; me encantaría saber de usted.</span></p>
+        <div class="btn-row">
+          <a class="btn btn-primary" href="tel:+19144139709"><span class="en">Call</span><span class="es">Llamar</span> (914) 413-9709</a>
+          <a class="btn btn-ghost" id="fail-mail" href="mailto:awowspeech@gmail.com"><span class="en">Email me</span><span class="es">Enviar correo</span></a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= CONTACT ================= -->
+<section id="contact">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="kicker"><span class="en">Say hello</span><span class="es">Salude</span></div>
+      <h2><span class="en">Questions first? Reach out.</span><span class="es">¿Tiene preguntas? Escríbame.</span></h2>
+    </div>
+    <div class="contact-grid reveal">
+      <a class="contact-card" href="tel:+19144139709">
+        <span class="ci"><svg viewBox="0 0 24 24"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.24 11.4 11.4 0 0 0 3.6.58 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1 11.4 11.4 0 0 0 .58 3.6 1 1 0 0 1-.25 1l-2.23 2.2z"/></svg></span>
+        <span><span class="lab"><span class="en">Call or text</span><span class="es">Llame o envíe texto</span></span><br /><span class="val">(914) 413-9709</span></span>
+      </a>
+      <a class="contact-card" href="mailto:awowspeech@gmail.com">
+        <span class="ci"><svg viewBox="0 0 24 24"><path d="M20 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm0 4-8 5-8-5V6l8 5 8-5z"/></svg></span>
+        <span><span class="lab"><span class="en">Email</span><span class="es">Correo</span></span><br /><span class="val">awowspeech@gmail.com</span></span>
+      </a>
+      <a class="contact-card" href="https://www.instagram.com/_aworldofwords" target="_blank" rel="noopener">
+        <span class="ci"><svg viewBox="0 0 24 24"><path d="M12 2.2c3.2 0 3.6 0 4.9.07 1.2.06 1.8.25 2.2.42.6.22 1 .48 1.4.9.43.42.7.82.92 1.4.17.42.36 1 .42 2.2.06 1.3.07 1.7.07 4.9s0 3.6-.07 4.9c-.06 1.2-.25 1.8-.42 2.2a3.8 3.8 0 0 1-.92 1.4c-.42.43-.82.7-1.4.92-.42.17-1 .36-2.2.42-1.3.06-1.7.07-4.9.07s-3.6 0-4.9-.07c-1.2-.06-1.8-.25-2.2-.42a3.8 3.8 0 0 1-1.4-.92 3.8 3.8 0 0 1-.92-1.4c-.17-.42-.36-1-.42-2.2C2.2 15.6 2.2 15.2 2.2 12s0-3.6.07-4.9c.06-1.2.25-1.8.42-2.2.22-.6.48-1 .92-1.4.42-.43.82-.7 1.4-.92.42-.17 1-.36 2.2-.42C8.4 2.2 8.8 2.2 12 2.2zm0 3.1A6.7 6.7 0 1 0 18.7 12 6.7 6.7 0 0 0 12 5.3zm0 11A4.35 4.35 0 1 1 16.35 12 4.35 4.35 0 0 1 12 16.3zm6.9-11.2a1.57 1.57 0 1 1-1.56-1.56 1.57 1.57 0 0 1 1.57 1.56z"/></svg></span>
+        <span><span class="lab">Instagram</span><br /><span class="val">@_aworldofwords</span></span>
+      </a>
+      <div class="contact-card">
+        <span class="ci"><svg viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 14.5 9 2.5 2.5 0 0 1 12 11.5z"/></svg></span>
+        <span><span class="lab"><span class="en">Serving</span><span class="es">Atendiendo</span></span><br /><span class="val"><span class="en">Westchester County, NY</span><span class="es">Condado de Westchester, NY</span></span></span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= FOOTER ================= -->
+<footer>
+  <div class="wrap">
+    <img src="img/logo.jpg" alt="A World of Words — Un Mundo de Palabras" />
+    <div class="sig"><span class="en">Empowering parents &amp; caregivers, one session at a time.</span><span class="es">Empoderando a padres y cuidadores, una sesión a la vez.</span></div>
+    <div style="margin-top:8px;">A World of Words Speech and Language Therapy L.L.C. &middot; Evelyn Marin, M.S., CCC-SLP, TSSLD-BE</div>
+    <div class="legal">
+      &copy; <span id="yr">2026</span> A World of Words Speech and Language Therapy L.L.C.<br />
+      <span class="en">Information on this site is educational and is not a substitute for an individual evaluation.</span>
+      <span class="es">La información de este sitio es educativa y no sustituye una evaluación individual.</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+  document.getElementById("yr").textContent = new Date().getFullYear();
+
+  /* ---------- language toggle ---------- */
+  var langBtns = document.querySelectorAll(".lang button");
+  function setLang(l) {
+    document.documentElement.lang = l;
+    langBtns.forEach(function (b) { b.setAttribute("aria-pressed", b.dataset.lang === l ? "true" : "false"); });
+    try { localStorage.setItem("awow-lang", l); } catch (e) {}
+    if (window.__renderForm) window.__renderForm();
+  }
+  langBtns.forEach(function (b) { b.addEventListener("click", function () { setLang(b.dataset.lang); }); });
+  (function () {
+    var saved = null;
+    try { saved = localStorage.getItem("awow-lang"); } catch (e) {}
+    // ?lang=es lets her share a Spanish link directly, e.g. in a bio or a DM.
+    var q = new URLSearchParams(location.search).get("lang");
+    var guess = (navigator.language || "").toLowerCase().indexOf("es") === 0 ? "es" : "en";
+    var l = q === "es" || q === "en" ? q : (saved || guess);
+    if (l !== "en") setLang(l);
+  })();
+  function es() { return document.documentElement.lang === "es"; }
+
+  /* ---------- mobile menu ---------- */
+  var navToggle = document.getElementById("nav-toggle");
+  var navPanel = document.getElementById("nav-panel");
+  function setMenu(open) {
+    navPanel.classList.toggle("open", open);
+    navToggle.setAttribute("aria-expanded", open ? "true" : "false");
+  }
+  navToggle.addEventListener("click", function () { setMenu(!navPanel.classList.contains("open")); });
+  navPanel.addEventListener("click", function (e) { if (e.target.closest("a")) setMenu(false); });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") setMenu(false); });
+
+  /* ---------- questionnaire ----------
+     Web3Forms access key. Get one free at https://web3forms.com by entering
+     awowspeech@gmail.com -- the key arrives in that inbox and can ONLY deliver
+     to that address, so it's safe to leave public in this file. Until it's
+     filled in, submissions fall back to the "email me" screen with every
+     answer pre-written into the email, so no lead is lost. */
+  var WEB3FORMS_KEY = "REPLACE_WITH_WEB3FORMS_KEY";
+  var TO_EMAIL = "awowspeech@gmail.com";
+
+  (function () {
+    var form = document.getElementById("lead-form");
+    var steps = form.querySelectorAll(".fstep");
+    var fill = document.getElementById("fbar-fill");
+    var count = document.getElementById("f-count");
+    var back = document.getElementById("f-back");
+    var next = document.getElementById("f-next");
+    var send = document.getElementById("f-send");
+    var err = document.getElementById("f-error");
+    var done = document.getElementById("lead-done");
+    var fail = document.getElementById("lead-fail");
+    var $ = function (id) { return document.getElementById(id); };
+    var step = 1;
+    var lastErr = null;
+
+    var MSG = {
+      name: ["What's your name?", "¿Cuál es su nombre?"],
+      email: ["That email doesn't look right.", "Ese correo no parece correcto."],
+      phone: ["Please add a phone number I can reach you at.", "Por favor, agregue un teléfono donde pueda contactarle."],
+      plang: ["Which language should we speak in?", "¿En qué idioma prefiere que hablemos?"],
+      age: ["Please choose an age range.", "Por favor, elija un rango de edad."],
+      concern: ["Pick at least one area.", "Elija al menos un área."],
+      service: ["What are you looking for?", "¿Qué está buscando?"]
+    };
+    var PH = {
+      "f-notes": ["e.g. He says a few words but gets frustrated; his teacher suggested an evaluation…", "Ej.: Dice algunas palabras pero se frustra; su maestra sugirió una evaluación…"],
+      "f-time": ["Weekday evenings, mornings…", "Tardes entre semana, mañanas…"],
+      "f-heard": ["Instagram, a friend, school…", "Instagram, un amigo, la escuela…"]
+    };
+    function t(pair) { return pair[es() ? 1 : 0]; }
+    function picked(name) { return Array.prototype.map.call(form.querySelectorAll('input[name="' + name + '"]:checked'), function (i) { return i.value; }); }
+
+    function show(key) { lastErr = key; err.textContent = key ? t(MSG[key]) : ""; err.hidden = !key; }
+
+    function render() {
+      steps.forEach(function (el) { el.hidden = Number(el.dataset.step) !== step; });
+      fill.style.width = Math.round((step / steps.length) * 100) + "%";
+      count.textContent = (es() ? "Paso " : "Step ") + step + (es() ? " de " : " of ") + steps.length;
+      back.hidden = step === 1;
+      next.hidden = step === steps.length;
+      send.hidden = step !== steps.length;
+      Object.keys(PH).forEach(function (id) { $(id).placeholder = t(PH[id]); });
+      if (lastErr) show(lastErr);
+    }
+    window.__renderForm = render;
+
+    function valid() {
+      if (step === 1) {
+        if (!$("f-name").value.trim()) return "name";
+        if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test($("f-email").value.trim())) return "email";
+        if ($("f-phone").value.replace(/\D/g, "").length < 10) return "phone";
+        if (!picked("plang").length) return "plang";
+      }
+      if (step === 2) {
+        if (!picked("age").length) return "age";
+        if (!picked("concern").length) return "concern";
+      }
+      if (step === 3) {
+        if (!picked("service").length) return "service";
+      }
+      return "";
+    }
+
+    next.addEventListener("click", function () {
+      var k = valid();
+      if (k) return show(k);
+      show("");
+      step++;
+      render();
+      form.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    back.addEventListener("click", function () { show(""); step--; render(); });
+
+    function answers() {
+      return {
+        "Parent/caregiver": $("f-name").value.trim(),
+        Email: $("f-email").value.trim(),
+        Phone: $("f-phone").value.trim(),
+        "Preferred language": picked("plang").join(", "),
+        "Child's first name": $("f-child").value.trim() || "—",
+        "Age": picked("age").join(", "),
+        "Areas of concern": picked("concern").join(", "),
+        "Languages at home": picked("homelang").join(", ") || "—",
+        "Looking for": picked("service").join(", "),
+        "Notes": $("f-notes").value.trim() || "—",
+        "Best time to reach": $("f-time").value.trim() || "—",
+        "Heard about you via": $("f-heard").value.trim() || "—",
+        "Form filled out in": es() ? "Spanish" : "English"
+      };
+    }
+
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      var k = valid();
+      if (k) return show(k);
+
+      var a = answers();
+      // If the email fallback is ever needed, it arrives pre-filled with everything.
+      var body = Object.keys(a).map(function (key) { return key + ": " + a[key]; }).join("\n");
+      $("fail-mail").href = "mailto:" + TO_EMAIL + "?subject=" +
+        encodeURIComponent("New family enquiry — " + a["Parent/caregiver"]) + "&body=" + encodeURIComponent(body);
+
+      var settled = false;
+      function finish(ok) {
+        if (settled) return;
+        settled = true;
+        form.hidden = true;
+        (ok ? done : fail).hidden = false;
+        (ok ? done : fail).scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+
+      if (WEB3FORMS_KEY.indexOf("REPLACE") === 0) return finish(false);
+
+      var payload = Object.assign({
+        access_key: WEB3FORMS_KEY,
+        subject: "New family enquiry from " + a["Parent/caregiver"] + " — A World of Words",
+        from_name: "A World of Words website",
+        replyto: a.Email,
+        botcheck: form.querySelector(".botcheck").checked
+      }, a);
+
+      send.disabled = true;
+      send.querySelector(".en").textContent = "Sending…";
+      send.querySelector(".es").textContent = "Enviando…";
+
+      // A hung request must not leave someone staring at "Sending…" forever.
+      var timer = setTimeout(function () { finish(false); }, 12000);
+      fetch("https://api.web3forms.com/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify(payload)
+      })
+        .then(function (r) { return r.json(); })
+        .then(function (d) { clearTimeout(timer); finish(!!d.success); })
+        .catch(function () { clearTimeout(timer); finish(false); });
+    });
+
+    render();
+  })();
+
+  /* ---------- scroll reveal ---------- */
+  var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var targets = document.querySelectorAll(".reveal");
+  if (reduce || !("IntersectionObserver" in window)) {
+    targets.forEach(function (el) { el.classList.add("in"); });
+  } else {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); }
+      });
+    }, { rootMargin: "0px 0px -8% 0px", threshold: 0.08 });
+    targets.forEach(function (el) { io.observe(el); });
+  }
+</script>
+</body>
+</html>
